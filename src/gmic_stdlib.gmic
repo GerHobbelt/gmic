@@ -291,7 +291,7 @@ help : skip ${1=""}
          "\n       Try '"${_vt100_c}"gmic help"$_vt100_n"' for global help."
     else
       a y
-      _no_categories=1
+      _display_categories=0
       +parse_cli ascii,$command
       if narg(${}) parse_cli ascii,${} fi # In case of shortcut, display also help for shortcut command.
     fi
@@ -677,8 +677,8 @@ reference : skip "${2=}"
 "'argmin()', 'argminabs()', 'asin()', 'asinh()', 'atan()', 'atan2()', 'atanh()', 'avg()', 'bool()', 'cbrt()', "\
 "'ceil()', 'cos()', 'cosh()', 'cut()', 'deg2rad()', 'erf()', 'erfinv()', 'exp()', 'fact()', 'fibo()', 'floor()', "\
 "'gamma()', 'gauss()', 'gcd()', 'hypot()', 'int()', 'isconst()', 'isnan()', 'isnum()', 'isinf()', 'isint()', "\
-"'isbool()', 'isexpr()', 'isfile()', 'isdir()', 'isin()', 'kth()', 'log()', 'log2()', 'log10()', 'max()', 'maxabs()', "\
-"'med()', 'min()', 'minabs()', 'narg()', 'prod()', 'rad2deg()', 'rol()' (left bit rotation), 'ror()' "\
+"'isbool()', 'isexpr()', 'isfile()', 'isdir()', 'isin()', 'kth()', 'lcm()', 'log()', 'log2()', 'log10()', 'max()', "\
+"'maxabs()', 'med()', 'min()', 'minabs()', 'narg()', 'prod()', 'rad2deg()', 'rol()' (left bit rotation), 'ror()' "\
 "(right bit rotation), 'round()', 'sign()', 'sin()', 'sinc()', 'sinh()', 'sqrt()', 'std()', 'srand(_seed)', 'sum()', "\
 "'tan()', 'tanh()', 'var()', 'xor()'."\n\
 \n\
@@ -753,8 +753,8 @@ reference : skip "${2=}"
 "* 'n': maximum number of threads when expression is evaluated in parallel (so that 't' goes from '0' to 'n-1')."\n\
 "* 'e': value of e, i.e. `2.71828...`."\n\
 "* 'pi': value of pi, i.e. `3.1415926...`."\n\
+"* 'eps': value of machine epsilon, that is the difference between 1.0 and the next value representable by a double."\n\
 "* 'u': a random value between '[0,1]', following a uniform distribution."\n\
-"* 'v': a random value between '[-1,1]', following a uniform distribution."\n\
 "* 'g': a random value, following a gaussian distribution of variance 1 (roughly in '[-6,6]')."\n\
 "* 'interpolation': value of the default interpolation mode used when reading pixel values with the pixel access "\
 "operators (i.e. when the interpolation argument is not explicitly specified, see below for more details on pixel "\
@@ -802,8 +802,9 @@ reference : skip "${2=}"
 "'**=' (complex self-multiplication), '//=' (complex self-division), '^^=' (complex self-exponentiation), "\
 "'cabs()' (complex modulus), 'carg()' (complex argument), 'cconj()' (complex conjugate), "\
 "'cexp()' (complex exponential), 'clog()' (complex logarithm),  'ccos()' (complex cosine), "\
-"'csin()' (complex sine), 'csqrt()' (complex square root), 'ctan()' (complex tangent), 'ccosh()' "\
-"(complex hyperpolic cosine), 'csinh()' (complex hyperbolic sine) and 'ctanh()' (complex hyperbolic tangent)."\n\
+"'csin()' (complex sine), 'csqr()' (complex square), 'csqrt()' (complex square root), 'ctan()' (complex tangent), "\
+"'ccosh()' (complex hyperpolic cosine), 'csinh()' (complex hyperbolic sine) and "\
+"'ctanh()' (complex hyperbolic tangent)."\n\
 "## Matrix-valued functions:"\n\
 "A `MN`-dimensional vector may be seen as a `M` x `N` matrix and used in those particular functions/operators: "\
 "'*' (matrix-vector multiplication), 'det(A)' (determinant), 'diag(V)' (diagonal matrix from a vector), "\
@@ -904,6 +905,7 @@ reference : skip "${2=}"
 "`for (index_name = 0, index_name<size(target), ++index_name, target[index_name] = expr);`."\n\
 "* 'u(max)' or 'u(min,max,_include_min,_include_max)': return a random value in range '0...max' or 'min...max', "\
 "following a uniform distribution. Each range extremum can be included (default) in the distribution or not."\n\
+"* 'v(max)' or 'v(min,max,_include_min,_include_max)' do the same but returns an integer in specified range."\n\
 "* 'f2ui(value)' and 'ui2f(value)': Convert a large unsigned integer as a negative floating point value "\
 "(and vice-versa), so that 32bits floats can be used to store large integers while keeping a unitary precision."\n\
 "* 'i(_a,_b,_c,_d,_interpolation_type,_boundary_conditions)': return the value of the pixel located at position "\
@@ -1227,6 +1229,7 @@ reference_text_ascii :
 reference_list_of_commands_ascii :
   l {
     if !$! it $_path_rc/update$_version.gmic fi
+    _display_categories=1
     parse_cli ascii
   onfail
     rm
@@ -1748,6 +1751,17 @@ compress_gmic :
           for (p = 1, j[p] && j[p]<=_' ' && j[p]!=_'\n', ++p); copy(i(),-1,p,1,0))"
   discard. -1
 
+# compress_pdf : input_filename,_output_filename
+# Compress specified pdf file, using ghostscript.
+# Default value: 'output_filename=out.pdf'.
+compress_pdf : skip "${2=out.pdf}"
+  e[^-1] "Compress pdf file '$1' into file '$2'."
+  x "gs -q -dNOPAUSE -dBATCH -dSAFER -sDEVICE=pdfwrite -dCompatibilityLevel=1.3 "\
+    "-dPDFSETTINGS=/screen -dEmbedAllFonts=true -dSubsetFonts=true -dColorImageDownsampleType=/Bicubic "\
+    "-dColorImageResolution=144 -dGrayImageDownsampleType=/Bicubic -dGrayImageResolution=144 "\
+    "-dMonoImageDownsampleType=/Bicubic -dMonoImageResolution=144 "\
+    "-sOutputFile=\"$2\" \"$1\""
+
 #@cli cursor : _mode = { 0:hide | 1:show } : (+)
 #@cli : Show or hide mouse cursor for selected instant display windows.
 #@cli : Command selection (if any) stands for instant display window indices instead of image indices.
@@ -1947,7 +1961,7 @@ _display : skip ${1=},${3=}
     l_ind:=arg0($>,$sel)
     g_ind={image_indices,i[$l_ind]}
     basename {``${image_name$l_ind}}
-    if ['${}']!=0 ({'{/${}}'}) else ('{``${image_name$l_ind}}') fi
+    if ['{/${}}']!=0 ({'{/${}}'}) else ('{``${image_name$l_ind}}') fi
     basename={`"b = crop(); size(b)>32?copy(b[32-3],[['...'],0]); b"`} rm.
     log_title.=$sep$basename
     window_title.=$sep[$g_ind]" "$basename
@@ -2594,7 +2608,7 @@ _display : skip ${1=},${3=}
     if !0$canvas_label_info
       0
       basename {``${image_name$selected}}
-      if ['${}']!=0 ({'{/${}}'}) else ('{``${image_name$selected}}') fi
+      if ['{/${}}']!=0 ({'{/${}}'}) else ('{``${image_name$selected}}') fi
       basename={`"b = crop(); size(b)>32?copy(b[32-3],[['...'],0]); b"`} rm.
       if $nb_images==1" && "!$is_fullscreen
         str="["{image_indices,i[$l_ind]}"] "$basename" "
@@ -5975,7 +5989,7 @@ parse_cli_bashcompletion :
           +e "            COMPREPLY=( $(compgen -W \"$coms\" -- \"$cur\") ); return 0;;"
         else
           s -,{'\n'} k[0] discard {'#@cli'} max {'" "'} autocrop {'" "'}
-          s -,{':'} autocrop {'" "'} rm[0] replace {'" "'},{'_'}
+          s -,{'": "'} autocrop {'" "'} rm[0] replace {'" "'},{'_'}
           n_args=0 args,c= repeat $! { if ['{/{$>,t}}']!='(+)' args.=$c{$>,t} c=" " n_args+=1 fi }
           if $n_args==1 args="> "$args fi
           if ['$args']!=0
@@ -6015,7 +6029,7 @@ parse_cli_ascii :
   repeat $! { if s=['{$>,n}'];s[0]==_'_' continue fi l[$>] {
 
     # Detect and display new category.
-    if !0$_no_categories
+    if 0$_display_categories
       ('{n}') l. { s -,{'@'} if $!>1 cat={t} fi rm }
       if ['$cat']!=['$category']
         n_category+=1
@@ -9930,7 +9944,7 @@ update_deprecate : check "isint($1) && $1>0 && $1<999"
 
 # update_download_html.
 # Update file versions on G'MIC download page, with specified version number.
-# $1 = version number (e.g. '3.3.3').
+# $1 = version number (e.g. '3.3.5').
 update_download_html : check "
     is_digit(c)=(c>=_'0' && c<=_'9');
     ver = ['${1=undefined}'];
@@ -9943,22 +9957,15 @@ update_download_html : check "
     ref(crop(),data);
     p = stop = N = 0;
     while (!stop,
-      p = find(data,'?dwl=gmic_',p);
+      p = find(data,'https://gmic.eu/files/',p);
       p<0?(stop=1):(
-        str = data[p + 10,5];
+        q = find(data,'/gmic_',p);
+        str = data[q + 6,5];
         is_digit(str[0]) && str[1]==_'.' && is_digit(str[2]) && str[3]==_'.' && is_digit(str[4])?(
-          copy(data[p + 10],ver,size(ver));
+          copy(data[q + 6],ver,size(ver));
           ++N;
         );
         ++p;
-      );
-    );
-    p = find(data,'/source/gmic_',0);
-    p>0?(
-      str = data[p + 13,5];
-      is_digit(str[0]) && str[1]==_'.' && is_digit(str[2]) && str[3]==_'.' && is_digit(str[4])?(
-        copy(data[p + 13],ver,size(ver));
-        ++N;
       );
     );
     copy(i[0],data,size(data));
@@ -10733,7 +10740,7 @@ update_gmicol :
 
   # Generate thumbnails.
   m "parse_gui_trigger_thumbnails : _update_gmicol $*"
-  v + w[] parse_gui thumbnails v -
+  w[] v + parse_gui thumbnails v -
   um parse_gui_trigger_thumbnails
 
 _update_gmicol : # Keep only a subset of existing filters
@@ -10753,9 +10760,14 @@ _update_gmicol : # Keep only a subset of existing filters
   "Arrays & Tiles/Grid [Cartesian]",\
   "Arrays & Tiles/Grid [Hexagonal]",\
   "Arrays & Tiles/Grid [Triangular]",\
+  "Arrays & Tiles/Loose Photos",\
+  "Arrays & Tiles/Make Seamless [Diffusion]",\
+  "Arrays & Tiles/Make Seamless [Patch-Based]",\
   "Arrays & Tiles/Ministeck",\
   "Arrays & Tiles/Puzzle",\
+  "Arrays & Tiles/Shuffle Patches",\
   "Arrays & Tiles/Taquin",\
+  "Arrays & Tiles/Tileable Rotation",\
   "Arrays & Tiles/Tiled Isolation",\
   "Arrays & Tiles/Tiled Normalization",\
   "Arrays & Tiles/Tiled Parameterization",\
@@ -10763,8 +10775,11 @@ _update_gmicol : # Keep only a subset of existing filters
   "Arrays & Tiles/Tiled Rotation",\
   "Artistic/Angoisse Anguish",\
   "Artistic/Aurora",\
+  "Artistic/Barbouillage Paint Daub",\
+  "Artistic/Black Crayon Graffiti",\
   "Artistic/Blockism",\
   "Artistic/Bokeh",\
+  "Artistic/Brushify",\
   "Artistic/Cartoon",\
   "Artistic/Circle Abstraction",\
   "Artistic/Color Abstraction Paint",\
@@ -10787,6 +10802,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Artistic/Hough Sketch",\
   "Artistic/Illustration Look",\
   "Artistic/Kuwahara",\
+  "Artistic/Lineart",\
   "Artistic/Lylejk's Painting",\
   "Artistic/Make Squiggly",\
   "Artistic/Morphology Painting",\
@@ -10820,6 +10836,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Black & White/Dithering",\
   "Black & White/Emboss",\
   "Black & White/Engrave",\
+  "Black & White/Filaments",\
   "Black & White/Freaky B&W",\
   "Black & White/Ink Wash",\
   "Black & White/Multi-Layer Etch",\
@@ -10838,7 +10855,6 @@ _update_gmicol : # Keep only a subset of existing filters
   "Colors/Color Balance",\
   "Colors/Color Blindness",\
   "Colors/Color Grading",\
-  "Colors/Color Presets",\
   "Colors/Color Temperature",\
   "Colors/Colormap",\
   "Colors/Contrast",\
@@ -10866,7 +10882,6 @@ _update_gmicol : # Keep only a subset of existing filters
   "Colors/Select-Replace Color",\
   "Colors/Selective Desaturation",\
   "Colors/Sepia",\
-  "Colors/Simulate Film",\
   "Colors/Softlight",\
   "Colors/Specific Saturation",\
   "Colors/Temperature Balance",\
@@ -10881,6 +10896,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Contours/Distance Transform",\
   "Contours/Edge",\
   "Contours/Edges",\
+  "Contours/Edges (Canny)",\
   "Contours/Edges Offsets",\
   "Contours/Gradient Norm",\
   "Contours/Gradient RGB",\
@@ -10912,6 +10928,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Deformations/Moon2panorama",\
   "Deformations/Perspective",\
   "Deformations/Pixel Push",\
+  "Deformations/Pointcaré Disk",\
   "Deformations/Point Warp",\
   "Deformations/Polar Transform",\
   "Deformations/Quadrangle",\
@@ -10943,7 +10960,9 @@ _update_gmicol : # Keep only a subset of existing filters
   "Degradations/Blur [Radial]",\
   "Degradations/Blur [Splinter]",\
   "Degradations/Chromatic Aberrations",\
-  "Degradations/CRT Sub-Pixels",\
+  "Degradations/CRT Phosphors",\
+  "Degradations/CRT Scanlines",\
+  "Degradations/CRT Sub-pixels",\
   "Degradations/Dirty",\
   "Degradations/Flip & Rotate Blocks",\
   "Degradations/Fragment Blur",\
@@ -10951,6 +10970,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Degradations/Lomo",\
   "Degradations/Mess with Bits",\
   "Degradations/Noise [Additive]",\
+  "Degradations/Noise [Gradient]",\
   "Degradations/Noise [Perlin]",\
   "Degradations/Noise [Spread]",\
   "Degradations/Old-Movie Stripes",\
@@ -10984,6 +11004,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Details/Portrait Retouching",\
   "Details/Pyramid Processing",\
   "Details/Quick Tonemap",\
+  "Details/Sharpen [Alpha]",\
   "Details/Sharpen [Deblur]",\
   "Details/Sharpen [Gold-Meinel]",\
   "Details/Sharpen [Gradient]",\
@@ -11013,6 +11034,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Frames/Frame [Painting]",\
   "Frames/Frame [Pattern]",\
   "Frames/Frame [Regular]",\
+  "Frames/Frame [Relief]",\
   "Frames/Frame [Round]",\
   "Frames/Frame [Smooth]",\
   "Frames/Old Photograph",\
@@ -11052,6 +11074,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Patterns/Fibers",\
   "Patterns/Freqy Pattern",\
   "Patterns/Halftone",\
+  "Patterns/Halftone [Generic]",\
   "Patterns/Halftone Shapes",\
   "Patterns/Hearts",\
   "Patterns/Hedcut",\
@@ -11061,13 +11084,17 @@ _update_gmicol : # Keep only a subset of existing filters
   "Patterns/Mineral Mosaic",\
   "Patterns/Mosaic",\
   "Patterns/Op Art",\
+  "Patterns/Pack Ellipses",\
   "Patterns/Paper Texture",\
   "Patterns/Periodic Dots",\
+  "Patterns/Pills",\
   "Patterns/Plaid",\
   "Patterns/Polka Dots",\
   "Patterns/Random Color Ellipses",\
   "Patterns/Random Pattern",\
+  "Patterns/Random Rectangles",\
   "Patterns/Rays",\
+  "Patterns/Reaction-Diffusion",\
   "Patterns/Reptile",\
   "Patterns/Resynthetize Texture [FFT]",\
   "Patterns/Resynthetize Texture [Patch-Based]",\
@@ -11096,6 +11123,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Rendering/3D Image Object",\
   "Rendering/3D Lathing",\
   "Rendering/3D Random Objects",\
+  "Rendering/Algorithm A",\
   "Rendering/Ball",\
   "Rendering/Circle Art",\
   "Rendering/Construction Material Texture",\
@@ -11123,6 +11151,8 @@ _update_gmicol : # Keep only a subset of existing filters
   "Rendering/Pythagoras Tree",\
   "Rendering/Quick Copyright",\
   "Rendering/Rainbow",\
+  "Rendering/Random Signature",\
+  "Rendering/Rectangular Tiling",\
   "Rendering/Shade Bobs",\
   "Rendering/Sine Curve",\
   "Rendering/Snowflake 2",\
@@ -11133,6 +11163,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Rendering/Thorn Fractal - Secant Sea",\
   "Rendering/Tree",\
   "Rendering/Turbulence",\
+  "Rendering/Twisted Rays",\
   "Rendering/Twisted Rays [Samj]",\
   "Rendering/Wiremap",\
   "Repair/Anti Alias",\
@@ -11635,7 +11666,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  (331,332,333,$_version) sort. discard. store. compat
+  (331,332,333,334,335,$_version) sort. discard. store. compat
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -13191,7 +13222,7 @@ noise_poissondisk : check "${1=8}>0 && isint(${2=30}) && $2>0 && ${3=2}>0"
         X = I[#$points,i[#$active,indX]];
 
         for (k = 0, k<$K, ++k,
-          U = [ $W>1?v:0, $H>1?v:0, $D>1?v:0 ];
+          U = [ $W>1?u(-1,1):0, $H>1?u(-1,1):0, $D>1?u(-1,1):0 ];
           U*=u($R,2*$R)/(norm(U) + eps);
           Y = round(X + U);
           min(inrange(Y,0,[$W,$H,$D] - 1))?(
@@ -14058,47 +14089,49 @@ colorblind : check "isint($1) && $1>=0 && $1<=7"
 #@cli : Default value: 'method=1' and 'sort_vectors=1'.
 #@cli : $ image.jpg +colormap[0] 4 +colormap[0] 8 +colormap[0] 16
 #@cli : $$ https://gmic.eu/oldtutorial/_colormap
-colormap : check "isint($1) && $1>=0" skip ${2=1},${3=1}
-  if $1 e[0--3] "Estimate colormap with $1 entries for image$?, by "${arg0\ !$2,k-means,median-cut}" method."
-  else e[0--3] "Estimate full colormap for image$?."
+colormap : check "isint($1) && $1>=0 && isbool(${2=1}) && isint(${3=1}) && inrange($3,0,2)"
+  m0,m1="median-cut","k-means"
+  s0,s1,s2="",", sorted by increasing norm",", sorted by decreasing occurence"
+  if $1 e[0--3] "Estimate colormap with $1 entries for image$?, by "${m$2}" method"${s$3}"."
+  else e[0--3] "Estimate full colormap for image$?"${s$3}"."
   fi
   foreach {
     nm={b} is_half=${-is_half}
+    r {whd},1,1,100%,-1
 
     if $1 # Estimate quantized colormap.
-      r {whd},1,1,100%,-1
-      +_colormap $1 # Median-cut algorithm
-      if $2 # Add k-means step
-        max_diff:=(iM-im+1)/8192
-        do
-          +index.. . # Find nearest cluster for each color
-          if $is_half
-            ..,1,1,{1,s}
-            eval "
-              csum = vector(#w*s#0);
-              cocc = vector(#w,0);
-              repeat (w#2,k,
-                ind = i[#2,k];
-                repeat (s#0,c,csum[ind + c*w]+=i(#0,k,0,0,c));
-                ++cocc[ind];
-              );
-              off = 0;
-              repeat (s#0,c,
-                repeat (w,k,occ = cocc[k]; occ?(csum[off++]/=occ));
-              );
-              draw(#3,csum)"
-            rm..
-          else
-            ..,1,1,{1,s+1}
-            f.. ">I[#3,i]+=[ I[#0,x],1 ]" rm..
-            f. "s = i(x,0,0,s-1); s?I/s:[ I[#1,x], 0 ]"
-          fi
-          +-.. . abs. diff:=iM/w rm. # Compute colormap difference
-          j.. . rm.
-        while $diff>$max_diff
-      fi
-      if $3 index.. .,0,0 histogram.. {[w,0,w-1]} a y sort -,x rows 1 # Sort by decreasing occurrence
-      else rm..
+      if ${"count_colors. {$1+1}"}<=$1 +colormap 0,0,0 # Check that 'nb_levels' is lower than number of used colors
+      else
+        +_colormap $1 # Median-cut algorithm
+        if $2 # Add k-means step
+          max_diff:=(iM-im+1)/8192
+          do
+            +index.. . # Find nearest cluster for each color
+            if $is_half
+              ..,1,1,{1,s}
+              eval "
+                csum = vector(#w*s#0);
+                cocc = vector(#w,0);
+                repeat (w#2,k,
+                  ind = i[#2,k];
+                  repeat (s#0,c,csum[ind + c*w]+=i(#0,k,0,0,c));
+                  ++cocc[ind];
+                );
+                off = 0;
+                repeat (s#0,c,
+                  repeat (w,k,occ = cocc[k]; occ?(csum[off++]/=occ));
+                );
+                draw(#3,csum)"
+              rm..
+            else
+              ..,1,1,{1,s+1}
+              f.. ">I[#3,i]+=[ I[#0,x],1 ]" rm..
+              f. "s = i(x,0,0,s-1); s?I/s:[ I[#1,x], 0 ]"
+            fi
+            +-.. . abs. diff:=iM/w rm. # Compute colormap difference
+            j.. . rm.
+          while $diff>$max_diff
+        fi
       fi
 
     else # Extract full colormap.
@@ -14121,10 +14154,14 @@ colormap : check "isint($1) && $1>=0" skip ${2=1},${3=1}
         );
         ret;
         end(fill(sizes,k,resize(#k + 2,s#0,sizes[k],1,1,0)))"
-      a[2--1] y permute. yzcx k.
+      a[2--1] y permute. yzcx rm..
     fi
 
-    if $3==1 +norm rv a c sort +,x channels 1,100% fi # Sort colors by increasing norm.
+    # Sort colormap if requested.
+    if $3==1 k. +norm rv a c sort +,x channels 1,100% # Sort by increasing norm.
+    elif $3==2 index.. .,0,0 histogram.. {[w,0,w-1]} a y sort -,x rows 1 # Sort by decreasing occurrence
+    else k.
+    fi
     => "[colormap of "$nm"]"
   }
 
@@ -14152,6 +14189,42 @@ compose_channels : skip ${1="+"}
     repeat s { sh[0] $> }
     $1[^0] r[0] 100%,100%,100%,1,-1 k[0]
   }
+
+#@cli count_colors : _count_until={ 0: none | >0: max number of counted colors }
+#@cli : Count number of distinct colors in selected images until it reaches the specified max number of counted colors.
+#@cli : Set 'count_until' to '0' to disable limit on counted colors.
+#@cli : This command returns the number of distinct colors for each image (separated by commas).
+count_colors : check "isint(${1=0}) && $1>=0"
+  if $1 e[0--3] "Count number of distinct colors in image$?, until it reaches $1."
+  else e[0--3] "Count number of distinct colors in image$?."
+  fi
+  res,sep=
+  foreach {
+    # Compute hashcode map.
+    +n. 0,255 f. "ret = vectors(); H = 0; repeat (s,p,(H*=31)+=j(0,0,0,p)); ret[0] = H%2048; ret"
+    channels. 0 equalize. 2048 n. 0,2047 round. 1
+
+    # Find single occurrence of each color/vector.
+    0x2048
+    eval[0] ">
+      const max_nb = $1;
+      begin(sizes = vector2048(); nb = 0; ret = vectors());
+      !max_nb || nb<max_nb?(
+        col_s = I;
+        H = i#1; indH = H + 2;
+        sH = sizes[H];
+        !sH || find(#indH,col_s,s#0*(sH - 1),-s#0)<0?( # Color not found
+          sH>=h(#indH)?resize(#indH,s#0,max(8,2*h#indH),1,1,0);
+          copy(i(#indH,0,sH,0,0),col_s);
+          ++sizes[H];
+          ++nb;
+        );
+      );
+      ret;
+      end(set('nb',sum(sizes)))"
+    k[0] res.=$sep$nb sep=,
+  }
+  u $res
 
 #@cli deltaE : [image],_metric={ 0:deltaE_1976 | 1:deltaE_2000 },"_to_Lab_command"
 #@cli : Compute the CIE DeltaE color difference between selected images and specified [image].
@@ -16361,25 +16434,68 @@ downsize_aliased : check "${1=50}>=0 && $1<=100"
     r $1%,$1%,$1%,100%,2
   }
 
+#@cli edgels : x0,y0,n0,_is_high_connectivity={ 0 | 1 }
+#@cli : Extract one or several lists of edgels (and their normals) that defines a 2D binary silhouette.
+#@cli : When specified, arguments 'x0,y0,n0' are the coordinates of the starting edgel, \
+# which must be located on an edge of the binary silhouette.
+#@cli : - If 'x0,y0' and 'n0' are specified, only a single list of edgels is returned.
+#@cli : - If only 'x0,y0' are specified (meaning 'n0=-1'), up to 4 lists of edgels can be returned, \
+# all starting from the same point (x0,y0).
+#@cli : - If no arguments are specified (meaning 'x0=y0=n0=-1'), all possible lists of edgels are returned.
+#@cli : A list of edgels is returned as an image with 3 channels '[x,y,n]' where 'x' and 'y' are the 2D coordinates \
+# of the edgel pixel, and 'n' is the orientation of its associated canonical normal \
+# (which can be { 0:[1,0] | 1:[0,1] | 2:[-1,0] | 3:[0,-1] }.
+#@cli : Default values: 'x0=y0=n0=-1' and 'is_high_connectivity=1'.
+edgels : check "isint(${1=-1}) && $1>=(${2=-1}>=0?0:-1) && isint($2) && $2>=($1>=0?0:-1) && "\
+               "isint(${3=-1}) && ($1>=0?inrange($3,-1,3):($3==-1)) && isbool(${4=1})"
+  is_xy0,is_xyn0:="a=min($1,$2)>=0;[a,a && $3>=0]"
+  if $is_xyn0 s= opt=", starting from edgels ($1,$2,$3)."
+  elif $is_xy0 s=s opt=", starting from pixel ($1,$2)."
+  else s=s opt="."
+  fi
+  e[^-1] "Extract list"$s" of edgels in image$?"$opt
+  sel=${"pass -1"}
+  code="
+    P0 = P = [ x,y,n ];
+    do (
+      da_push(P);
+      !$is_xyn0?(i(#1,P[0],P[1],0,0)|=(1<<P[2]));
+      P = next_edgel"{$4?8:4}"_fg(#0,P,1),
+    P!=P0)"
 
-#@cli edgels : x0,y0 : (no arg)
-#@cli : Retrieve list of edgels (and their normals) that go around a 2D binary silhouette.
-#@cli : When specified, arguments 'x0,y0' are the 2D coordinates of the starting point \
-# (must be located at the edge of the binary silhouette).
-#@cli : Output image has 3 channels '[x,y,n]' where 'x' and 'y' are the 2D coordinates of the edgel point, \
-# and 'n' is the orientation of its associated canonical normal (can be { 0:[1,0] | 1:[0,1] | 2:[-1,0] | 3:[0,-1] }.
-edgels : skip "${1=},${2=}"
-  l[] { if "isint($1) && $1>=0 && isint($2) && $2>=0" x0,y0=${1,2} else error[] fi onfail x0,y0=-1 noarg }
   foreach {
-    slices. 0 channels. 0 gt. 0
-    1,1,1,3
-    eval ${-math_lib}"
-      x0 = $x0<0?xM#-2:$1;
-      y0 = $y0<0?yM#-2:$2;
-      P0 = P = [ x0,y0,argmin(i(#-2,x0 + 1,y0),i(#-2,x0,y0 + 1),i(#-2,x0 - 1,y0),i(#-2,x0,y0 - 1)) ];
-      do (da_push(P); P = next_edgel4_fg(#-2,P,1), P!=P0);
-      resize(#-1,1,da_size(),1,3,0)"
-    k.
+    if $is_xyn0 # Edgel coordinates specified
+      if "const x = $1; const y = $2;
+          !i(#0,x,y) || arg0($3,i(#0,x + 1,y),i(#0,x,y + 1),i(#0,x - 1,y),i(#0,x,y - 1))"
+        error[0--5] "Command 'edgels': Edgel ($1,$2,$3) is not defined, in image ["{arg0($>,$sel)}"]."
+      fi
+      1,1,1,3
+      eval ${-math_lib}"const x = $1; const y = $2; const n = $3; "$code
+
+    elif $is_xy0 # Pixel coordinates specified
+      if "!i($1,$2)"
+        error[0--5] "Command 'edgels': Point ($1,$2) is in background, in image ["{arg0($>,$sel)}"]."
+      fi
+      100%,100% # Already visited edgels (bitwise storage)
+      1,1,1,3
+      eval ${-math_lib}"
+        const x = $1; const y = $2; sep = [ -1,-1,-1 ];
+        repeat (4,n,
+          !(i(#1,x,y)&(1<<n)) && !arg0(n,i(#0,x + 1,y),i(#0,x,y + 1),i(#0,x - 1,y),i(#0,x,y - 1))?(
+            "$code"; da_push(sep))
+        )"
+
+    else # No coordinates specified
+      100%,100% # Already visited edgels (bitwise storage)
+      1,1,1,3
+      eval[0] >${-math_lib}"begin(sep = [ -1,-1,-1 ]);
+        i(x,y)?repeat (4,n,
+          !(i(#1,x,y)&(1<<n)) && !arg0(n,i(x + 1,y,0,0),i(x,y + 1,0,0),i(x - 1,y,0,0),i(x,y - 1,0,0))?(
+            "$code"; da_push(sep))
+        )"
+    fi
+    k. da_freeze.
+    if !$is_xyn0 permute cxyz s -,-1 foreach { r 3,{h/3},1,1,-1 } permute zycx fi # Split into multiple parts
   }
 
 #@cli elevate : _depth,_is_plain={ 0 | 1 },_is_colored={ 0 | 1 }
@@ -17043,10 +17159,10 @@ rotate_tileable : check ${2=8}>=0
   foreach {
     # Compute width and height of tile.
     theta:=atan2($p,$q)
-    gcd=${gcd" "{h*$q},{w*$p}}
+    gcd:=gcd(h*$q,w*$p)
     pw:=h*$q/$gcd
     nw:=round($pw*w/cos($theta))
-    gcd=${gcd" "{h*$p},{w*$q}}
+    gcd!=gcd(h*$p,w*$q)
     qh:=w*$q/$gcd
     nh:=round($qh*h/cos($theta))
 
@@ -18098,8 +18214,8 @@ _jf_circle :
 #@cli : 'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }.
 #@cli : Default values: 'size_y=size_x', 'size_z=1', 'threshold=255' and 'boundary_conditions=1'.
 dilate_threshold : check "isint($1) && $1>=1 && isint(${2=$1}) && $2>=1 && isint(${3=1}) && $3>=1 && ${4=255}>=0 &&
-                          isint(${5=1}) && $5>=0"
-  e[^-1] "Dilate image$? with mask $1x$2x$3, threshold $4 and "${arg\ $5,dirichlet,neumann}" boundary conditions."
+                          isbool(${5=1})"
+  e[^-1] "Dilate image$? with mask $1x$2x$3, threshold $4 and "${arg0\ $5,dirichlet,neumann}" boundary conditions."
   l[] {
     dx1:=int($1/2) dx2:=$1-$dx1-1
     dy1:=int($2/2) dy2:=$2-$dy1-1
@@ -18200,8 +18316,8 @@ erode_oct : check "$1>=0 && isint(${2=1}) && inrange($2,0,3) && isbool(${3=0})"
 #@cli : 'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }.
 #@cli : Default values: 'size_y=size_x', 'size_z=1', 'threshold=255' and 'boundary_conditions=1'.
 erode_threshold : check "isint($1) && $1>=1 && isint(${2=$1}) && $2>=1 && isint(${3=1}) && $3>=1 && ${4=255}>=0 &&
-                         isint(${5=1}) && $5>=0"
-  e[^-1] "Erode image$? with mask $1x$2x$3, threshold $4 and "${arg\ $5,dirichlet,neumann}" boundary conditions."
+                         isbool(${5=1})"
+  e[^-1] "Erode image$? with mask $1x$2x$3, threshold $4 and "${arg0\ $5,dirichlet,neumann}" boundary conditions."
   l[] {
     dx1:=int($1/2) dx2:=$1-$dx1-1
     dy1:=int($2/2) dy2:=$2-$dy1-1
@@ -23712,7 +23828,7 @@ cubes3d : check ${1=1}>=0
         !norm(W)?(W = [ 0,0,1 ]);
         !y?(
           P0 = P;
-          do (ref = [ v,v,v ]; ref/=norm(v); crossWref = cross(W,ref), norm(crossWref)<1e-5);
+          do (ref = unitnorm([ u([-1,-1,-1],[1,1,1]) ]); crossWref = cross(W,ref), norm(crossWref)<1e-5);
         );
         U = cross(W,ref); U/=norm(U);
         V = cross(W,U); V/=norm(V);
@@ -30772,13 +30888,13 @@ polaroid : check "${1=10}>=0 && ${2=20}>=0"
 #@cli polygonize : _warp_amplitude>=0,_smoothness[%]>=0,_min_area[%]>=0,_resolution_x[%]>0,_resolution_y[%]>0
 #@cli : Apply polygon effect on selected images.
 #@cli : Default values: 'warp_amplitude=300', 'smoothness=2%', 'min_area=0.1%', 'resolution_x=resolution_y=10%'.
-#@cli : $ image.jpg image.jpg polygonize 100,10 +fill "I!=J(1) || I!=J(0,1)?[0,0,0]:I"
+#@cli : $ image.jpg +polygonize 100,10 fill[-1] "I!=J(1) || I!=J(0,1)?[0,0,0]:I"
 polygonize : check "${1=300}>=0 && ${2=2%}>=0 && ${3=0.1%}>=0 && ${4=10%}>0 && ${5=$4}>0"
   e[^-1] "Polygonize image$? with warp amplitude $1, smoothness $2, minimal area $3 and resolutions ($4,$5)."
    foreach {
      +b $2 gradient_norm. g. a[-2,-1] c channels. 0,2 *. {1/0.1+max(abs(im),abs(iM))}
      resx:=max(1,round(ispercentage($4)?w*$4:w/$4)-1)
-     resy:=max(1,round(ispercentage($5)?h*$5,h/$5)-1)
+     resy:=max(1,round(ispercentage($5)?h*$5:h/$5)-1)
      plane3d 1,1,$resx,$resy *3d. {0,w-1},{0,h-1},1
      s3d. rm.. i.. (0;{h-1}) r.. 3,{h},1,1,3 round.. y..
      [-4] a[-7--2] y r. 3,{h/3},1,1,-1 z. 0,1 permute. yzcx
@@ -31303,7 +31419,7 @@ fisheye : skip ${1=50},${2=50},${3=50},${4=1.2}
   }
 
 #@cli flower : _amplitude,_frequency,_offset_r[%],_angle,_center_x[%],_center_y[%],\
-# _boundary_conditions={ 0:dirichlet | 1:neumann | 2:periodic | 3:mirror}
+# _boundary_conditions={ 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }
 #@cli : Apply flower deformation on selected images.
 #@cli : Default values: 'amplitude=30', 'frequency=6', 'offset_r=0', 'angle=0', 'center_x=center_y=50%' \
 # and 'boundary_conditions=3'.
@@ -31962,7 +32078,10 @@ blend : skip "${1=},${2=},${3=},${4=}"
           *[0] [1] /[0] 255 j[0] [2],0,0,0,0,1,[3],255 # Co = Cf*Af + Cb*Ab*(1-Af)
           +f. 255 j[1] .,0,0,0,0,1,[3],255 # Ao = Af + Ab*(1 - Af)
           k[0,1] +max. 1 /. 255 /[0,-1] a c # [ Co/Ao, Ao ]
-        else j[0] [2],0,0,0,0,1 rm. f. 255 a c # Foreground has no alpha
+        else # Foreground has no alpha
+          j[0] [2],0,0,0,0,1 rm.
+          if ['$mode']=='alpha' f. 255 fi
+          a c
         fi
       else # Background has no alpha
         _$0_$mode[0,1]
@@ -32373,23 +32492,34 @@ animate : skip ${1=30},${2=0},${3=""},${4=10},${5=1},"${6=}"
   if "isnum($1)"
     e[0--3] "Animate image$?, with a delay of $1 ms"${"if $2 u \", in back-and-forth mode\" else u \"\" fi"}.
     if !$! return fi
+    is_volumetric:=$!==1" && "d>1
     speed,pause,direction,scale,frame=$1,-1,1,1,0
     is_same_size={"res = 1; s = [ w#0,h#0 ]; for (k = 1, k<l && res, ++k, res = (s==[ w#k,h#k ]))"}
 
-    w[0] ${fitscreen[]\ {0,[w,h]}},1,0,{0,b}.{0,x}
+    if $is_volumetric +slices[0] 0 else sh[0] fi
+    w. ${fitscreen[]\ {[w,h]}},1,0,{b}.{x}
+    rm.
+    nb_frames:=$is_volumetric?d:$!
+
     do
-      title={$frame,b}{`narg({$frame,x})?_'.':0`}{$frame,x}
-      if $is_same_size
-        w[$frame] -1,-1,1,0,$title
+      if $is_volumetric
+        title={b}{`narg({x})?_'.':0`}{x}" ["$frame"]"
+        +slices[0] $frame
       else
-        w[$frame] {$scale*[${fitscreen[]\ {$frame,[w,h]}}]},1,0,$title
+        title={$frame,b}{`narg({$frame,x})?_'.':0`}{$frame,x}
+        sh[$frame]
       fi
+      if $is_same_size w. -1,-1,1,0,$title
+      else w. {$scale*[${fitscreen[]\ {[w,h]}}]},1,0,$title
+      fi
+      rm.
+
       frame+=$direction
       if $2
-        if $frame==-1 frame=0 direction=1
-        elif $frame==$! frame:=$!-1 direction=-1
+        if $frame<0 frame,direction=0,1
+        elif $frame>=$nb_frames frame,direction:=$nb_frames-1,-1
         fi
-      else frame%=$!
+      else frame%=$nb_frames
       fi
       wait $speed
 
@@ -32408,7 +32538,8 @@ animate : skip ${1=30},${2=0},${3=""},${4=10},${5=1},"${6=}"
         wait -1
       fi
 
-    while {*}" && "!{*,Q}" && "!{*,ESC} w 0
+    while {*}" && "!{*,Q}" && "!{*,ESC}
+    w 0
   else
     e[0--3] "Compute animated version of filter '$1', from parameters $2 to $3 with $4 frames."
     if !($5||narg("$6")) return fi
@@ -33366,15 +33497,7 @@ bin :
 #@cli bin2dec : binary_int1,...
 #@cli : Convert specified binary integers into their decimal representations.
 bin2dec :
-  $=arg res,sep= repeat $# { res=$res$sep${_$0\ ${arg{$>+1}}} sep=, } u $res
-
-_bin2dec :
-  u {"str = v2s(abs($1));
-      for (k = val = 0, str[k], ++k,
-        c = str[k];
-        (val<<=1)+=(c==_'0'?0:c==_'1'?1:nan);
-        isnan(val)?break()
-      ); sign($1)*val"}
+  $=arg res,sep= repeat $# { res=$res$sep{0b${arg{$>+1}}} sep=, } u $res
 
 #@cli cat : filename,_display_line_numbers={ 0 | 1 },_line_selection,
 #@cli : Print specified line selection of given filename on stdout.
@@ -33562,15 +33685,7 @@ _dec2bin :
 #@cli dec2hex : decimal_int1,...
 #@cli : Convert specified decimal integers into their hexadecimal representations.
 dec2hex :
-  $=arg res,sep= repeat $# { res=$res$sep${_$0\ ${arg{$>+1}}} sep=, } u $res
-
-_dec2hex :
-  u {`"begin(tab = [ _'0',_'1',_'2',_'3',_'4',_'5',_'6',_'7',_'8',_'9',_'a',_'b',_'c',_'d',_'e',_'f' ]);
-       const sgn = sign($1);
-       const N = (isinf($1) || isnan($1)?1:1 + floor(log2(max(1,abs($1)))/4)) + (sgn<0);
-       res = vectorN();
-       sgn>=0?0:(res[0] = _'-');
-       for (val = abs($1); k = size(res) - 1, k>=(sgn<0), --k, res[k] = tab[val&15]; val>>=4); res"`}
+  $=arg res,sep= repeat $# { res=$res$sep{0x${arg{$>+1}}} sep=, } u $res
 
 #@cli dec2oct : decimal_int1,...
 #@cli : Convert specified decimal integers into their octal representations.
@@ -33764,14 +33879,6 @@ fps :
   else _fps_nbframes=0 _fps_time=$| _fps_fps=-1 u -1
   fi
 
-#@cli gcd : a,b
-#@cli : Return the GCD (greatest common divisor) between a and b.
-gcd : check "isint($1) && isint($2) && $1*$2!=0"
-  _gcd {max(abs($1),abs($2))},{min(abs($1),abs($2))}
-
-_gcd :
-  r:=$1%$2 if $r u ${_gcd\ $2,$r} else u $2 fi
-
 #@cli hex : hexadecimal_int1,...
 #@cli : Print specified hexadecimal integers into their binary, octal, decimal and string representations.
 hex :
@@ -33955,7 +34062,7 @@ math_lib :
     # Initialize data.
     ref(vector(#meig_m*meig_n),meig_V);
     ref(vector(#meig_m^2),meig_H);
-    ref(expr('v',1,meig_n),meig_vj); meig_vj/=norm(meig_vj);
+    ref(expr('u(-1,1)',1,meig_n),meig_vj); meig_vj/=norm(meig_vj);
 
     # Iteration loop.
     repeat (meig_m,meig_j,
@@ -34832,7 +34939,8 @@ render_donations : skip "${1="$HOME"/work/src/private_tschumperle/gmic_donations
     "$1"
 #    eur2usd:=1/0.7988 # Change rate from EUR to USD (Paypal conversion rate in 2020).
 #    eur2usd:=1/0.8568 # Change rate from EUR to USD (Paypal conversion rate in 2021).
-    eur2usd:=1/0.873824 # Change rate from EUR to USD (Paypal conversion rate in 2023/01).
+#    eur2usd:=1/0.873824 # Change rate from EUR to USD (Paypal conversion rate in 2023/01).
+    eur2usd:=1/0.927900 # Change rate from EUR to USD (Paypal conversion rate in 2024/01).
     nb_entries:=h
     repeat $nb_entries { e=$>
       date_$e={`I(0,$e)`}
@@ -34884,7 +34992,6 @@ render_donations : skip "${1="$HOME"/work/src/private_tschumperle/gmic_donations
       s_month=${"arg "$edate%100",January,February,March,April,May,June,July,August,\
                                   September,October,November,December"}
       s_year:=int($edate/100)
-
       month_eur,month_charged_eur,month_usd,month_charged_usd,msep_eur,msep_usd=
       nb_sponsors=0
       repeat $nb_entries { e=$>
@@ -39873,7 +39980,7 @@ x_shadebobs : check_display $0
   do
     t+=0.015
     if $t>4*pi" || "{*,b} # Reset motions variables if necessary.
-      rx,ry,rz,rt,rcx,t:=v,v,v,v,u(-0.6*0.6),0
+      rx,ry,rz,rt,rcx,t:=u(-1,1),u(-1,1),u(-1,1),u(-1,1),u(-0.6*0.6),0
       N:=20+round(u(80)) R:=(2+round(u(40)))*min({*,w},{*,h})/300
       if $obj3d rm[colormap,img,obj3d] fi
       {4+round(u(12))},1,1,3 noise[0] 255,2 ==. 1 r[0] 256,1,1,3,3 *[0] 255 shift[0] 1 => colormap
@@ -41926,7 +42033,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 2.10 - Linux 64 bits - 3.3.3</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 2.10 - Linux 64 bits - 3.3.5</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -41954,7 +42061,8 @@ fx_gmicky_preview :
 #@gui : - <b>2022/04/06</b> : version <i>3.1.0</i>.\n
 #@gui : - <b>2023/01/16</b> : version <i>3.2.0</i>.\n
 #@gui : - <b>2023/09/04</b> : version <i>3.3.0</i>.\n
-#@gui : - <span foreground="purple"><b>2024/01/12</b> : version <i>3.3.3</i> (Current stable).</span>\n
+#@gui : - <span foreground="purple"><b>2024/02/19</b> : version <i>3.3.4</i> (Current stable).</span>\n
+#@gui : - <b>2024/01/29</b> : version <i>3.3.5_pre</i> (Current pre-release).</span>\n
 #@gui : "}
 #@gui : sep = separator()
 #@gui : url = link{"View changelog for upcoming major version (3.4)","https://discuss.pixls.us/t/on-the-road-to-3-4"}
@@ -44054,7 +44162,7 @@ fx_poster_edges_preview :
 #@gui : Smoothness = float(150,0,800)
 #@gui : Edges (%) = float(30,0,100)
 #@gui : Paint = float(1,0,10)
-#@gui : Colors = int(12,2,64)
+#@gui : Colors = int(12,2,256)
 #@gui : Minimal Area = int(0,0,64)
 #@gui : Outline (%) = float(0,0,100)
 #@gui : Normalize Colors = bool(0)
@@ -45394,10 +45502,10 @@ fx_filaments :
 
         # Set initial particle direction.
         case = throw_directions[int(u(nb_throw_directions))%nb_throw_directions];
-        case==0?(x = 0; y = u(h#0)%h#0; dx = 1; dy = 0.5*v):
-        case==1?(x = w#0 - 1; y = u(h#0)%h#0; dx = -1; dy = 0.5*v):
-        case==2?(x = u(w#0)%w#0; y = 0; dx = 0.5*v; dy = 1):
-        case==3?(x = u(w#0)%w#0; y = h#0 - 1; dx = 0.5*v; dy = -1);
+        case==0?(x = 0; y = u(h#0)%h#0; dx = 1; dy = 0.5*u(-1,1)):
+        case==1?(x = w#0 - 1; y = u(h#0)%h#0; dx = -1; dy = 0.5*u(-1,1)):
+        case==2?(x = u(w#0)%w#0; y = 0; dx = 0.5*u(-1,1); dy = 1):
+        case==3?(x = u(w#0)%w#0; y = h#0 - 1; dx = 0.5*u(-1,1); dy = -1);
         n = norm(dx,dy); dx/=n; dy/=n;
 
         # Find path of the particle through the image.
@@ -47134,7 +47242,8 @@ fx_clut_from_ab_preview : skip "${4=},${5=}"
 #@gui : sep = separator()
 #@gui : note = note("This filter can be used to create custom palettes with given color shades.
 #@gui : It has been inspired by
-#@gui : <a href="https://research.adobe.com/project/playful-palette-an-interactive-parametric-color-mixer-for-artists/">
+#@gui : <a href="https://research.adobe.com/publication/\
+#playful-palette-an-interactive-parametric-color-mixer-for-artists/">
 #@gui : Adobe's Playful Palette</a>.")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2018/08/26</i>.</small>")
@@ -50088,7 +50197,7 @@ fx_poincare_disk :
           const shiftx = ($shiftx - 50)*mwh%;
           const shifty = ($shifty - 50)*mwh%;
           const zoom = 1.25^-$zoom;
-          R = rot(-$iangle);
+          R = rot(-$iangle°);
         );
         i0==-2?[-1,-1]:
         U = R*[ i0,i1 ];
@@ -51539,7 +51648,7 @@ fx_huffman_glitches_preview :
 #@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
 #@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2017/05/07</i>.</small>")
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2024/02/21</i>.</small>")
 fx_jpeg_artefacts :
 
   # Input all 8x8 DCT and iDCT kernels.
@@ -51618,10 +51727,10 @@ fx_jpeg_artefacts :
   => Q
 
   # Process images.
-  repeat $!-3 { l[$>,-3--1] {
+  foreach[0--4] { split_opacity pass[-3--1] l[0,-3--1] {
 
     # Decompose image into luma/chroma
-    l[0] { w,h={w},{h} r {w+(-w%16)},{h+(-h%16)},1,100%,0,3 rgb2ycbcr s c r[-2,-1] 50%,50%,1,1,2 round. }
+    l[0] { w,h={w},{h} to_rgb r {w+(-w%16)},{h+(-h%16)},1,100%,0,3 rgb2ycbcr s c r[-2,-1] 50%,50%,1,1,2 round. }
 
     repeat 3 {
       # Compute DCT of image with 8x8 blocks.
@@ -51648,8 +51757,7 @@ fx_jpeg_artefacts :
       round[$>]
     }
     l[^3--1] { r ${-max_wh},1,1,1 a c ycbcr2rgb round. r $w,$h,1,3,0 }
-
-  } }
+  } rm[-3--1] a c }
   rm[dct,idct,Q]
 
 fx_jpeg_artefacts_preview :
@@ -51666,8 +51774,7 @@ fx_jpeg_artefacts_preview :
 #@gui : note = note("<small>Authors: <i>Jérome Boulanger</i> and <i>David Tschumperlé</i>.
 #@gui :       Latest Update: <i>2012/06/06</i>.</small>")
 fx_lomo :
-  remove_opacity
-  foreach {
+  foreach { split_opacity l[0] {
     to_rgb +gaussian {100-$1}%,{100-$1}% n. 0,1 *
     s c
     f[0] "255*atan((i-128)/128)"
@@ -51676,7 +51783,7 @@ fx_lomo :
     a c
     sharpen 1
     normalize 0,255
-  }
+  } a c }
 
 fx_lomo_preview :
   gui_split_preview "fx_lomo $*",${-3--1}
@@ -51902,14 +52009,13 @@ fx_stripes_y_preview :
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2011/02/11</i>.</small>")
 fx_8bits :
-  remove_opacity
-  foreach {
+  foreach { split_opacity l[0] {
     w,h={w},{h}
     r $1%,$1%,1,100%,2
     +luminance sharpen. $2 otsu. 256 blend[-2,-1] shapeaverage0
     l. { s c quantize $3,1,1 a c }
     r. $w,$h,1,100%,1
-  }
+  } a c }
 
 fx_8bits_preview :
   gui_split_preview "fx_8bits $*",${-3--1}
@@ -51980,7 +52086,7 @@ fx_pixelsort_preview :
 #@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
 #@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2015/29/06</i>.</small>")
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2024/02/21</i>.</small>")
 fx_rain :
   foreach {
     nm=${-gui_layer_name}
@@ -51990,8 +52096,9 @@ fx_rain :
       +>= 40% blend shapeaverage0
       blur_linear $2,$4,$1
       max n 0,255 apply_gamma $5
-      => "name("$nm"),mode(screen),opacity("{$6*100}")"
     }
+    i.. 100%,100%,1,3,255 a[-2,-1] c
+    => "name("$nm"),mode(alpha),opacity("{$6*100}")"
     rv
   }
 
@@ -55628,6 +55735,57 @@ fx_random_pattern_preview :
   to "Seed: \#"$_seed,5,5,5%,2
   u "{$1}{$2}{"{$4?$_seed:$3}"}{0}{$5}{$6}{$7}{$8}{$9}"
 
+#@gui Random Rectangles : fx_random_rectangles, fx_random_rectangles(0)
+#@gui : Density (%) = float(10,0,100)
+#@gui : Consistency (%) = float(100,0,100)
+#@gui : Outline (px) = int(0,1,16)
+#@gui : Outline Color = color(0,0,0)
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/02/05</i>.</small>")
+fx_random_rectangles :
+  density,consistency,outline,oR,oG,oB=${1-6}
+  foreach { split_opacity l[0] {
+    (0,0,{[w,h]-1};1) permute. zycx
+    eval "
+      const consistency = $consistency%;
+      repeat(ceil(sqrt(wh#0)*5*$density%),
+        best_p = best_area = 0;
+        siz = da_size();
+        repeat(round(siz/50,5,1),k,
+          p = int(u(da_size()))%da_size();
+          P = I[p]; P0 = P[0,2]; P1 = P[2,2];
+          dP = P1 - P0;
+          area = prod(dP);
+          area>best_area && (!k || u<consistency)?(best_p = p; best_area = area);
+        );
+        P = I[best_p]; P0 = P[0,2]; P1 = P[2,2];
+        dP = P1 - P0;
+
+        dP[0]>dP[1]?( # Horizontal split
+          x = round(lerp(P0[0],P1[0],u(0.1,0.9)));
+          I[best_p] = [ P0,x,P1[1] ];
+          ++x<P1[0]?da_push([ x,P0[1],P1 ]);
+        ):( # Vertical split
+          y = round(lerp(P0[1],P1[1],u(0.1,0.9)));
+          I[best_p] = [ P0,P1[0],y ];
+          ++y<P1[1]?da_push([ P0[0],y,P1 ]);
+        );
+      );
+      da_freeze()"
+    [0],[0],1,3 fc. $oR,$oG,$oB
+    eval.. ":
+      const b2 = $outline/2;
+      const b0 = floor(b2/2);
+      const b1 = ceil(b2/2);
+      P = I; P0 = P[0,2]; P1 = P[2,2]; Pc = (P0 + P1)/2;
+      col = I(#0,Pc);
+      x0 = P0[0] + b0; y0 = P0[1] + b0;
+      x1 = P1[0] - b1; y1 = P1[1] - b1;
+      x0<x1 && y0<y1?polygon(#-1,4,x0,y0,x1,y0,x1,y1,x0,y1,1,col)
+    "
+    k.
+  } a c }
+
 #@gui Reaction-Diffusion : fx_reaction_diffusion, fx_reaction_diffusion(1)
 #@gui : Iterations = int(5,1,10)
 #@gui : Size = float(5,0,20)
@@ -57420,7 +57578,7 @@ fx_random3d :
     repeat $2 {
       ({1,@0}) +. {1,@1} *. $3 /. 100 _fx_random3d$1 {^} rm..
       r3d. 1,1,0,{u(0,360)}
-      ({v}) *. {1,@0} ({v}) *. {1,@1}
+      ({u(-1,1)}) *. {1,@0} ({u(-1,1)}) *. {1,@1}
       +3d... {-2,^},{^},{u(-$4,$4)} rm[-2,-1]
       col3d. {u(255)},{u(255)},{u(255)}
     }
@@ -58433,29 +58591,61 @@ fx_plasma :  skip ${4=0},${5=0}
   plasma $1,$2,$3 n 0,255
   balance_gamma ${6-8}
 
-#@gui Quick Copyright : fx_quick_copyright, fx_quick_copyright(0)
-#@gui : Text = text{"\\251 G'MIC"}
-#@gui : Size = int(27,13,128)
-#@gui : Color = color(255,255,255,128)
-#@gui : Outline = int(1,0,4)
-#@gui : Position = choice(3,"Up-Left","Up-Right","Bottom-Left","Bottom-Right")
-#@gui : Offset = int(5,0,40)
-#@gui : Orientation = choice(1,"-90 deg.","0 deg.","+90 deg.","+180 deg.")
+#@gui Quick Copyright : fx_quick_copyright, fx_quick_copyright_preview(1)
+#@gui : Text = text{"\\251 John Doe"}
+#@gui : Font = choice(22,"Acme","Arial","Arial Black","Black Ops One","BlackChancery","Cabin Sketch",\
+# "Caprasimo","Carnevalee Freakshow","Cheese Burger","Cheque","Cheque-Black","Chlorinar","Comic Sans MS",\
+# "Courier New","Creepster","Georgia","Impact","Lobster","Luckiest Guy","Macondo","MedievalSharp","Odin Rounded",\
+# "Oswald","Palatino Linotype","Playfair Display","Roboto","Sacramento","Satisfy","Sofia","Tex Gyre Adventor",\
+# "Times New Roman","Titan One","Verdana")
+#@gui : Size (%) = float(10,0,50)
+#@gui : Bold Face = bool(0)
+#@gui : Color = color(255,255,255)
+#@gui : Opacity (%) = float(90,0,100)
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/29/12</i>.</small>")
+#@gui : Outline (%) = float(3,0,20)
+#@gui : Outline Color = color(0,0,0)
+#@gui : sep = separator()
+#@gui : Position = choice(4,"Up-Left","Up-Right","Center","Bottom-Left","Bottom-Right","Corners","Everywhere")
+#@gui : X-Offset (%) = float(1,0,50)
+#@gui : Y-Offset (%) = float(1,0,50)
+#@gui : Orientation (deg.) = float(-180,0,180)
+##@gui : Orientation (deg.) = choice(2,"-90 deg.","-45 deg.","0 deg.","+45 deg.","+90 deg.","+135 deg.","+180 deg.")
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2024/02/21</i>.</small>")
 fx_quick_copyright :
-  i[0] 0 t[0] "$1",0,0,$2,1,$3,$4,$5 autocrop[0] 0 r[0] {{0,w}+2*$7},{{0,h}+2*$7},1,3,0,0,0.5,0.5
-  i[1] 0 t[1] "$1",0,0,$2,1,1 autocrop[1] 0 r[1] {{1,w}+2*$7},{{1,h}+2*$7},1,1,0,0,0.5,0.5 dilate[1] {1+2*$7}
-  rotate[0,1] {90*($10-1)}
-  repeat $!-2 {
-    if !$8 j. [0],$9,$9,0,0,{$6/255},[1]
-    elif $8==1 j. [0],{w-1-{0,w}-$9},$9,0,0,{$6/255},[1]
-    elif $8==2 j. [0],$9,{h-1-{0,h}-$9},0,0,{$6/255},[1]
-    else j. [0],{w-1-{0,w}-$9},{h-1-{0,h}-$9},0,0,{$6/255},[1]
+  if "['$1']==0 || !$3" return fi
+  foreach {
+    font_size:=ceil(min(w,h)*$3%)
+    outline_size:=$9?max(1,$font_size*$9%):0
+    0 t. "$1",0,0,${"font $2,"$font_size",$4"},1,255 autocrop.
+    if !$outline_size # No outline
+      i.. 100%,100%,1,4 fc.. ${5-7},255 a[-2,-1] c
+    else # Outline
+      r. {[w,h]+2*$outline_size+1},1,100%,0,0,0.5,0.5
+      +dilate. {2*$outline_size+1}
+      100%,100%,1,3x2 fc. ${10-12} j.. .,0,0,0,0,1,[-3],255 fc. ${5-7} j.. .,0,0,0,0,1,[-4],255 rm[-4,-1]
+      to_rgba. rv[-2,-1] a[-2,-1] c
+      autocrop.
     fi
-    mv. 2
+    rotate. $16
+    repeat $13<5?1:$13<6?4:5 {
+      ind:=$13<5?$13:$13<6?($><2?$>:1+$>):$>
+      dx,dy:="const e = $14%; const f = 1 - e; const g = $15%; const h = 1 - g;
+              arg0("$ind",[e,g],[f,g],[0.5,0.5],[e,h],[f,h])"
+      ja.. .,$dx~,$dy~,0,0,{$8%}
+    }
+    rm.
   }
-  rm[0,1]
+
+fx_quick_copyright_preview :
+  fx_quick_copyright "$1",${2--1}
+  outline_visibility:=$9?2:1
+  offset_visibility:=$13!=2?2:1
+  u "{$1}{$2}{$3}{$4}{${5-7}}{$8}{$9}"\
+    "{${10-12}}"_$outline_visibility\
+    "{$13}{$14}"_$offset_visibility"{$15}"_$offset_visibility\
+    "{$16}"
 
 #@gui Rainbow : fx_rainbow, fx_rainbow
 #@gui : Left Position = float(80,0,100)
@@ -59064,18 +59254,18 @@ _fx_tree:
         AB = B - A;
         thickness = norm(B - P2);
 
-        N = round(cut("$avg_branching" + v*"$std_branching",1,6));
+        N = round(cut("$avg_branching" + u(-1,1)*"$std_branching",1,6));
         Nm1 = N<=1?1:N - 1;
 
         repeat (N,n,
-          ang = cut("$avg_leftangle" + dangle*n/Nm1 + v*"$std_angle",-90,90);
+          ang = cut("$avg_leftangle" + dangle*n/Nm1 + u(-1,1)*"$std_angle",-90,90);
           len = cut("$avg_length" + u(-1,-1)*"$std_length",0,200);
           rot = rot(ang°);
           nB = B + len%*rot*AB;
           orth = (nB - B);
           orth/=norm(orth);
           orth = [ -orth[1],orth[0] ];
-          nthickness = thickness*("$avg_thickness" + v*"$std_thickness")%;
+          nthickness = thickness*("$avg_thickness" + u(-1,1)*"$std_thickness")%;
           Q0 = nB + nthickness*orth;
           Q1 = nB - nthickness*orth;
           da_push([ P3,P2,Q1,Q0,ndepth ]);
@@ -60630,6 +60820,7 @@ fx_solve_maze_preview :
 #@cli : $ https://gmic.eu/samples/distortion.gmic go _fps=20 _label="Distortion"
 #@cli : $ https://gmic.eu/samples/rotozoom.gmic go _fps=15 _label="Rotozoom"
 #@cli : $ https://gmic.eu/samples/french_flag.gmic go _fps=20 _label="French~Flag"
+#@cli : $ https://gmic.eu/samples/snow.gmic go _fps=20 _label="Snow"
 
 # Local Variables:
 # mode: sh
