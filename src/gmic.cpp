@@ -345,10 +345,6 @@ CImg<T> get_draw_object3d(const float x0, const float y0, const float z0,
                                 specular_shininess,g_opacity,zbuffer);
 }
 
-CImg<T> get_draw_plasma(const float alpha, const float beta, const unsigned int scale) const {
-  return (+*this).draw_plasma(alpha,beta,scale);
-}
-
 CImg<T> get_draw_point(const int x, const int y, const int z, const T *const col,
                        const float opacity) const {
   return (+*this).draw_point(x,y,z,col,opacity);
@@ -2467,7 +2463,7 @@ const char *gmic::builtin_commands_names[] = {
   "bilateral","blur","boxfilter","break",
   "camera","check","check3d","command","continue","convolve","correlate","cosh","crop","cumulate","cursor",
   "debug","delete","denoise","deriche","dilate","discard","displacement","distance","div3d","done",
-  "echo","eigen","eikonal","elif","ellipse","else","endian","equalize","erode","error","eval","exec",
+  "echo","eigen","elif","ellipse","else","endian","equalize","erode","error","eval","exec",
   "files","fill","flood","foreach",
   "graph","guided",
   "histogram",
@@ -2477,12 +2473,12 @@ const char *gmic::builtin_commands_names[] = {
   "matchpatch","maxabs","mdiv","median","minabs","mirror","mmul","move","mproj","mul3d","mutex",
   "name","named","network","noarg","noise","normalize",
   "object3d","onfail","output",
-  "parallel","pass","permute","plasma","plot","point","polygon","progress",
+  "parallel","pass","permute","plot","point","polygon","progress",
   "quit",
   "rand","remove","repeat","resize","return","reverse","rotate","rotate3d","round",
   "screen","select","serialize","shared","shift","sign","sinc","sinh","skip",
     "smooth","solve","sort","split","sqrt","srand","status","store","streamline3d","sub3d",
-  "tanh","text","trisolve",
+  "tanh","text",
   "uncommand","unroll","unserialize",
   "vanvliet","verbose",
   "wait","warn","warp","watershed","while","window",
@@ -5100,12 +5096,12 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
       // Check consistency of the interpreter environment.
       if (images_names.size()!=images.size())
         error(true,"List of images is in an inconsistent state (%u images for %u image names). "
-              "It could be caused by conccurent threads manipulating the image list at the same time.",
+              "It could be caused by concurrent threads manipulating the image list at the same time.",
               images_names.size(),images.size());
       if (!callstack)
         error(true,"G'MIC encountered a fatal error (empty call stack). "
               "Please submit a bug report, at: https://github.com/GreycLab/gmic/issues");
-      if (callstack.size()>=64)
+      if (callstack.size()>128)
         error(true,"Call stack overflow (infinite recursion?).");
 
       // Substitute expressions in current item.
@@ -10540,29 +10536,6 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
           continue;
         }
 
-        // Draw plasma fractal.
-        if (!std::strcmp("plasma",command)) {
-          gmic_substitute_args(false);
-          float alpha = 1, beta = 1, scale = 8;
-          if ((cimg_sscanf(argument,"%f%c",
-                           &alpha,&end)==1 ||
-               cimg_sscanf(argument,"%f,%f%c",
-                           &alpha,&beta,&end)==2 ||
-               cimg_sscanf(argument,"%f,%f,%f%c",
-                           &alpha,&beta,&scale,&end)==3) &&
-              scale>=0) ++position;
-          else { alpha = beta = 1; scale = 8; }
-          const unsigned int _scale = (unsigned int)cimg::round(scale);
-          print(0,"Draw plasma fractal on image%s, with alpha %g, beta %g and scale %u.",
-                gmic_selection.data(),
-                alpha,
-                beta,
-                _scale);
-          cimg_forY(selection,l) gmic_apply(draw_plasma(alpha,beta,_scale),false);
-          is_change = true;
-          continue;
-        }
-
         // Display as a graph plot.
         if (!is_get && !std::strcmp("plot",command)) {
           gmic_substitute_args(false);
@@ -10630,6 +10603,7 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                  cimg_sscanf(argument,"%u,%u,%lf,%lf,%lf,%lf,%u%c",
                              &plot_type,&vertex_type,&xmin,&xmax,&ymin,&ymax,&exit_on_anykey,&end)==7) &&
                 plot_type<=3 && vertex_type<=7 && exit_on_anykey<=1) ++position;
+            else { plot_type = 1; vertex_type = 0; ymin = ymax = xmin = xmax = 0; }
             if (!plot_type && !vertex_type) plot_type = 1;
             display_plots(images,images_names,variables_sizes,selection,plot_type,vertex_type,
                           xmin,xmax,ymin,ymax,exit_on_anykey);
@@ -12400,24 +12374,6 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
           continue;
         }
 
-        // Tridiagonal solve.
-        if (!std::strcmp("trisolve",command)) {
-          gmic_substitute_args(true);
-          sep = *indices = 0;
-          if (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]%c%c",gmic_use_indices,&sep,&end)==2 &&
-              sep==']' &&
-              (ind=selection2cimg(indices,images.size(),images_names,"trisolve")).height()==1) {
-            print(0,"Solve tridiagonal system AX = B, with B-vector%s and tridiagonal "
-                  "A-matrix [%d].",
-                  gmic_selection.data(),*ind);
-            const CImg<double> A = gmic_image_arg(*ind);
-            cimg_forY(selection,l) gmic_apply_double(solve_tridiagonal(A));
-          } else arg_error("trisolve");
-          is_change = true;
-          ++position;
-          continue;
-        }
-
         // Hyperbolic tangent.
         gmic_simple_command("tanh",tanh,"Compute pointwise hyperbolic tangent of image%s.");
 
@@ -14040,36 +13996,61 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
         } else {
 
           // New IxJxKxL image specified as array.
-          unsigned int l, cx = 0, cy = 0, cz = 0, cc = 0, maxcx = 0, maxcy = 0, maxcz = 0;
+          char unroll_axis = 0, permute_axes[5] = { 0 }, c;
+          unsigned int
+            pos[5] = { 0 },
+            ind_x = 0, ind_y = 0, ind_z = 0, ind_c = 0,
+            width = 0, height = 0, depth = 0, spectrum = 0,
+            l = 0, q = 0;
           const char *nargument = 0;
           CImg<char> s_value(256);
-          char separator = 0, unroll_axis = 0, permute_axes[5] = { 0 }, c;
 
-          for (nargument = arg_input.data() + 1; *nargument; ) {
-            *s_value = separator = 0;
+          for (nargument = arg_input.data() + 1; *nargument; ) { // Determine axis order of specified values
+            sep = *(nargument++);
+            switch (sep) {
+            case ',' : if (!ind_x) ind_x = ++q; break;
+            case ';' : if (!ind_y) ind_y = ++q; break;
+            case '/' : if (!ind_z) ind_z = ++q; break;
+            case '^' : if (!ind_c) ind_c = ++q; break;
+            }
+          }
+
+          for (nargument = arg_input.data() + 1; *nargument; ) { // Parse expression
+            *s_value = sep = 0;
             char *pd = s_value;
             // Do something faster than 'scanf("%255[0-9.eEinfa+-]")'.
-            for (l = 0; l<255 && (((c=*nargument)>='0' && c<='9') || c=='.' || c=='e' || c=='E' || c=='i' || c=='n'
-                                  || c=='f' || c=='a' || c=='+' || c=='-'); ++l) *(pd++) = *(nargument++);
+            for (l = 0; l<255 &&
+                   (((c=*nargument)>='0' && c<='9') || c=='.' || c=='e' || c=='E' || c=='i' || c=='n'
+                    || c=='f' || c=='a' || c=='+' || c=='-'); ++l) *(pd++) = *(nargument++);
             if (l<255) *pd = 0; else arg_error("input");
-            if (*nargument) separator = *(nargument++);
-            if ((separator=='^' || separator=='/' || separator==';' || separator==',' ||
-                 separator==')' || separator==':') &&
+            if (*nargument) sep = *(nargument++);
+            if ((sep=='^' || sep=='/' || sep==';' || sep==',' || sep==')' || sep==':') &&
                 cimg_sscanf(s_value,"%lf%c",&value,&end)==1) {
-              if (cx>maxcx) maxcx = cx;
-              if (cy>maxcy) maxcy = cy;
-              if (cz>maxcz) maxcz = cz;
-              if (cx>=img._width || cy>=img._height || cz>=img._depth || cc>=img._spectrum)
-                img.resize(cx>=img._width?7*cx/4 + 1:std::max(1U,img._width),
-                           cy>=img._height?7*cy/4 + 1:std::max(1U,img._height),
-                           cz>=img._depth?7*cz/4 + 1:std::max(1U,img._depth),
-                           cc>=img._spectrum?7*cc/4 + 1:std::max(1U,img._spectrum),0);
-              img(cx,cy,cz,cc) = (T)value;
-              switch (separator) {
-              case '^' : cx = cy = cz = 0; ++cc; break;
-              case '/' : cx = cy = 0; ++cz; break;
-              case ';' : cx = 0; ++cy; break;
-              case ',' : ++cx; break;
+              if (pos[ind_x]>=img._width || pos[ind_y]>=img._height ||
+                  pos[ind_z]>=img._depth || pos[ind_c]>=img._spectrum)
+                img.resize(pos[ind_x]>=img._width?7*pos[ind_x]/4 + 1:std::max(1U,img._width),
+                           pos[ind_y]>=img._height?7*pos[ind_y]/4 + 1:std::max(1U,img._height),
+                           pos[ind_z]>=img._depth?7*pos[ind_z]/4 + 1:std::max(1U,img._depth),
+                           pos[ind_c]>=img._spectrum?7*pos[ind_c]/4 + 1:std::max(1U,img._spectrum),0);
+              img(pos[ind_x],pos[ind_y],pos[ind_z],pos[ind_c]) = (T)value;
+
+              switch (sep) {
+              case ',' :
+                std::memset(pos + 1,0,(ind_x - 1)*sizeof(unsigned int)); ++pos[ind_x];
+                if (width<pos[ind_x]) width = pos[ind_x];
+                break;
+              case ';' :
+                std::memset(pos + 1,0,(ind_y - 1)*sizeof(unsigned int)); ++pos[ind_y];
+                if (height<pos[ind_y]) height = pos[ind_y];
+                break;
+              case '/' :
+                std::memset(pos + 1,0,(ind_z - 1)*sizeof(unsigned int)); ++pos[ind_z];
+                if (depth<pos[ind_z]) depth = pos[ind_z];
+                break;
+              case '^' :
+                std::memset(pos + 1,0,(ind_c - 1)*sizeof(unsigned int)); ++pos[ind_c];
+                if (spectrum<pos[ind_c]) spectrum = pos[ind_c];
+                break;
               case ':' : {
                 c = *nargument;
                 if ((is_xyzc(c) || c==',' || c==';' || c=='/' || c=='^') &&
@@ -14086,7 +14067,7 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
               }
             } else arg_error("input");
           }
-          img.resize(maxcx + 1,maxcy + 1,maxcz + 1,cc + 1,0);
+          img.resize(++width,++height,++depth,++spectrum,0);
           if (unroll_axis) img.unroll(unroll_axis=='x' || unroll_axis==','?'x':
                                       unroll_axis=='y' || unroll_axis==';'?'y':
                                       unroll_axis=='z' || unroll_axis=='/'?'z':'c');

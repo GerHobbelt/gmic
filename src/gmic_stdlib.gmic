@@ -311,7 +311,7 @@ reference : skip "${2=}"
   _section "Usage"
   _text \
 "~~~\ngmic [command1 [arg1_1,arg1_2,..]] .. [commandN [argN_1,argN_2,..]]\n~~~"\n\n\
-"`gmic` is the open-source interpreter of the \\\G'MIC language, a scripting programming "\
+"`gmic` is the open-source interpreter of the G'MIC language, a scripting programming "\
 "language dedicated to the design of possibly complex image processing pipelines and operators."\n\
 "It can be used to convert, manipulate, filter and visualize image datasets made of one or "\
 "several 1D/2D or 3D multi-spectral images."\n\
@@ -323,7 +323,7 @@ reference : skip "${2=}"
 
   _section "Overall Context"
   _text \
-"* At any time, \\G'MIC manages one list of numbered (and optionally named) pixel-based images, "\
+"* At any time, G'MIC manages one list of numbered (and optionally named) pixel-based images, "\
 "entirely stored in computer memory (uncompressed)."\n\
 "* The first image of the list has index '0' and is denoted by '[0]'. The second image of the "\
 "list is denoted by '[1]', the third by '[2]' and so on."\n\
@@ -341,7 +341,7 @@ reference : skip "${2=}"
 
   _section "Image Definition and Terminology"
   _text \
-"* In \\G'MIC, each image is modeled as a 1D, 2D, 3D or 4D array of scalar values, uniformly "\
+"* In G'MIC, each image is modeled as a 1D, 2D, 3D or 4D array of scalar values, uniformly "\
 "discretized on a rectangular/parallelepipedic domain."\n\
 "* The four dimensions of this array are respectively denoted by:"\n\
 "  - `width`, the number of image columns (size along the `x-axis`)."\n\
@@ -368,7 +368,7 @@ reference : skip "${2=}"
 
   _section "Items of a Processing Pipeline"
   _text \
-"* In \\G'MIC, an image processing pipeline is described as a sequence of items separated by the "\
+"* In G'MIC, an image processing pipeline is described as a sequence of items separated by the "\
 "__space__ character. Such items are interpreted and executed from the left to the right. For instance, "\
 "the expression:"\n\
 "~~~\nfilename.jpg blur 3,0 sharpen 10 resize 200%,200% output file_out.jpg\n~~~\n"\
@@ -381,7 +381,7 @@ reference : skip "${2=}"
 
   _section "Input Data"
   _text \
-"* If a specified \\G'MIC item appears to be an existing filename, the corresponding image data "\
+"* If a specified G'MIC item appears to be an existing filename, the corresponding image data "\
 "are loaded and inserted at the end of the image list (which is equivalent to the use of `input filename`). "\n\
 "* Special filenames `-` and `-.ext` stand for the standard input/output streams, optionally "\
 "forced to be in a specific 'ext' file format (e.g. `-.jpg` or `-.png`). "\n\
@@ -398,8 +398,8 @@ reference : skip "${2=}"
 "or a mathematical expression, as e.g. in input item '256,256,1,3,[x,y,128]' which "\
 "creates a `256x256` RGB color image with a spatial shading on the red and green channels. "\
 "(see section ''Mathematical Expressions'' to learn more about mathematical expressions). "\n\
-"  - '(v1,v2,..)[xN]': Insert one or `N` new images from specified prescribed values. Value separator "\
-"inside parentheses can be ',' (column separator), ';' (row separator), '/' (slice separator) or "\
+"  - '(v1,v2,..[:delimiter | axis_order])[xN]': Insert one or `N` new images from specified prescribed values. "\
+"Value separator inside parentheses can be ',' (column separator), ';' (row separator), '/' (slice separator) or "\
 "'^' (channel separator). For instance, expression '(1,2,3;4,5,6;7,8,9)' creates a 3x3 matrix (scalar image), "\
 "with values running from 1 to 9. "\n\
 "  - '(\\'string\\'[:delimiter])[xN]': Insert one or N new images from specified string, by filling "\
@@ -435,7 +435,7 @@ reference : skip "${2=}"
 
   _section "Command Items and Selections"
   _text \
-"* A \\G'MIC item that is not a filename nor a special input string designates a 'command' "\
+"* A G'MIC item that is not a filename nor a special input string designates a 'command' "\
 "most of the time. Generally, commands perform image processing operations on one or several available images "\
 "of the list."\n\
 "* Reccurent commands have two equivalent names ('regular' and 'short'). For instance, command names "\
@@ -476,7 +476,7 @@ reference : skip "${2=}"
 "  - __Built-in commands__ are the hard-coded functionalities in the interpreter core. They are thus compiled as "\
 "binary code and run fast, most of the time. Omitting an argument when invoking a built-in command is not permitted, "\
 "except if all following arguments are also omitted. "\
-"For instance, invoking 'plasma 10,,5' is invalid but 'plasma 10' is correct. "\n\
+"For instance, invoking 'blur 1,,1' is invalid but 'blur 1' is correct. "\n\
 "  - __Custom commands__, are defined as G'MIC pipelines of built-in or other custom commands. "\
 "They are parsed by the G'MIC interpreter, and thus run a bit slower than built-in commands. "\
 "Omitting arguments when invoking a custom command is permitted. For instance, expressions "\
@@ -489,7 +489,7 @@ reference : skip "${2=}"
 
   _section "Input/Output Properties"
   _text \
-"* \\G'MIC is able to read/write most of the classical image file formats, including:"\n\
+"* G'MIC is able to read/write most of the classical image file formats, including:"\n\
 "  - 2D grayscale/color files: `.png`, `.jpeg`, `.gif`, `.pnm`, `.tif`, `.bmp`, ..."\n\
 "  - 3D volumetric files: `.dcm`, `.hdr`, `.nii`, `.cube`, `.pan`, `.inr`, `.pnk`, ..."\n\
 "  - Video files: `.mpeg`, `.avi`, `.mp4`, `.mov`, `.ogg`, `.flv`, ..."\n\
@@ -566,7 +566,7 @@ reference : skip "${2=}"
 
   _section "Substitution Rules"
   _text \
-"* \\G'MIC items containing '$' or '{}' are substituted before being interpreted. Use these "\
+"* G'MIC items containing '$' or '{}' are substituted before being interpreted. Use these "\
 "substituting expressions to access various data from the interpreter environment."\n\
 "* '$name' and '${name}' are both substituted by the value of the specified named variable "\
 "(set previously by the item 'name=value'). If this variable has not been already set, the "\
@@ -665,7 +665,7 @@ reference : skip "${2=}"
 
   _section "Mathematical Expressions"
   _text \
-"* \\G'MIC has an embedded __mathematical parser__, used to evaluate (possibly complex) math expressions "\
+"* G'MIC has an embedded __mathematical parser__, used to evaluate (possibly complex) math expressions "\
 "specified inside braces '{}', or formulas in commands that may take one as an argument (e.g. ''fill'' or ''eval'')."\n\
 "* When the context allows it, a formula is evaluated __for each pixel__ of the selected images "\
 "(e.g. ''fill'' or ''eval'')."\n\
@@ -761,6 +761,7 @@ reference : skip "${2=}"
 "* 'pi': value of pi, i.e. `3.1415926...`."\n\
 "* 'eps': value of machine epsilon, that is the difference between 1.0 and the next value representable by a double."\n\
 "* 'u': a random value between '[0,1]', following a uniform distribution."\n\
+"* 'v': a random integer that is either '0' or '1', following a uniform distribution."\n\
 "* 'g': a random value, following a gaussian distribution of variance 1 (roughly in '[-6,6]')."\n\
 "* 'interpolation': value of the default interpolation mode used when reading pixel values with the pixel access "\
 "operators (i.e. when the interpolation argument is not explicitly specified, see below for more details on pixel "\
@@ -1072,7 +1073,7 @@ reference : skip "${2=}"
 
   _section "Adding Custom Commands"
   _text \
-"* New custom commands can be added by the user, through the use of \\G'MIC __custom commands files__."\n\
+"* New custom commands can be added by the user, through the use of G'MIC __custom commands files__."\n\
 "* A command file is a simple text file, where each line starts either by "\
 "\n~~~\ncommand_name: command_definition\n~~~\n or \n~~~\ncommand_definition (continuation)\n~~~\n"\n\
 "* At startup, G'MIC automatically includes user's command file '$HOME/.gmic' (on __Unix__) or "\
@@ -1119,13 +1120,13 @@ reference : skip "${2=}"
 
   _section "List of Commands"
   _text \
-"All available \\G'MIC commands are listed below, by categories. An argument specified between '[]' "\
+"All available G'MIC commands are listed below, by categories. An argument specified between '[]' "\
 "or starting by '_' is optional except when standing for an existing image '[image]', where 'image' "\
 "can be either an index number or an image name. In this case, the '[]' characters are mandatory when writing the "\
 "item. Note that all images that serve as illustrations in this reference documentation are normalized in "\
 "range `[0,255]` before being displayed. You may need to do this explicitly (command `normalize 0,255`) if you want "\
 "to save and view images with the same aspect than those illustrated in the example codes."\n\
-"The examples accompanying this 'List of Commands' illustrate the use of the \\G'MIC language and are written as they "\
+"The examples accompanying this 'List of Commands' illustrate the use of the G'MIC language and are written as they "\
 "would appear in a custom command. While some examples may work if entered directly at a shell prompt, there is no "\
 "guarantee. No attempt has been made to escape special characters in these examples, which many shells reserve."
 
@@ -4672,34 +4673,35 @@ echo_file : skip "${2='\n'}"
 
 #@cli font : { 'Font_name' | font_number | font.gmz },_font_height[%]>0,_is_bold={ 0 | 1 }
 #@cli : Return font identifier (variable name) that can be further used in command `text` as a custom font.
-#@cli : 'Font_name' can be { Acme | Arial | Arial Black | Black Ops One | BlackChancery | Cabin Sketch | \
-# Caprasimo | Carnevalee Freakshow | Cheese Burger | Cheque | Cheque-Black | Chlorinar | Comic Sans MS | \
-# Courier New | Creepster | Georgia | Impact | Lobster | Luckiest Guy | Macondo | MedievalSharp | Odin Rounded | \
-# Oswald | Palatino Linotype | Playfair Display | Roboto | Sacramento | Satisfy | Sofia | Tex Gyre Adventor | \
-# Times New Roman | Titan One | Verdana }.
+#@cli : 'Font name' can be { Acme | Arial | ArialBlack | BlackOpsOne | BlackChancery | CabinSketch | Caprasimo | \
+# CarnevaleeFreakshow | CheeseBurger | Cheque | ChequeBlack | Chlorinar | ComicSansMS | CourierNew | Creepster | \
+# Georgia | Hidayatullah | Impact | Jaro | Lobster | LuckiestGuy | Macondo | MedievalSharp | OdinRounded | Oswald | \
+# PalatinoLinotype | PlayfairDisplay | Roboto | Satisfy | Sofia | SundayMilk | TexGyreAdventor | TimesNewRoman | \
+# TitanOne | Typewriter | Verdana }.
 #@cli : If a filename 'font.gmz' is specified, it must be a file converted with command `font2gmz`.
 #@cli : Default values: 'font_height=64' and 'is_bold=0'.
 #@cli : $ 400,300,1,3 text "Hello World!",0.5~,0.5~,${"font \"Cheese Burger\",80"},1,255,255,128
 +font : check "isint(${2=24},1) && isbool(${3=0})"
-  fonts="Acme","Arial","Arial Black","Black Ops One","BlackChancery","Cabin Sketch","Caprasimo","Carnevalee Freakshow",\
-        "Cheese Burger","Cheque","Cheque-Black","Chlorinar","Comic Sans MS","Courier New","Creepster","Georgia",\
-        "Impact","Lobster","Luckiest Guy","Macondo","MedievalSharp","Odin Rounded","Oswald","Palatino Linotype",\
-        "Playfair Display","Roboto","Sacramento","Satisfy","Sofia","Tex Gyre Adventor","Times New Roman","Titan One",\
-        "Verdana"
-  if "s = ['$1']; find(s,'.gmz')==size(s)-4" font="$1" is_file=1
+  fonts="Acme","Arial","Arial Black","Black Ops One","Black Chancery","Cabin Sketch","Caprasimo",\
+        "Carnevalee Freakshow","Cheese Burger","Cheque","Cheque Black","Chlorinar","Comic Sans MS",\
+        "Courier New","Creepster","Georgia","Hidayatullah","Impact","Jaro","Lobster","Luckiest Guy",\
+        "Macondo","Medieval Sharp","Odin Rounded","Oswald","Palatino Linotype","Playfair Display",\
+        "Roboto","Satisfy","Sofia","Sunday Milk","Tex Gyre Adventor","Times New Roman","Titan One",\
+        "Typewriter","Verdana"
+  if "s = ['$1']; find(s,'.gmz')==size(s) - 4" font="$1" is_file=1
   elif "isint($1)" arg0 {$1%narg($fonts)},$fonts font=${} is_file=0
   else font="$1" is_file=0
   fi
+
   qualifier0,qualifier1="regular","bold"
   e[^-1] "Return default font '"$font"' with height $2 and "${qualifier$3}" face."
   height:=ispercentage($2)?h*$2:$2
-  strvar $font fontname=${}
+  strvar $font ('${}') discard. {'_'} fontname={t} rm.
   varname=__font_${fontname}_$qualifier$3$height
 
   if narg(${$varname}) u $varname return fi # Font already instancied
   l[] {
-    if $is_file "$1"
-    else input_cached gmic_fonts.gmz k[$fontname] unserialize
+    if $is_file "$1" else input_cached gmic_fonts.gmz k[$fontname] unserialize
     fi
     if $3 # Bold face
       dsiz:="s = round(h/32); s+=1 - (s%2); max(3,s)" expand xy,{round($dsiz/2)} dilate $dsiz
@@ -4797,12 +4799,12 @@ echo_file : skip "${2='\n'}"
   repeat 256
     code:=[$codes][$>]
     bgcolor=${dec2hex\ {16752640+$>}}
-    if !($ind%16) ('"<tr>\n"') fi
+    if !($ind%12) ('"<tr>\n"') fi
     ('"<td style=\"background-color: \#"$bgcolor"; \">"')
     ('"&#"$code;')
     ('"</td>\n"')
     ind+=1
-    if !($ind%16)" || "!$< ('"</tr>\n"') fi
+    if !($ind%12)" || "!$< ('"</tr>\n"') fi
   done
   ({'"\
     </table>\n\
@@ -4845,7 +4847,10 @@ echo_file : skip "${2='\n'}"
 
   repeat narg($x0s) {
     x0,y0,x1,y1:=([$x0s][$>]),([$y0s][$>]),([$x1s][$>]),([$y1s][$>])
-    +z[0] $x0,$y0,0,0,$x1,$y1,0,0
+    if max(isinf([$x0,$x1,$y0,$y1]))
+       0 warn "Command '$0': Character code "$>" ('"{/{/{`$>`}}}"') could not be found!"
+    else +z[0] $x0,$y0,0,0,$x1,$y1,0,0
+    fi
   }
   rm[0] negate
 
@@ -4924,6 +4929,7 @@ update_fonts :
         "Creepster",\
         "Georgia",\
         "Impact",\
+        "Jaro",\
         "Luckiest Guy",\
         "Macondo",\
         "MedievalSharp",\
@@ -5529,10 +5535,15 @@ _input_obj_parse_mtl : skip "${1=}"
           p = find(line,0,7);
           p>0?(
             filename = 0; copy(filename,line[7],p - 7);
-            run(string('l[] { $1',filename,' input_obj_img_',varname,'=',img_ind++,
-                       ' input_obj_whs_',varname,':=w,h,s y u 0 onfail input_obj_img_',
-                       varname,'=-1 input_obj_whs_',varname,'=0,0,0 u=1 }'));
-            get('{}')?--img_ind; # Error occured when loading texture
+            run(string('l[] { l[] { $1',filename,' onfail basename \"$1',filename,'\" ${} } rs. 1024,1024',
+                       ' input_obj_img_',varname,'=',img_ind,
+                       ' input_obj_whs_',varname,':=w,h,s',
+                       ' y u 1',
+                       ' onfail',
+                       ' input_obj_img_',varname,'=-1',
+                       ' input_obj_whs_',varname,'=0,0,0',
+                       ' u 0 }'));
+            get('{}')?++img_ind; # Else error occured when loading texture
           );
         );
       )"
@@ -6795,9 +6806,9 @@ _parse_cli_images : l[] { check "isbool(${1=1})" is_arg=1 arg1=$1 onfail is_arg=
       if s>3 drgba fi
       r {[w,h]+2},1,100%,0,0,0.5,0.5
       - 245 r {[w+10,h+5]},1,100%,0,0,0.5,0.5 r 100%,{h+1},1,100%,0,0,0,1 + 245
-      0 t. $label" "$label2,5,0,32,1,1
+      0 t. $label" "$label2,5,0,${"font Roboto,22"},1,1
       if w>w#0" || "h>h#0
-         rm. 0 t. $label\n$label2,5,0,32,1,1
+         rm. 0 t. $label\n$label2,5,0,${"font Roboto,22"},1,1
          if w>w#0" || "h>h#0 rs. {0,[w,h]},2 fi
       fi
       *. -1 n. 0,255 to_rgb.
@@ -7305,11 +7316,14 @@ parse_gmd :
       );
     ):
 
-    # G'MIC word: '\G'MIC'.
-    semiblank(pc) && c==_'\\' && nc==_'G' && ac==_'\'' && j[3]==_'M' && j[4]==_'I' && j[5]==_'C' && semiblank(j[6])?(
+    # G'MIC word: '\G'MIC ' or ' G'MIC '.
+    semiblank(pc) && (
+      c==_'\\' && nc==_'G' && ac==_'\'' && j[3]==_'M' && j[4]==_'I' && j[5]==_'C' && semiblank(j[6])
+    ) || (
+      res[ym1]!=s_gmic && c==_'G' && nc==_'\'' && ac==_'M' && j[3]==_'I' && j[4]==_'C' && semiblank(j[5])
+    )?(
       res[y] = s_gmic;
-      copy(res[y1],0,4,1,0);
-      res[y + 5] = e_gmic;
+      c==_'\\'?(copy(res[y1],0,4,1,0); res[y + 5] = e_gmic):(copy(res[y1],0,3,1,0); res[y + 4] = e_gmic);
     ):
 
     # Whitespaces.
@@ -7427,9 +7441,12 @@ gmd2html : skip "${1=}"
         write(c);
       ):(
         isin(c,e_bold_a,e_bold_u,e_bold_italic_a,e_bold_italic_u,e_italic_a,e_italic_u,
-             e_monospace,e_strikethrough,e_underline,e_word_highlight) ? write('</span>'):
+               e_monospace,e_strikethrough,e_underline,e_word_highlight) ? write('</span>'):
         isin(c,e_bullet,e_subbullet,e_subsubbullet) ? write('</div>\n'):
-        isin(c,e_section,e_subsection,e_subsubsection,e_subsubsubsection) ? write('</div>\n'):
+        c==e_section ? write('</h2>\n'):
+        c==e_subsection ? write('</h3>\n'):
+        c==e_subsubsection ? write('</h4>\n'):
+        c==e_subsubsubsection ? write('</h5>\n'):
 
         c==s_section ? (
           ind_e = find(#1,e_section,y);
@@ -7439,7 +7456,7 @@ gmd2html : skip "${1=}"
           write('<a name=\"');
           len = find(str_nam,0);
           write(str_nam,len);
-          write('\"></a><div class=\"gmd_section\">');
+          write('\"></a><h2 class=\"gmd_section\">');
         ):
         c==s_subsection ? (
           ind_e = find(#1,e_subsection,y);
@@ -7449,7 +7466,7 @@ gmd2html : skip "${1=}"
           write('<a name=\"');
           len = find(str_nam,0);
           write(str_nam,len);
-          write('\"></a><div class=\"gmd_subsection\">');
+          write('\"></a><h3 class=\"gmd_subsection\">');
         ):
         c==s_subsubsection ? (
           ind_e = find(#1,e_subsubsection,y);
@@ -7459,7 +7476,7 @@ gmd2html : skip "${1=}"
           write('<a name=\"');
           len = find(str_nam,0);
           write(str_nam,len);
-          write('\"></a><div class=\"gmd_subsubsection\">');
+          write('\"></a><h4 class=\"gmd_subsubsection\">');
         ):
         c==s_subsubsubsection ? (
           ind_e = find(#1,e_subsubsubsection,y);
@@ -7469,7 +7486,7 @@ gmd2html : skip "${1=}"
           write('<a name=\"');
           len = find(str_nam,0);
           write(str_nam,len);
-          write('\"></a><div class=\"gmd_subsubsubsection\">');
+          write('\"></a><h5 class=\"gmd_subsubsubsection\">');
         ):
         c==s_anchor ? (
           ind_e = find(#1,e_anchor,y);
@@ -7963,7 +7980,7 @@ gmd2ascii :
         c==s_formula ? write(vt100_g);
 
         c==s_gmic ? (
-          write([vt100_b,'G\47MIC',vt100_n]);
+          write([vt100_m,'G\47MIC',vt100_n]);
         ):
         c==s_whitespace ? write(_' ');
       );
@@ -8821,6 +8838,8 @@ parse_gui_update :
       fi
       ('"#@gui"$locale" :"{/$name}=$responsivity$randomizable\
          ${_f${f}_p${p}_type}{``$sep1}{``{/$args}}{``$sep2}$visibility\n')
+#      ('"#@gui"$locale" :"{/$name}=$responsivity\
+#         ${_f${f}_p${p}_type}{``$sep1}{``{/$args}}{``$sep2}$visibility\n')
     }
   }
   $_nongui y a y
@@ -9097,8 +9116,7 @@ parse_gui_gmicol :
 
     ('"\n  <!-- Filter: "$fname" -->\n"\
       "  <filter name=\""$fname"\" command=\""${_f${f}_command}"\" preview_command=\""${_f${f}_command_preview}"\""\
-      $zoom_factor" "$zoom_accurate\
-      ">\n"')
+      $zoom_factor$zoom_accurate">\n"')
 
     sepf={`$<?_',':0`}
     repeat ${_f${f}_nb_params} { p=$>
@@ -9176,13 +9194,13 @@ parse_gui_gmicol :
         ('"    <note name=\""$name"\""$visibility">\n"$arg0"\n    </note>"\n')
 
       elif ['$type']=='point'
-        if narg($arg2) removable=" removable=\""$arg2"\"" else removable= fi
-        if narg($arg3) burst=" burst=\""$arg3"\"" else burst= fi
-        if narg($arg4) red=" red=\""$arg4"\"" else red= fi
-        if narg($arg5) green=" green=\""$arg5"\"" else green= fi
-        if narg($arg6) blue=" blue=\""$arg6"\"" else blue= fi
-        if narg($arg7) alpha=" alpha=\""$arg7"\"" else alpha= fi
-        if narg($arg8) radius=" radius=\""$arg8"\"" else radius= fi
+        if $nbargs>2 removable=" removable=\""$arg2"\"" else removable= fi
+        if $nbargs>3 burst=" burst=\""$arg3"\"" else burst= fi
+        if $nbargs>4 red=" red=\""$arg4"\"" else red= fi
+        if $nbargs>5 green=" green=\""$arg5"\"" else green= fi
+        if $nbargs>6 blue=" blue=\""$arg6"\"" else blue= fi
+        if $nbargs>7 alpha=" alpha=\""$arg7"\"" else alpha= fi
+        if $nbargs>8 radius=" radius=\""$arg8"\"" else radius= fi
          ('"    <point name=\""$name"\" x=\""$arg0"\" y=\""$arg1"\""$removable$burst$red$green$blue$alpha\
            $randomizable$responsivity$visibility"/>\n"')
 
@@ -11347,6 +11365,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Rendering/Turbulence",\
   "Rendering/Twisted Rays",\
   "Rendering/Twisted Rays [Samj]",\
+  "Rendering/Underwoods",\
   "Rendering/Wiremap",\
   "Repair/Anti Alias",\
   "Repair/Banding Denoise",\
@@ -11849,7 +11868,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  (336,$_version) sort. discard. store. compat
+  (336,337,$_version) sort. discard. store. compat
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -16716,22 +16735,26 @@ expand : check "isint(${3=0},0,3)"
     nw>0 && nh>0 && nd>0 && nd>0?resize(#x,nw,nh,nd,ns,0,$3,0.5,0.5,0.5,0.5):resize(#x,0);
   " rm.
 
-#@cli extract : "condition",_output_type={ 0:xyzc-coordinates | 1:xyz-coordinates | 2:scalar-values | 3:vector-values }
+#@cli extract : "condition",_output_type={ 0:xyzc-coords | 1:xyz-coords | 2:scalar-values | 3:vector-values | \
+# 4:xyzc-coords + scalar value | 5:xyz-coords + vector-values }
 #@cli : Extract a list of coordinates or values from selected image, where
 #@cli : specified mathematical condition holds.
 #@cli : For N coordinates matching, result is a 1xNx1x4 image.
 #@cli : Default values: 'output_type=0'.
 #@cli : $ sp lena +extract "norm(I)>128",3
-extract : check "isin(${2=0},0,1,2,3)"
-  s0,s1,s2,s3=xyzc-coordinates,xyz-coordinates,scalar-values,vector-values
+extract : check "isint(${2=0},0,5)"
+  s0,s1,s2,s3,s4,s5=xyzc-coordinates,xyz-coordinates,scalar-values,vector-values,\
+    "xyzc-coords + scalar value","xyz-coords + vector-values"
   e[^-1] "Extract "$s$2" from image$? verifying condition '$1'."
-  str=">begin(run('1,32,1,',arg(1+$2,4,3,1,s)));($1)?("
+  str=">begin(run('1,32,1,',arg0($2,4,3,1,s,5,3 + s)));($1)?("
   if !$2     str.="da_push([x,y,z,c]));i"
   elif $2==1 str.="da_push([x,y,z]));I"
   elif $2==2 str.="da_push(i));i"
-  else       str.="da_push(I));I"
+  elif $2==3 str.="da_push(I));I"
+  elif $2==4 str.="da_push([x,y,z,c,i]));i"
+  else str.="da_push([x,y,z,I]));I"
   fi
-  str.=";end(resize(#-1,1,da_size(),1,s(#-1),0))"
+  str.=";end(da_freeze())"
   repeat $! { nm={$>,n} eval[$>] $str => $nm rv[$>,-1] rm. }
 
 #@cli extract_region : [label_image],_extract_xyz_coordinates={ 0 | 1 },_label_1,...,_label_M
@@ -16779,7 +16802,7 @@ extract_region : check ${"is_image_arg $1"}" && isnum(${2=0})"
 #@cli : For example, layout code 'H0:V1:2' creates an image where image [0] is on the left, and images [1] and [2]
 #@cli : vertically packed on the right.
 #@cli : Default values: 'layout_code=X', 'montage_mode=2', output_mode='0' and 'processing_command=""'.
-#@cli : $ image.jpg sample ? +plasma[0] shape_cupid 256 normalize 0,255 frame xy,3,0 frame xy,10,255 to_rgb \
+#@cli : $ image.jpg sample ? +plasma[0] 1 shape_cupid 256 normalize 0,255 frame xy,3,0 frame xy,10,255 to_rgb \
 # +montage A +montage[^-1] H1:V0:VH2:1H0:3
 montage : check "isnum(${2=2}) && $2>=0 && $2<=3" skip "${1=X}",${3=0},"${4=}"
   if $2<=1 e[0--3] "Create aligned montage from image$?, with layout code '$1' and centering $2."
@@ -22694,12 +22717,47 @@ piechart : check $1>=0
     rm.
   }
 
-#@cli plasma : _alpha,_beta,_scale>=0 : (+)
+#@cli plasma : _alpha,_beta,_scale>=0
 #@cli : Draw a random colored plasma fractal on selected images.
 #@cli : This command implements the so-called 'Diamond-Square' algorithm.
 #@cli : Default values: 'alpha=1', 'beta=1' and 'scale=8'.
-#@cli : $ 400,400,1,3 plasma
+#@cli : $ 400,400,1,3 plasma 1
 #@cli : $$ https://gmic.eu/oldtutorial/_plasma
+plasma : check "isnum(${1=1}) && isnum(${2=1}) && isint(${3=8},0)"
+  e[^-1] "Draw plasma fractal on image$?, with alpha $1, beta $2 and scale $3."
+  foreach {
+    nm={n}
+    scale:="1<<min($3,12)"
+    w,h:=w,h {round([w,h],$scale,1)},1,100% rm..
+
+    # Init step.
+    {ceil([w,h]/$scale)},1,100%,":
+      const scale = $scale; const noise = $1*scale + $2;
+      i(#0,x*scale,y*scale) = u(-noise,noise)" rm.
+
+    for $scale>1 {
+
+      # Square step.
+      {ceil([w,h]/$scale)},1,100%,":
+        const scale = $scale; const scale2 = scale/2; const noise = $1*scale + $2; const boundary = 2;
+        Xt = x*scale + scale2; Yt = y*scale + scale2;
+        X0 = Xt - scale2; Y0 = Yt - scale2;
+        X1 = Xt + scale2; Y1 = Yt + scale2;
+        i(#0,Xt,Yt) = avg(i(#0,X0,Y0),i(#0,X1,Y0),i(#0,X1,Y1),i(#0,X0,Y1)) + u(-noise,noise);
+      " rm.
+
+      # Diamond step.
+      {ceil([w,h]/$scale)*[1,2]},1,100%,":
+        const scale = $scale; const scale2 = scale/2; const noise = $1*scale + $2; const boundary = 2;
+        Xt = x*scale + (y%2?0:scale2); Yt = y*scale2;
+        i(#0,Xt,Yt) = avg(i(#0,Xt - scale2,Yt),i(#0,Xt,Yt - scale2),
+                          i(#0,Xt + scale2,Yt),i(#0,Xt,Yt + scale2)) + u(-noise,noise);
+      " rm.
+     scale>>=1;
+    }
+    r $w,$h,1,100%,0,0,0.5,0.5
+    => $nm
+  }
 
 #@cli point : x[%],_y[%],_z[%],_opacity,_color1,... : (+)
 #@cli : Set specified colored pixel on selected images.
@@ -23296,11 +23354,38 @@ transpose :
   e[^-1] "Transpose image$?."
   permute yxzc
 
-#@cli trisolve : [image] : (+)
+#@cli trisolve : [image]
 #@cli : Solve tridiagonal system AX = B for selected B-vectors and specified tridiagonal A-matrix.
 #@cli : Tridiagonal matrix must be stored as a 3 column vector, where 2nd column contains the
 #@cli : diagonal coefficients, while 1st and 3rd columns contain the left and right coefficients.
 #@cli : $ (0,0,1;1,0,0;0,1,0) (1;2;3) +trisolve[-1] [-2]
+trisolve : check ${"is_image_arg $1"}
+  e[^-1] "Solve tridiagonal system AX = B, with B-vector$? and tridiagonal A-matrix $1."
+  pass$1
+  foreach[^-1] {
+    pass.
+    if "w!=3 || h!=h#0 || d>1 || s>1"
+      error[0--4] "Command '$0': Selected vector ("{0,[w,h,d,s]}") and tridiagonal matrix ("{[w,h,d,s]}") "\
+                  "have incompatible dimensions."
+    fi
+    eval "
+      const eps = 1e-4;
+      const hm1 = h - 1;
+      B = crop(1,0,1,h);
+      V = crop(#0);
+      for (i = 1, i<h, ++i,
+        im1 = i - 1;
+        m = i(0,i)/(B[im1]?B[im1]:eps);
+        B[i]-=m*i(2,im1);
+        V[i]-=m*V[im1];
+      );
+      i[#0,hm1] = V[hm1]/(B[hm1]?B[hm1]:eps);
+      for (i = h - 2, i>=0, --i,
+        i[#0,i] = (V[i] - i(2,i)*i[#0,i + 1])/(B[i]?B[i]:eps);
+      )"
+    rm.
+  }
+  rm.
 
 #---------------------------------
 #
@@ -25848,7 +25933,7 @@ _texturize3d :
     # Retrieve texture coordinates for each vertex.
     if !w
       +r[2] 3,{2,round(h/3)},1,1,-1 s. x,3 rm.
-      n.. 0,{6,w-1} n. 0,{6,h-1} a[-2,-1] x
+      n.. 0,{6,w} n. 0,{6,h} a[-2,-1] x
       mv. -2
     fi
 
@@ -33812,7 +33897,7 @@ fitscreen : skip "${2=},${3=},${4=},${5=}"
     }
     r ${-max_wh},1,1,0,0,0.5,0.5
     frame x,10,0 frame y,25,0 frame xy,3,128
-    append_tiles 3
+    append_tiles 4
   } fi
 
 # font2cimgh
@@ -39033,7 +39118,7 @@ x_plasma : check_display $0
   # Init plasma backgrounds.
   N=8
   repeat $N {
-    320,200,1,3 rand. 0,255 plasma. 1,0,7 n. 0,255
+    320,200,1,3 rand. 0,255 plasma. 1,0,6 n. 0,255
     amp:=u(-40,40) freq:=v(2,6) dir$>:=(u<0.5?-1:1)*v(1,2)
     100%,100%,1,1,'$amp*cos(y*2*pi*$freq/h)'
   }
@@ -39357,7 +39442,7 @@ x_rubber3d : check_display $0
 x_segment : check "!${1=1024} || $1>=128" check_display $0
   use_vt100 g=$_vt100_g c=$_vt100_c n=$_vt100_n r=$_vt100_r
   e[^-1] "Extract foreground from background in image$? interactively, with maximum resolution $1."
-  e "\n
+  e[^-1] "\n
 ----------------------------------------------------------------------------------------------------\n
 ----\n
 ---- "${c}"Left mouse button"$n" or key '"${c}"F"$n"' create a new foreground control point
@@ -39436,16 +39521,16 @@ x_segment : check "!${1=1024} || $1>=128" check_display $0
         if $x1-$x0>16" && "$y1-$y0>16
           cx:=$x>=0" && "!{*,ARROWUP}?$x:($x0+$x1)/2
           cy:=$y>=0" && "!{*,ARROWUP}?$y:($y0+$y1)/2
-          x0:=$cx+($x0-$cx)*0.75} y0={$cy+($y0-$cy)*0.75
-          x1:=$cx+($x1-$cx)*0.75} y1={$cy+($y1-$cy)*0.75
+          x0:=$cx+($x0-$cx)*0.75 y0:=$cy+($y0-$cy)*0.75
+          x1:=$cx+($x1-$cx)*0.75 y1:=$cy+($y1-$cy)*0.75
         fi
       elif $o<0" || "($is_ctrl" && "{*,ARROWDOWN}) # Zoom out.
         zfactor:=max(($x1-$x0+1)/$w,($y1-$y0+1)/$h)
         if $zfactor<1.3
           cx:=$x>=0" && "!{*,ARROWDOWN}?$x:($x0+$x1)/2
           cy:=$y>=0" && "!{*,ARROWDOWN}?$y:($y0+$y1)/2
-          x0:=$cx+($x0-$cx)/0.75} y0={$cy+($y0-$cy)/0.75
-          x1:=$cx+($x1-$cx)/0.75} y1={$cy+($y1-$cy)/0.75
+          x0:=$cx+($x0-$cx)/0.75 y0:=$cy+($y0-$cy)/0.75
+          x1:=$cx+($x1-$cx)/0.75 y1:=$cy+($y1-$cy)/0.75
           dx:=$zfactor^2*($w-$x0-$x1)/2 dy:=$zfactor^2*($h-$y0-$y1)/2
           x0+=$dx x1+=$dx y0+=$dy y1+=$dy
         else
@@ -41712,8 +41797,8 @@ fx_gmicky_preview :
 #@gui : - <b>2022/04/06</b> : version <i>3.1.0</i>.\n
 #@gui : - <b>2023/01/16</b> : version <i>3.2.0</i>.\n
 #@gui : - <b>2023/09/04</b> : version <i>3.3.0</i>.\n
-#@gui : - <span foreground="purple"><b>2024/03/12</b> : version <i>3.3.5</i> (Current stable).</span>\n
-#@gui : - <b>2024/03/13</b> : version <i>3.3.6_pre</i> (Current pre-release).</span>\n
+#@gui : - <span foreground="purple"><b>2024/05/14</b> : version <i>3.3.6</i> (Current stable).</span>\n
+##@gui : - <b>2024/XX/XX</b> : version <i>3.3.7_pre</i> (Current pre-release).</span>\n
 #@gui : "}
 #@gui : sep = separator()
 #@gui : url = link{"View changelog for upcoming major version (3.4)","https://discuss.pixls.us/t/on-the-road-to-3-4"}
@@ -41941,7 +42026,7 @@ fx_asciiart_preview :
 #@gui : First Offset = ~int(0,0,512)
 #@gui : Second Offset = ~int(0,0,512)
 #@gui : Angle = ~float(0,0,180)
-#@gui : Opacity = ~float(0.5,0,1)
+#@gui : Opacity = ~float(0.25,0,1)
 #@gui : First Color = ~color(0,0,0,255)
 #@gui : Second Color = ~color(255,255,255,255)
 #@gui : sep = separator()
@@ -42236,7 +42321,7 @@ fx_imagegrid_hexagonal :
 #@gui : Pattern Width = ~int(10,8,128)
 #@gui : Pattern Height = ~int(18,8,128)
 #@gui : Pattern Type = ~choice(0,"Horizontal","Vertical","Crossed","Cube","Decreasing","Increasing")
-#@gui : Outline Color = ~color(255,255,255,128)
+#@gui : Outline Color = ~color(0,0,0,128)
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2015/08/07</i>.</small>")
 fx_imagegrid_triangular :
@@ -44783,7 +44868,7 @@ fx_autofill_lineart :
         nw={0,max(1,round(w*$fact))}
         nh={0,max(1,round(h*$fact))}
         +r[0] $nw,$nh,1,1,2 if $2 normalize_local. , fi +>=. {min(99.5,$1)}%
-        if narg($colors) scale2x[colors] r[colors] .,1 *[colors,-1] rv[-2,-1] fi
+        if narg($colors) scale2x[colors] ri[colors] .,1 *[colors,-1] rv[-2,-1] fi
         label_fg. 0,1 b.. 0.8 watershed. .. rm.. => colors
       }
 
@@ -44817,6 +44902,86 @@ fx_autofill_lineart_preview :
     fx_autofill_lineart ${1-4}
     if $5 k. else rv blend multiply fi
   }
+
+#@gui Colorize Lineart [Propagation] : fx_colorize_lineart, fx_colorize_lineart_preview(1) : *
+#@gui : note = note("<b>Layers ordering:</b>")
+#@gui : Input Layers = choice{0,"Color Spots + Lineart","Lineart + Color Spots",
+#@gui : "Color Spots + Extrapolated Colors + Lineart","Lineart + Color Spots + Extrapolated Colors"}
+#@gui : Output Layers = _choice{1,"Single (Merged)","Extrapolated Colors + Lineart",
+#@gui : "Lineart + Extrapolated Colors","Color Spots + Extrapolated Colors + Lineart",
+#@gui : "Lineart + Color Spots + Extrapolated Colors"}
+#@gui : Extrapolate Colors As = choice("One Layer","Two Layers","Three Layers","Four Layers","Five Layers",
+#@gui : "Six Layers","Seven Layers","Eight Layers","Nine Layers","Ten Layers","One Layer per Single Color",
+#@gui : "One Layer per Single Region")
+#@gui : sep = separator()
+#@gui : Smoothness = float(0.05,0,1)
+#@gui : sep = separator()
+#@gui : note = note{"<small><b>Note:</b> You probably need to select <i>All</i> for the <i>Input layers</i> option
+#@gui : on the left.\n
+#@gui : <i>Color Spots</i> = your layer with color indications.\n
+#@gui : <i>Lineart</i> = your layer with line-art (B&W or transparent).\n
+#@gui : <i>Extrapolated Colors</i> = the G'MIC generated layer with flat colors.\n\n
+#@gui : <b>Warnings:</b>
+#@gui : \n  - Do not rely too much on the preview, it is probably not accurate !
+#@gui : \n  - Activate option <i>Extrapolate color as one layer per single color/region</i> only if you have
+#@gui : <i>a lot</i> of available memory !
+#@gui : </small>"}
+#@gui : sep = separator()
+#@gui : url = link("Click here for a detailed description of this filter.",\
+# "http://www.gimpchat.com/viewtopic.php?f=28&t=7567")
+#@gui : sep = separator()
+#@gui : note = note("<small>Authors: <i>David Tschumperlé</i>, <i>Timothée Giet</i> and <i>David Revoy</i>.
+#@gui :       Latest Update: <i>2013/19/06</i>.</small>")
+fx_colorize_lineart :
+  if $!<2 return fi
+  if $1<2 selection=0,1 else selection=0,1,2 fi
+  l[$selection] {
+
+    # Format input layers.
+    if !$1              # Color strokes + drawing
+    elif $1==1 rv       # Drawing + color strokes
+    elif $1==2 rm[1]    # Color strokes + extrapolated colors + drawing
+    elif $1==3 rm[2] rv # Drawing + color strokes + extrapolated colors.
+    fi
+
+    # Here we have only 'color strokes + drawing' -> process.
+    +to_rgba[0] split_opacity. +.. 1 !=. 0 *[-2,-1]   # Map of color labels to spread.
+    +norm[1] n. 0,1 +histogram. 2,0,1
+    if i(0)>i(1) *.. -1 +.. 1 fi rm.          # Determine color model of the drawing.
+    b. $4% watershed.. . rm.                         # Priority map.
+    -. 1
+    # Here we have 'color strokes + drawing + extrapolated colors'.
+
+    # Format output layers.
+    if !$2 rm[0] rv blend[0,1] multiply ind=-1
+    elif $2==1 rm[0] rv ind=0
+    elif $2==2 rm[0] ind=1
+    elif $2==3 rv[1,2] ind=1
+    elif $2==4 rv[0,1] ind=2
+    fi
+
+    # Separate extrapolated colors as multiple layers.
+    if $3" && "$ind>=0 l[$ind] {
+      +mix_channels (65536,256,1)
+      if $3==10 do  # Split by colors.
+        iM={1,iM}
+        if $iM>=0
+          +==[1] $iM area:=is replace[1] $iM,-1
+          +r. 100%,100%,1,3 *. [0]
+          rv[-2,-1] *. 255 a[-2,-1] c => $area
+        fi
+      while $iM>=0 else  # Split by disconnected regions.
+        label.
+        if $3<10 %. {$3+1} fi
+        repeat iM+1 { +==[1] $< area:=is +r. 100%,100%,1,[0] *. [0] rv[-2,-1] *. 255 a[-2,-1] c => $area }
+      fi
+      rm[0,1]
+      sort_list +,n
+    } fi
+  }
+
+fx_colorize_lineart_preview :
+  fx_colorize_lineart $1,0,$3,$4
 
 #@gui Colorize Lineart [Smart Coloring] : fx_colorize_lineart_smart, fx_colorize_lineart_smart_preview(0)
 #@gui : Colorize Mode = choice("Generate Random-Colors Layer","Extrapolate Color Spots on Transparent Top Layer",
@@ -44980,86 +45145,6 @@ _fx_colorize_lineart_smart :
       blend[$ind_lineart,$ind_colors] multiply k[$ind_lineart]
     fi
   } }
-
-#@gui Colorize Lineart [Propagation] : fx_colorize_lineart, fx_colorize_lineart_preview(1)
-#@gui : note = note("<b>Layers ordering:</b>")
-#@gui : Input Layers = choice{0,"Color Spots + Lineart","Lineart + Color Spots",
-#@gui : "Color Spots + Extrapolated Colors + Lineart","Lineart + Color Spots + Extrapolated Colors"}
-#@gui : Output Layers = _choice{1,"Single (Merged)","Extrapolated Colors + Lineart",
-#@gui : "Lineart + Extrapolated Colors","Color Spots + Extrapolated Colors + Lineart",
-#@gui : "Lineart + Color Spots + Extrapolated Colors"}
-#@gui : Extrapolate Colors As = choice("One Layer","Two Layers","Three Layers","Four Layers","Five Layers",
-#@gui : "Six Layers","Seven Layers","Eight Layers","Nine Layers","Ten Layers","One Layer per Single Color",
-#@gui : "One Layer per Single Region")
-#@gui : sep = separator()
-#@gui : Smoothness = float(0.05,0,1)
-#@gui : sep = separator()
-#@gui : note = note{"<small><b>Note:</b> You probably need to select <i>All</i> for the <i>Input layers</i> option
-#@gui : on the left.\n
-#@gui : <i>Color Spots</i> = your layer with color indications.\n
-#@gui : <i>Lineart</i> = your layer with line-art (B&W or transparent).\n
-#@gui : <i>Extrapolated Colors</i> = the G'MIC generated layer with flat colors.\n\n
-#@gui : <b>Warnings:</b>
-#@gui : \n  - Do not rely too much on the preview, it is probably not accurate !
-#@gui : \n  - Activate option <i>Extrapolate color as one layer per single color/region</i> only if you have
-#@gui : <i>a lot</i> of available memory !
-#@gui : </small>"}
-#@gui : sep = separator()
-#@gui : url = link("Click here for a detailed description of this filter.",\
-# "http://www.gimpchat.com/viewtopic.php?f=28&t=7567")
-#@gui : sep = separator()
-#@gui : note = note("<small>Authors: <i>David Tschumperlé</i>, <i>Timothée Giet</i> and <i>David Revoy</i>.
-#@gui :       Latest Update: <i>2013/19/06</i>.</small>")
-fx_colorize_lineart :
-  if $!<2 return fi
-  if $1<2 selection=0,1 else selection=0,1,2 fi
-  l[$selection] {
-
-    # Format input layers.
-    if !$1              # Color strokes + drawing
-    elif $1==1 rv       # Drawing + color strokes
-    elif $1==2 rm[1]    # Color strokes + extrapolated colors + drawing
-    elif $1==3 rm[2] rv # Drawing + color strokes + extrapolated colors.
-    fi
-
-    # Here we have only 'color strokes + drawing' -> process.
-    +to_rgba[0] split_opacity. +.. 1 !=. 0 *[-2,-1]   # Map of color labels to spread.
-    +norm[1] n. 0,1 +histogram. 2,0,1
-    if i(0)>i(1) *.. -1 +.. 1 fi rm.          # Determine color model of the drawing.
-    b. $4% watershed.. . rm.                         # Priority map.
-    -. 1
-    # Here we have 'color strokes + drawing + extrapolated colors'.
-
-    # Format output layers.
-    if !$2 rm[0] rv blend[0,1] multiply ind=-1
-    elif $2==1 rm[0] rv ind=0
-    elif $2==2 rm[0] ind=1
-    elif $2==3 rv[1,2] ind=1
-    elif $2==4 rv[0,1] ind=2
-    fi
-
-    # Separate extrapolated colors as multiple layers.
-    if $3" && "$ind>=0 l[$ind] {
-      +mix_channels (65536,256,1)
-      if $3==10 do  # Split by colors.
-        iM={1,iM}
-        if $iM>=0
-          +==[1] $iM area:=is replace[1] $iM,-1
-          +r. 100%,100%,1,3 *. [0]
-          rv[-2,-1] *. 255 a[-2,-1] c => $area
-        fi
-      while $iM>=0 else  # Split by disconnected regions.
-        label.
-        if $3<10 %. {$3+1} fi
-        repeat iM+1 { +==[1] $< area:=is +r. 100%,100%,1,[0] *. [0] rv[-2,-1] *. 255 a[-2,-1] c => $area }
-      fi
-      rm[0,1]
-      sort_list +,n
-    } fi
-  }
-
-fx_colorize_lineart_preview :
-  fx_colorize_lineart $1,0,$3,$4
 
 #@gui Dithering : fx_ditheredbw, fx_ditheredbw_preview(0)
 #@gui : Brightness (%) = ~float(0,-100,100)
@@ -50617,16 +50702,40 @@ fx_wind :
 fx_wind_preview :
   gui_split_preview "fx_wind $*",${-3--1}
 
-#@gui Zoom : fx_zoom, fx_zoom(1)
-#@gui : Factor = float(2,0.01,10)
-#@gui : Center (%) = point(50,50,0,1,255)
-#@gui : Boundary = choice(0,"Transparent","Nearest","Periodic","Mirror")
+#@gui Zoom : fx_zoom_v2, fx_zoom_v2_preview
+#@gui : Previous X-Center = value(50)
+#@gui : Previous Y-Center = value(50)
+#@gui : Center = point(50,50,0,1)_0
+#@gui : Vector = point(75,50,0,1)_0
+#@gui : Interpolation = choice(1,"Nearest Neighbor","Linear","Cubic")
+#@gui : Boundary = choice("Transparent","Nearest","Periodic","Mirror")
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/29/12</i>.</small>")
-fx_zoom :
-  if !$4" && "$1<1 to_a fi
-  zoom $1,{$2%},{$3%},0,$4
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2024/05/02</i>.</small>")
+fx_zoom_v2 :
+  _fx_zoom_v2 ${3-8}
 
+fx_zoom_v2_preview :
+  px,py,x,y,p,q,interpolation,boundary=${1-8}
+  p,q+=$x-$px,$y-$py
+  px,py=$x,$y
+  _fx_zoom_v2 $x,$y,$p,$q,$interpolation,$boundary
+  line $x%,$y%,$p%,$q%,1,0xCCCCCCCC,255
+  line $x%,$y%,$p%,$q%,1,0x33333333,0
+  u \{$px\}\{$py\}\{$x,$y\}\{$p,$q\}\{$interpolation\}\{$boundary\}
+
+_fx_zoom_v2 :
+  if !$6 to_a fi
+  f "
+    const interpolation = $5;
+    const boundary = $6;
+    const cx = w/2;
+    const cy = h/2;
+    const ncx = $1*w%;
+    const ncy = $2*h%;
+    const fact = (25/norm($1 - $3,$2 - $4))^2;
+    nx = fact*(x - ncx) + ncx;
+    ny = fact*(y - ncy) + ncy;
+    I(nx,ny)"
 
 #@gui ____<b>Degradations</b>
 #-----------------------------
@@ -52216,11 +52325,11 @@ fx_streak :
 #@gui Visible Watermark : fx_watermark_visible, fx_watermark_visible(0)
 #@gui : Text = text{"\\251 G'MIC"}
 #@gui : Opacity = float(0.4,0,1)
-#@gui : Font = choice("Acme","Arial","Arial Black","Black Ops One","BlackChancery","Cabin Sketch",\
-# "Caprasimo","Carnevalee Freakshow","Cheese Burger","Cheque","Cheque-Black","Chlorinar","Comic Sans MS",\
-# "Courier New","Creepster","Georgia","Impact","Lobster","Luckiest Guy","Macondo","MedievalSharp","Odin Rounded",\
-# "Oswald","Palatino Linotype","Playfair Display","Roboto","Sacramento","Satisfy","Sofia","Tex Gyre Adventor",\
-# "Times New Roman","Titan One","Verdana")
+#@gui : Font = choice(27,"Acme","Arial","Arial Black","Black Ops One","Black Chancery","Cabin Sketch",\
+# "Caprasimo","Carnevalee Freakshow","Cheese Burger","Cheque","Cheque Black","Chlorinar","Comic Sans MS",\
+# "Courier New","Creepster","Georgia","Hidayatullah","Impact","Jaro","Lobster","Luckiest Guy","Macondo",\
+# "Medieval Sharp","Odin Rounded","Oswald","Palatino Linotype","Playfair Display","Roboto","Satisfy","Sofia",\
+# "Sunday Milk","Tex Gyre Adventor","Times New Roman","Titan One","Typewriter","Verdana")
 #@gui : Size = int(50,13,512)
 #@gui : Bold Face = bool()
 #@gui : Angle = float(25,0,360)
@@ -53178,17 +53287,18 @@ fx_frame_blur :
     blend alpha
   }
 
-#@gui Frame [Cube] : frame_cube, frame_cube(1)
-#@gui : Depth = float(3,0,30)
-#@gui : X-Center = float(0,-2,2)
-#@gui : Y-Center = float(0,-2,2)
-#@gui : Left Side Orientation = choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
-#@gui : Right Side Orientation = choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
-#@gui : Upper Side Orientation = choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
-#@gui : Lower Side Orientation = choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
+#@gui Frame [Cube] : fx_frame_cube, fx_frame_cube(1)
+#@gui : Depth = ~float(3,0,30)
+#@gui : Center = ~point(50,50,0,1)
+#@gui : Left Side Orientation = ~choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
+#@gui : Right Side Orientation = ~choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
+#@gui : Upper Side Orientation = ~choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
+#@gui : Lower Side Orientation = ~choice("Normal","Mirror-X","Mirror-Y","Mirror-XY")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé, Angelo Lama</i>.
 #@gui :       Latest Update: <i>2012/29/01</i>.</small>")
+fx_frame_cube :
+  frame_cube $1,{([${2,3}]-50)/50},${4--1}
 
 #@gui Frame [Fuzzy] : fx_frame_fuzzy, fx_frame_fuzzy(0)
 #@gui : Horizontal Size (%) = float(5,0,100)
@@ -53316,9 +53426,9 @@ fx_frame_pattern_preview :
 fx_frame :
  to_rgba repeat $! {
    z. $1%,$3%,$2%,$4%
-   frame. $11,$11,${12-15}
+   frame. xy,$11,${12-15}
    sx,sy:=[$5%,$6%]*max(w,h)
-   frame. $sx,$sy,${7-10}
+   frame. x,$sx,${7-10} frame. y,$sy,${7-10}
  mv. 0 }
 
 #@gui Frame [Round] : fx_frame_round, fx_frame_round(1)
@@ -58142,7 +58252,7 @@ fx_lissajous :
 #@gui : sep = separator()
 #@gui : note = note{"<small><b>Navigation:</b></small>"}
 #@gui : Zoom Center = point(50,50,0,0,255,255,255,200)
-#@gui : Zoom Factor = float(0.25,0,1)
+#@gui : Zoom Factor = float(0.75,0,1)
 #@gui : Zoom In = button()
 #@gui : Center = button()
 #@gui : Zoom Out = button()
@@ -58561,7 +58671,7 @@ fx_newton_fractal_preview : skip "${6=},${7=},${8=},${22=},${25=},${28=}"
 #@gui : Color Balance = ~color(128,128,128)
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2011/20/03</i>.</small>")
-fx_plasma :  skip ${4=0},${5=0}
+fx_plasma : skip ${4=0},${5=0}
   if $5 to_rgba else to_rgb fi
   if $4 rand 0,255 fi
   plasma $1,$2,$3 n 0,255
@@ -58569,11 +58679,11 @@ fx_plasma :  skip ${4=0},${5=0}
 
 #@gui Quick Copyright : fx_quick_copyright, fx_quick_copyright_preview(1)
 #@gui : Text = text{"\\251 John Doe"}
-#@gui : Font = ~choice(22,"Acme","Arial","Arial Black","Black Ops One","BlackChancery","Cabin Sketch",\
-# "Caprasimo","Carnevalee Freakshow","Cheese Burger","Cheque","Cheque-Black","Chlorinar","Comic Sans MS",\
-# "Courier New","Creepster","Georgia","Impact","Lobster","Luckiest Guy","Macondo","MedievalSharp","Odin Rounded",\
-# "Oswald","Palatino Linotype","Playfair Display","Roboto","Sacramento","Satisfy","Sofia","Tex Gyre Adventor",\
-# "Times New Roman","Titan One","Verdana")
+#@gui : Font = choice(24,"Acme","Arial","Arial Black","Black Ops One","Black Chancery","Cabin Sketch",\
+# "Caprasimo","Carnevalee Freakshow","Cheese Burger","Cheque","Cheque Black","Chlorinar","Comic Sans MS",\
+# "Courier New","Creepster","Georgia","Hidayatullah","Impact","Jaro","Lobster","Luckiest Guy","Macondo",\
+# "Medieval Sharp","Odin Rounded","Oswald","Palatino Linotype","Playfair Display","Roboto","Satisfy","Sofia",\
+# "Sunday Milk","Tex Gyre Adventor","Times New Roman","Titan One","Typewriter","Verdana")
 #@gui : Size (%) = float(10,0,50)
 #@gui : Bold Face = ~bool()
 #@gui : Color = color(255,255,255)
@@ -60750,7 +60860,7 @@ fx_solve_maze_preview :
 #@cli : $ 400,400,1,3 KittyRings 30,8,0,1,113,0,113,0,255,0 _label="Kitaoka~spin~illusion"
 #@cli : $ 400,400,1,3 fx_neon_lightning 50,50,0,50,50,100,50,0.7,3,130,80,50,0.25,0 _label="Neon~lighting"
 #@cli : $ image.jpg fx_lava 8,5,3,0,0 _label="Lava"
-#@cli : $ sample monkey,lion,monkey 100%,100% plasma. equalize. 256 transition[0,1,2] [3],10 rm. _fps=10 \
+#@cli : $ sample monkey,lion,monkey 100%,100% plasma. 1 equalize. 256 transition[0,1,2] [3],10 rm. _fps=10 \
 # _label="transition"
 #@cli : $ image.jpg fx_shapeism 2,7,0.38,0,1,5,32,8,3,1,5,0.5,1,0,0,0,255 _label="Shapeism"
 #@cli : $ image.jpg fx_generic_halftone 0,1,100,12,1,0,4,0,90,1,0,0 _label="Halftone"
