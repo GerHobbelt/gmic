@@ -1794,8 +1794,9 @@ d :
 #@cli : \n- **3D mesh view:**
 #@cli : 'LMB': Mesh rotation - 'CTRL+LMB' or 'MMB': Mesh pan - 'RMB': Mesh zoom -  \
 # 'A': Toggle axes - 'D': Switch face side mode - 'F': Change focale - 'J': Start/stop animation - \
-# 'K': Switch background - 'R': Switch rendering mode - 'T': Switch motion rendering mode - \
-# 'X': Show/hide bounding-box - 'U': Switch animation mode - 'Z': Toggle z-buffer.
+# 'K': Switch background - 'O': Switch outline mode - 'P': Print 3D pose matrix on 'stdout' - \
+# 'R': Switch rendering mode - 'T': Switch motion rendering mode - 'X': Show/hide bounding-box - \
+# 'U': Switch animation mode - 'Z': Toggle z-buffer.
 #@cli : \n- **2D images specific:**
 #@cli : 'CTRL+LMB': Rectangular selection.
 #@cli : \n- **3D volumetric images specific:**
@@ -1820,6 +1821,8 @@ d :
 #@cli :   - '_display_3d_is_rendered' can be { 0:off | 1:on } (default value: '1').
 #@cli :   - '_display_3d_rendering_mode' can be { 0:dots | 1:wireframe | 2:flat | 3:flat-shaded | 4:gouraud-shaded | \
 # 5=phong-shaded } (default value: '4').
+#@cli :   - '_display_3d_outline_mode' can be { 0:no-outline | 1:black-outline | 2:gray-outline | 3:red-outline | \
+# 4:green-outline | 5:blue-outline | 6:white-outline } (default value: '0').
 #@cli :   - '_display_3d_motion_rendering_mode' can be { -1:bounding-box | 0:dots | 1:wireframe | 2:flat | \
 # 3:flat-shaded | 4:gouraud-shaded | 5=phong-shaded } (default value: '3').
 #@cli :   - '_display_3d_motion_time_limit' is specified in ms. Above this time, motion rendering toggle to \
@@ -1827,11 +1830,12 @@ d :
 #@cli :   - '_display_3d_side_mode' can be { 0:single-sided | 1:double-sided | 2:single-sided (flipped) } \
 # (default value: '0').
 #@cli :   - '_display_3d_is_zbuffer' can be { 0:off | 1:on } (default value: '1').
-#@cli :   - '_display_3d_focale' can be { <0: perspecive projection w/o sprite zooming, 0: parallel projection | \
+#@cli :   - '_display_3d_focale' can be { <0: perspective projection w/o sprite zooming, 0: parallel projection | \
 # >0: perspective projection } (default value: 1.5).
 #@cli :   - '_display_3d_is_axes' can be { 0:off | 1:on } (default value: '1').
 #@cli :   - '_display_3d_is_bounding_box' can be { 0:off | 1:on } (default value: '0').
 #@cli :   - '_display_3d_background' is an unsigned integer in range [0,11] (default value: '11').
+#@cli :   - '_display_3d_pose' is a sequence of 12 values that defines the current 3D pose matrix (read/write).
 #@cli :   - '_display_3d_animation' can be { 0:off | 1:forward | 2:backward } (default value: '0').
 #@cli :   - '_display_3d_animation_mode' can be { 0-3:X-axis | 4-7:Y-axis | 8-11:Z-axis | 12-15:XYZ-axes } \
 # (default value: '4').
@@ -1839,7 +1843,7 @@ display :
   _gmic_s="$?" v + _$0 "",1,$[]
 
 +display :
-  _gmic_s="$?" v + _$0 +,{$^>0},$[]
+  _gmic_s="$?" v + _$0 +,{$^>=0},$[]
 
 # $1: '+' or '' to specify output on stdout or stderr.
 # $2: display_header={ 0 | 1 }
@@ -1868,11 +1872,12 @@ _display : skip ${1=},${3=}
   setting_3d_rendering_mode:=narg($_display_3d_rendering_mode)?\
                              cut(int(0$_display_3d_rendering_mode),0,5):\
                              narg($_mode3d)?cut(int(0$_mode3d),0,5):4
+  setting_3d_outline_mode:=narg($_display_3d_outline_mode)?cut(int(0$_display_3d_outline_mode),0,6):0
   setting_3d_motion_rendering_mode:=narg($_display_3d_motion_rendering_mode)?\
                                     cut(int(0$_display_3d_motion_rendering_mode),-1,5):\
                                     narg($_moded3d)?cut(int(0$_moded3d),-1,5):3
   setting_3d_motion_time_limit:=narg($_display_3d_motion_time_limit)?max(0$_display_3d_motion_time_limit,0):300
-  setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):0
+  setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):1
   setting_3d_is_zbuffer:=narg($_display_3d_is_zbuffer)?cut(int(0$_display_3d_is_zbuffer),0,1):1
   setting_3d_focale:=narg($_display_3d_focale)?0$_display_3d_focale:1.5
   setting_3d_is_axes:=narg($_display_3d_is_axes)?cut(int(0$_display_3d_is_axes),0,1):1
@@ -1880,6 +1885,8 @@ _display : skip ${1=},${3=}
   setting_3d_background:=narg($_display_3d_background)?cut(int(0$_display_3d_background),0,12):11
   setting_3d_animation:=narg($_display_3d_animation)?cut(int(0$_display_3d_animation),0,1):0
   setting_3d_animation_mode:=narg($_display_3d_animation_mode)?cut(int(0$_display_3d_animation_mode),0,15):4
+  if !narg($_display_3d_pose) _display_3d_pose=1,0,0,0,0,1,0,0,0,0,1,0 fi
+  if !narg($_display_3d_zoom) _display_3d_zoom=0.65 fi
 
   thumb_height_factor=0.15
   thumb_min_ratio=0.45
@@ -2066,8 +2073,13 @@ _display : skip ${1=},${3=}
 
               is_alpha={$ind,$setting_alpha" && "(s==2||s==4)}
               sh[$ind] 0,{$ind,$is_alpha?s-1:min(2,s-1)}
-              if d>1 +volumetric2d. 50%,50%,50%,2 rm.. fi
+              if d>1
+                +r3din. {ceil(min($w/(w+d+2),$h/(h+d+2))*[w,h,d])},1
+                volumetric2d. {round([w-(w==1),h-(h==1),d-(d==1)]/2)},2
+                rm..
+              fi
               if w>$w" || "h>$h +r. $w,$h else . fi rm..
+
               if {is_rotated,i[$ind]} rotate. {is_rotated,-90*i[$ind]} fi
               if !$setting_normalization # Normalize thumb: none
                 and. 255
@@ -2402,9 +2414,7 @@ _display : skip ${1=},${3=}
 
       if !0$area_3d_mesh
         if $is_volumetric
-          +projections3d[$selected] {$selected,floor([cut($view_center_x*w,0,w-1),\
-                                                      cut($view_center_y*h,0,h-1),\
-                                                      cut($view_center_z*d,0,d-1)])},1,10
+          +projections3d[$selected] {$selected,[$view_center_x*w,$view_center_y*h,$view_center_z*d]},1,10
           asiz={$selected,max(w,h,d)/3}
           axes3d $asiz,$asiz,$asiz,16 o3d. 0.5 col3d. 255,128,0 +3d[-2,-1]
         else
@@ -2413,7 +2423,7 @@ _display : skip ${1=},${3=}
         fi
         c3d. n3d.
         => area_3d_mesh
-        $0_rmn area_3d_bounding_box,area_3d_view
+        $0_rmn area_3d_mesh_notexture,area_3d_bounding_box,area_3d_view
       fi
 
       if !0$area_3d_bounding_box" && "(\
@@ -2421,6 +2431,14 @@ _display : skip ${1=},${3=}
          ($area_3d_is_motion" && "$setting_3d_motion_rendering_mode<0" && "!$is_volumetric))
         +boundingbox3d[area_3d_mesh] => area_3d_bounding_box
         if $setting_3d_is_bounding_box +o3d[area_3d_bounding_box] 0.35 +3d[area_3d_mesh,-1] fi
+      fi
+
+      if $setting_3d_outline_mode" && "!0$area_3d_mesh_notexture
+        +l[area_3d_mesh] {
+          p3d 2 nbp:=f2ui(i[7])
+          if $nbp 1,$nbp,1,1,y j.. .,0,{-2,h-4*$nbp} j.. .,0,{-2,h-3*$nbp} j.. .,0,{-2,h-2*$nbp} rm. fi
+        }
+        => area_3d_mesh_notexture
       fi
 
       # Render and draw 3D mesh object.
@@ -2442,7 +2460,10 @@ _display : skip ${1=},${3=}
         fi
         [canvas_3d_background] => area_3d_view
 
-        if !0$view_3d_pose (1,0,0,0;0,1,0,0;0,0,1,0) => view_3d_pose view_3d_zoom=0.65 fi
+        if !0$view_3d_pose
+          ($_display_3d_pose) r. 4,3,1,1,-1 => view_3d_pose
+          view_3d_zoom=$_display_3d_zoom
+        fi
 
         is_bounding_box_only:=$area_3d_is_motion" && "$setting_3d_motion_rendering_mode<0" && "!$is_volumetric
         if $is_bounding_box_only
@@ -2452,7 +2473,7 @@ _display : skip ${1=},${3=}
         fi
         if $setting_3d_side_mode==2 rv3d. fi
 
-        # Apply pose to 3D mesh
+        # Apply pose to 3D mesh.
         nbv:=f2ui(i[6])
         if $nbv
           +z. 0,8,0,{7+3*$nbv} r. 3,$nbv,1,1,-1 permute. yzcx
@@ -2477,6 +2498,19 @@ _display : skip ${1=},${3=}
                                                                       $setting_3d_side_mode==1,\
                                                                       $setting_3d_is_zbuffer,\
                                                                       $setting_3d_focale*$fact]}
+          if $setting_3d_outline_mode" && "!$is_volumetric # Draw primitive outlines
+            +z. 0,8,0,{7+3*$nbv} j[area_3d_mesh_notexture] .,0,8 rm.
+            [area_3d_view],[area_3d_view],1,1,-1
+            j3d. [area_3d_mesh_notexture],50%,50%,0,1,2,{$setting_3d_side_mode==1},$setting_3d_is_zbuffer,\
+                 {$setting_3d_focale*$fact}
+            g. xy,1 !=[-2,-1] 0 or[-2,-1]
+            100%,100%,1,3
+            fc. ${"arg "$setting_3d_outline_mode,\
+                "\"0,0,0\",\"128,128,128\",\"255,0,0\",\"0,128,0\",\"0,0,255\",\"255,255,255\""}
+            j[area_3d_view] .,0,0,0,0,0.5,..
+            rm[-2,-1]
+          fi
+
           dtime:=$|-$time0
           if $area_3d_is_motion" && "1000*$dtime>$setting_3d_motion_time_limit
             setting_3d_motion_rendering_mode=-1
@@ -3530,6 +3564,15 @@ _display : skip ${1=},${3=}
           fi
           $0_rmn area_3d_view,canvas_label_notification
           skip {*,-F}
+        elif !$is_CTRL" && "{*,O} # O: Change 3D outline mode
+          setting_3d_outline_mode:=($setting_3d_outline_mode+1)%7
+          notification="Outline: "${"arg0 "$setting_3d_outline_mode,Off,Black,Gray,Red,Green,Blue,White}
+          $0_rmn area_3d_view,canvas_label_notification
+          skip {*,-O}
+        elif {*,-P}" && "0$view_3d_pose # Print current 3D pose on stdout
+          +f[view_3d_pose] "x<3?i:0"
+          +e "Command 'display': 3D Pose = [ "{^}" ]"
+          rm.
         elif {*,-R} # R: Switch 3D rendering mode
           setting_3d_rendering_mode:=($setting_3d_rendering_mode+1)%6
           notification="Rendering: "${"arg0 "$setting_3d_rendering_mode,\
@@ -3673,6 +3716,10 @@ _display : skip ${1=},${3=}
       if $notification_opacity<1 $0_rmn window_view fi
     fi
   }
+
+  # Return current 3D pose and zoom.
+  if 0$view_3d_pose _display_3d_pose={view_3d_pose,^} fi
+  if narg($view_3d_zoom) _display_3d_zoom=$view_3d_zoom fi
 
   # Reset image list and display window to their previous states.
   if $is_opencv" && "$window_record_frame>=0 o[] $filename_animation,0,0,0 fi # Close recording stream
@@ -4412,11 +4459,13 @@ _display_voxels3d :
         shrink_xyz. 1 *. .. k. args=0.9,1.1,1
       fi
     fi
-    surfels3d $args +3d. 0.5,0.5,0.5 box3d $w,$h,$d p3d. 1 o3d. 0.25
-    axes3d $asiz,$asiz,$asiz,16 o3d. 0.5 col3d. 255,128,0 +3d
+    surfels3d $args +3d. 0.5,0.5,0.5
+    axes3d $asiz,$asiz,$asiz,16 o3d. 0.5 col3d. 255,128,0
+    +3d
   }
   foreach[$nb_images--1] { => ${nm$>} }
   _display_3d_rendering_mode=2
+  _display_3d_is_bounding_box=1
   _display[$nb_images--1] "",0,$[] rm[$nb_images--1]
   is_change 0
 
@@ -8649,10 +8698,10 @@ parse_gui_json :
     sepf={`$<?_',':0`}
     ppos=1
     repeat ${_f${f}_nb_params} { p=$>
-      _parse_gui_json ${_f${f}_p{$p}_name} name={/${}}
+      _parse_gui_json[] ${_f${f}_p{$p}_name} name={/${}}
       type=${_f${f}_p{$p}_type}
       nbargs=${_f${f}_p{$p}_nb_args}
-      arg0= repeat $nbargs { ('${_f${f}_p${p}_a$>}') autocrop. {'\"'} _parse_gui_json {t} arg$>=${} rm. }
+      arg0= repeat $nbargs { ('${_f${f}_p${p}_a$>}') autocrop. {'\"'} _parse_gui_json[] {t} arg$>=${} rm. }
       sepp={`$<?_',':0`}
       if narg(${_f${f}_p{$p}_visibility})
         visibility=", \"visibility\": \""${_f${f}_p{$p}_visibility}"\""
@@ -8767,8 +8816,8 @@ _parse_gui_json :
     replace_str. "</b>",""
     replace_str. "<small>",""
     replace_str. "</small>",""
-    u {t} rm.
-    onfail u ""
+    u {t} rm
+    onfail u "" rm
   }
 
 #
@@ -9006,7 +9055,8 @@ _parse_gui_strings :
 #@cli : Default values: 'size=800'.
 +portrait : check "isint(${1=800}) && $1>0"
   e[^-1] "Input random portrait image of size $1x$1."
-  i jpg:"https://thispersondoesnotexist.com/" r2dx. $1 => portrait
+  i jpg:"https://thispersondoesnotexist.com/" z. 12,0,1011,999
+  r2dx. $1 => portrait
 
 #@cli p : eq. to 'print'.
 p :
@@ -9035,6 +9085,7 @@ _print_no_header :
 # $2: print_header={ 0 | 1 }
 # $3: list of selected images indices.
 _print : skip ${1=},${3=}
+  if ['"$1"']!='+'" && "$^<0 return fi
   if !$!
     if $2 e[0--5] "Print image []." fi
     is_change 0
@@ -17217,10 +17268,11 @@ upscale_smart : skip ${2=100%},${3=100%} check "${4=2}>=0 && ${5=0.4}>=0 && $5<=
 volumetric2d : skip ${1=50%},${2=50%},${3=50%} check "isint(${4=0}) && $4>=0"
   e[^-1] "Convert 3D volumetric image$? into a 2D representation, with coordinates (${1-3}) and separator size $4."
   foreach { nm={n}
-    +slices. $3
-    if $4 1,$4 else 0 fi +rows... $2 permute. xzyc a[-3--1] y
-    if $4 $4 else 0 fi +columns... $1 permute. zyxc a[-3--1] x
-    rm.. => $nm
+    {[w+d+$4,h+d+$4]},1,100%,{im}
+    +slices[0] $3 j.. . rm.
+    +rows[0] $2 permute. xzyc j.. .,0,{0,h+$4} rm.
+    +columns[0] $1 permute. zyxc j.. .,{0,w+$4},0
+    k.. => $nm
   }
 
 #---------------------------------
@@ -19964,6 +20016,33 @@ betti :
     res.=$c$B0,$B1,$B2 c=,
   }
   u $res
+
+#@cli canny : _sigma[%]>=0,_low_threshold>=0,_high_threshold>=0
+#@cli : Locate image edges using Canny edge detector.
+#@cli : Default values: 'sigma=1', 'low_threshold=0.05', 'high_threshold=0.15'.
+#@cli : $ image.jpg canny 1
+canny : check "${1=1}>=0 && ${2=0.05}>=0 && ${3=0.15}>=0 && isint(${4=0}) && inrange($4,0,2)"
+  e[^-1] "Apply Canny edge detection on image$?, with sigma $1, low threshold $2 and high threshold $3."
+  low,high:=$2*$3,$3
+  foreach {
+    nm={n}
+    b $1 (1,0,-1;2,0,-2;1,0,-1^1,2,1;0,0,0;-1,-2,-1) convolve.. .,1,0,0 rm. s. c,2 # Gaussian + Sobel
+    +atan2.. . mul. {4/pi} round. 1 mod. 4 # Quantized gradient orientation
+    sqr[0,1] +[0,1] sqrt.. # Gradient norm
+    f.. " # Suppress non-maximum gradients
+      A = i#1;
+      Y = A<1?max(j(0,-1),j(0,1)):
+          A<2?max(j(-1,-1),j(1,1)):
+          A<3?max(j(-1),j(1)):
+          max(j(-1,1),j(1,-1));
+      i>=Y?i:0" rm.
+    div {iM} +ge $high ge.. $low # Double thresholding
+
+    # Hysteresis.
+    f. ">max(crop(x-1,y-1,z,c,3,3,1,1)) && i#0?1:i"
+    f. "<max(crop(x-1,y-1,z,c,3,3,1,1)) && i#0?1:i"
+    rm.. => $nm
+  }
 
 #@cli delaunay : _output_type={ 0:image | 1:coordinates/triangles }
 #@cli : Generate discrete 2D Delaunay triangulation of non-zero pixels in selected images.
@@ -22811,40 +22890,62 @@ dijkstra :
   e[^-1] "Input $1x$1 identity matrix."
   if $1 $1,$1,1,1,x==y else 0 fi
 
+#@cli fitsamples : nb_samples>0,_relevant_dimension[%]>0,\
+# _average_vector_varname,_dilation_vector_varname,_orientation_matrix_varname
+#@cli : Generate 'nb_samples' vectors having the same multivariate gaussian distribution as the vectors of the \
+# selected images.
+#@cli : Each input represents a set of 'M' vectors of dimension 'N' (with M>1) (specified as an image with size \
+# 'MxNx1x1', 'Mx1xNx1', 'Mx1x1xN', '1xMxNx1', '1xMx1xN' or '1x1xMxN').
+#@cli : The command returns a new set of random vectors with similar geometry.
+#@cli : Default values: 'relevant_dimension=100%', and \
+# 'average_vector_varname=orientation_matrix_varname=dilation_matrix_varname=(undefined)'.
+fitsamples : check "isint($1) && $1>0 && ${2=100%}>0" skip "${3=},${4=},${5=}"
+  e[^-1] "Generate $1 new vectors for input vector set$? with $2 relevant dimensions."
+  fwd0,fwd1,fwd2,fwd3,fwd4,fwd5=xzcy,xycz,,yxcz,yxzc,zxyc
+  bwd0,bwd1,bwd2,bwd3,bwd4,bwd5=xcyz,xycz,,yxcz,yxzc,yzxc
+  foreach {
+    nm={n}
+
+    # Determine input format: 'MxNx1x1', 'Mx1xNx1', 'Mx1x1xN', '1xMxNx1', '1xMx1xN' or '1x1xMxN'.
+    M,N,type:=w>1?[w,h>1?[h,0]:d>1?[d,1]:[s,2]]:h>1?[h,d>1?[d,3]:[s,4]]:d>1?[d,s>1?[s,5]:[-1,-1]]
+    if $M*$N!=whds
+      error[0--4] "Command 'fitsamples': Selected image ("{[w,h,d,s]}") does not represent a set of vectors."
+    fi
+    permute ${fwd$type} # Force it to be a 'Mx1x1xN' matrix.
+
+    # Compute average vector.
+    if !narg("$3") +l { s x + / $M } else $$3 fi
+    => avg
+
+    # Compute dilation vector and orientation matrix.
+    if !narg("$4")" || "!narg("$5")
+      $N,$N
+      eval... "*
+        begin(avg = crop(#$avg); C = vector(#$N^2,0));
+        mI = I - avg;
+        C+=mul(mI,mI,s);
+        end(merge(C,+); C/=$M; draw(#-1,C,0,0,0,0,$N,$N,1,1))"
+      P:=round(ispercentage($2)?$N*$2:$2)
+      poweriteration. $P sqrt..
+    else
+      $$4 $$5 P:=w
+    fi
+    => dilation,orientation
+
+    # Generate new random samples with same gaussian distribution.
+    $1,1,1,$N,"*
+      begin(avg = crop(#$avg); L = crop(#$dilation); R = crop(#$orientation));
+      U = vector(#$P); fill(U,k,g*L[k]);
+      mul(R,U)+=avg"
+    k. permute ${bwd$type} => $nm
+  }
+
 #@cli invert : _use_LU={ 0:SVD | 1:LU },_lambda>=0 : (+)
 #@cli : Inverse selected matrices (or compute Moore-Penrose pseudoinverse for non-square matrices).
 #@cli : SVD solver is slower but more precise than LU.
 #@cli : 'lambda' is used only in the Moore-Penrose pseudoinverse, by estimating A^t.(A^t.A + lambda.Id)^-1.
 #@cli : Default value: 'use_LU=0' and 'lambda=0'.
 #@cli : $ (0,1,0;0,0,1;1,0,0) +invert
-
-#@cli orthogonalize : _mode = { 0:orthogonalize | 1:orthonormalize }
-#@cli : Orthogonalize or orthonormalize selected matrices, using Modified Gram-Schmidt process.
-#@cli : Default value: 'mode=0'.
-orthogonalize :
-  if isbool($1) mode=$1 else mode=0 noarg fi
-  u0,u1,v0,v1=Orthogonalize,Orthonormalize,x,ce
-  e[^-1] ${u$mode}" matri"${v{$!!=1}}"$?, using Modified Gram-Schmidt process."
-  foreach {
-    eval ">
-      proj(u,v) = (dot(u,v)/dot(u,u)*u);
-      for (p = 1, p<w, ++p,
-        ref(crop(p,0,1,h),v);
-        repeat (p,q,
-          ref(crop(q,0,1,h),u);
-          v-=proj(u,v);
-        );
-        draw(v,p,0,0,1,h,1);
-      )"
-    if $mode
-      eval. "*!y?(
-        ref(crop(x,0,1,h),v);
-        n = norm(v);
-        v/=n?norm(v):1;
-        draw(v,x,0,0,1,h,1);
-      )"
-    fi
-  }
 
 #@cli meigen : m>=1
 #@cli : Compute an approximation of the 'm' largest eigenvalues and eigenvectors of selected symmetric matrices,
@@ -22880,6 +22981,71 @@ meigen : check "isint($1) && $1>0"
 #@cli : whose columns correspond to the weights associated to each column of D,
 #@cli : such that the matrix product D*W is an approximation of the input matrix.
 #@cli : Default values: 'method=0', 'max_iter=0' and 'max_residual=1e-6'.
+
+#@cli orthogonalize : _mode = { 0:orthogonalize | 1:orthonormalize }
+#@cli : Orthogonalize or orthonormalize selected matrices, using Modified Gram-Schmidt process.
+#@cli : Default value: 'mode=0'.
+orthogonalize :
+  if isbool($1) mode=$1 else mode=0 noarg fi
+  u0,u1,v0,v1=Orthogonalize,Orthonormalize,x,ce
+  e[^-1] ${u$mode}" matri"${v{$!!=1}}"$?, using Modified Gram-Schmidt process."
+  foreach {
+    eval ">
+      proj(u,v) = (dot(u,v)/dot(u,u)*u);
+      for (p = 1, p<w, ++p,
+        ref(crop(p,0,1,h),v);
+        repeat (p,q,
+          ref(crop(q,0,1,h),u);
+          v-=proj(u,v);
+        );
+        draw(v,p,0,0,1,h,1);
+      )"
+    if $mode
+      eval. "*!y?(
+        ref(crop(x,0,1,h),v);
+        n = norm(v);
+        v/=n?norm(v):1;
+        draw(v,x,0,0,1,h,1);
+      )"
+    fi
+  }
+
+#@cli poweriteration : _nb_eigenvectors>0,_epsilon>0,_max_iter>0
+#@cli : Compute the 'nb_eigenvectors' largest eigenvectors of the selected symmetric matrices,
+#@cli : using the power iteration algorithm.
+#@cli : Default values: 'nb_eigenvectors=1', 'epsilon=1e-5' and 'max_iter=100'.
+poweriteration : check "isint(${1=1}) && $1>0 && ${2=1e-6}>0 && isint(${3=1000}) && $3>0"
+  s0,s1=,s if $!>1 c=ces else c=x fi
+  e[^-1] "Compute the $1 first eigenvector"${s{$1>1}}" of matri"$c" [$[]] with epsilon $2."
+  foreach {
+    nm={n}
+    if !w rm 0 0 => $nm[val] $nm[vec] continue fi
+    if w!=h" || "d>1" || "s>1
+      error[0--3] "Command '$0': Image "[{[$[]][$>]}]" ("{[w,h,d,s]}") is not a square matrix."
+    fi
+    1,$1 $1,..
+    eval "
+      const N = w#0;
+      A = crop(#0);
+      b = expr('v',N); b/=norm(b);
+      repeat ($1,k,
+        p_lambda = inf;
+        repeat ($3,
+          c = mul(A,b);
+          lambda = norm(c);
+          c/=lambda;
+          delta = abs(lambda - p_lambda);
+          b = c;
+          p_lambda = lambda;
+          delta<$2?break();
+        );
+        lambda = mul(b,mul(A,b,1))[0]; # Get eigenvalue with correct sign
+        i[#-2,k] = lambda;
+        draw(#-1,b,k,1);
+        A-=(mul(b,b,N)*=lambda);
+      )"
+    rm[0]
+  }
 
 #@cli solve : [image],_use_LU={ 0:SVD | 1:LU } : (+)
 #@cli : Solve linear system AX = B for selected B-matrices and specified A-matrix.
@@ -23610,13 +23776,14 @@ _focale3d :
   e[0--3] "Set 3D focale to $1."
   _focale3d=$1
 
-#@cli fov3d : fov_angle>=0
-#@cli : Set 3D focale to match specified field of vision angle (in degree) for the latest of the selected image.
-#@cli : Return corresponding focale in status.
-#@cli : Default value: 'fov_angle=30'
-fov3d : check "${1=45}>=0 && "$!"==1"
-  e[^-1] "Set 3D focale to have FOV angle of $1 for image$?."
-  if !$1 f3d=0 else f3d:=max(w,h)/2/tan($1°/2) fi
+#@cli fov3d : fov_angle>=0,_image_resolution>0
+#@cli : Set 3D focale to match specified field of vision angle (in degree) for rendering a 3D object in an image \
+# with specified resolution.
+#@cli : Return corresponding value of the focale in status.
+#@cli : Default value: 'fov_angle=45' and 'image_size=max(w,h)' (max size of the latest image).
+fov3d : check "${1=45}>=0 && isint(${2=max(w,h)}) && $2>0"
+  e[^-1] "Set 3D focale to have FOV angle of $1 for image size $2."
+  if !$1 f3d=0 else f3d:=($2)/2/tan(($1)°/2) fi
   f3d $f3d u $f3d
 
 #@cli gaussians3d : _size>0,_opacity
@@ -24455,10 +24622,13 @@ projections3d : skip "${1=50%},${2=50%},${3=50%}" check "isbool(${4=1}) && isint
 +projections3d : skip "${1=50%},${2=50%},${3=50%}" check "isbool(${4=1}) && isint(${5=5}) && $5>0"
   e[^-1] "Generate 3D projection planes (XY,XZ,ZY) from image$?, from point ($1,$2,$3)."
   foreach {
-    w,h,d,x,y,z:="[ w, h, d, ispercentage($1)?$1*w:$1, ispercentage($2)?$2*h:$2,ispercentage($3)?$3*h:$3 ]"
-    +z. 0,0,$3,100%,100%,$3 # XY
-    +z.. 0,$2,100%,$2 permute. xzyc # XZ
-    +z... $1,$1 permute. zyxc # ZY
+    w,h,d,x,y,z:="[ w,h,d,
+                    cut(ispercentage($1)?$1*w:$1,0,w-1),
+                    cut(ispercentage($2)?$2*h:$2,0,h-1),
+                    cut(ispercentage($3)?$3*d:$3,0,d-1) ]"
+    +z. 0,0,$z,100%,100%,$z # XY
+    +z.. 0,$y,100%,$y permute. xzyc # XZ
+    +z... $x,$x permute. zyxc # ZY
     n[-3--1] 0,255 r[-3--1] 100%,100%,1,3
     foreach[-3--1] { plane3d {[w,h]},$5,$5 t3d. .. rm.. }
     +3d... 0,0,$z
@@ -24668,34 +24838,48 @@ skeleton3d : check "isint(${1=2}) && $1>=0 && $1<=2 && isint(${2=3}) && $2>=0 &&
     +3d
   }
 
-#@cli snapshot3d : _size>0,_zoom>=0,_backgroundR,_backgroundG,_backgroundB,_backgroundA : [background_image],zoom>=0
+#@cli snapshot3d : _size>0,_zoom>=0,_backgroundR,_backgroundG,_backgroundB,_backgroundA,_fov_angle>=0 : \
+# [background_image],zoom>=0,_fov_angle>=0
 #@cli : Take 2D snapshots of selected 3D objects.
 #@cli : Set 'zoom' to 0 to disable object auto-scaling.
-#@cli : Default values: 'size=512', 'zoom=1' and '[background_image]=(default)'.
+#@cli : Default values: 'size=1024', 'zoom=1', '[background_image]=(default)' and 'fov_angle=45'.
 #@cli : $ torus3d 100,20 rotate3d 1,1,0,60 snapshot3d 400,1.2,128,64,32
 #@cli : $ torus3d 100,20 rotate3d 1,1,0,60 sample ? +snapshot3d[0] [1],1.2
-snapshot3d : check "${2=1}>=0" skip ${1=512},${3=""}
-  if ${"is_image_arg $1"} # Background image specified.
-    e[0--3] "Take $1x$1 snapshot$? of 3D object$?, with zoom factor $2 and background image $3."
+snapshot3d : check "("${"is_image_arg $1"}" || (isint(${1=1024}) && $1>0)) && "\
+                   "${2=1}>=0 && ${7=45}>=0" skip ${3=""},${4=$3},${5=$4},${6=255}
+  fov=$7
+  if ${"is_image_arg $1"} # Background image specified
     pass$1 0 to_color.
-  elif isnum($3) # Background color specified.
-    e[0--3] "Take $1x$1 snapshot$? of 3D object$?, with zoom factor $2 and background color ${3--1}."
-    (${3--1}) y. c r. $1,$1 to_color.
-  else # Default background color.
-    e[0--3] "Take $1x$1 snapshot$? of 3D object$?, with zoom factor $2 and default background."
+    if isnum($3) fov=$3 fi
+    e[0--3] "Take "{w}"x"{h}" snapshot of 3D object$?, with background image $1, zoom factor $2 and FOV "$fov"."
+
+  elif isnum($3) # Background color specified
+    e[0--3] "Take $1x$1 snapshot of 3D object$?, with zoom factor $2, background color (${3-6}) "\
+            "and FOV "$fov"."
+    if $6>=255 ($3^$4^$5) else ($3^$4^$5^$6) fi
+    r. $1,$1
+
+  else # Default background color
+    e[0--3] "Take $1x$1 snapshot of 3D object$?, with zoom factor $2, default background and FOV "$fov"."
     3,3,1,1,"0,0,0,0,0,100,100,0,50" permute. cyzx r. $1,$1,1,3,3
     24,24,1,1,48 +f. 64 a[-2,-1] x +mirror. x a[-2,-1] y r. {-2,[w,h]},1,3,0,2 +[-2,-1] /. 2 round.
   fi
-  repeat $!-1 { . l[$>,-1] {
-    if $2!=0 c3d[0] n3d[0] *3d[0] {3*min(w,h)*$2/4} fi
-    if s>3 # RGBA rendering.
+
+  ofocale3d=$_focale3d
+  fov3d $fov
+  foreach[^-1] {
+    pass. 0
+    if $2!=0 c3d[0] n3d[0] *3d[0] {3*min(w,h)*$2/4} fi # Apply zoom factor
+    if s>3 # RGBA rendering
+      o3d[0] 1
       100%,100%,1,3,-1 j3d. [0],50%,50%,0,1
       to_rgba. replace_color. 0,0,-1,-1,-1,255,0,0,0,0 blend[-2,-1] alpha
-    else # RGB rendering.
+    else # RGB rendering
       j3d[1] [0],50%,50%,0,1
     fi
-   =>[1] {-2,n} rm[0]
-  } } rm.
+    =>[1] {0,n} k.
+  } rm.
+  _focale3d=$ofocale3d
 
 #@cli sl3d : eq. to 'specl3d'.
 sl3d :
@@ -31945,7 +32129,7 @@ fade_z : skip ${1=30},${2=70}
 #@cli : and the specified base image.
 #@cli : The alpha difference A-B is defined as the image having 'minimal' opacity, such that alpha_blend(B,A-B) = A.
 #@cli : The 'min_alpha' argument is used to relax the alpha minimality constraint. When set to '1', \
-# alpha is constrained to be minimal. When set to '0', alpha is maximal (255).
+# alpha is constrained to be minimal. When set to '0', alpha is maximal (i.e. '255').
 #@cli : Default value: 'minimize_alpha=1'.
 #@cli : $ image.jpg testimage2d {w},{h} +sub_alpha[0] [1] display_rgba
 sub_alpha : check ${"is_image_arg $1"}" && inrange(${2=1},0,1)"
@@ -33974,7 +34158,6 @@ math_lib :
   # Functions to manage curve motion with edgels.
   # k: index of image.
   # P: input edgel = [ x,y,n ] where 'n' is the canonical normal, can be { 0:right | 1:bottom | 2:left | 3:top }.
-  # l: value of the pixels of the silhouette.
   _next_edgel4(k,P,op) = (
     ref(P#[0],_u); ref(P#[1],_v);
     !P#[2]?(i(#k,_u,_nv = _v + 1,0,0)#op?[ _u,_v,1 ]:i(#k,_nu = _u + 1,_nv,0,0)#op?[ _u,_nv,0 ]:[ _nu,_nv,3 ]):
@@ -44960,6 +45143,82 @@ fx_engrave :
 fx_engrave_preview :
   foreach { gui_split_preview "=> foo fx_engrave $* gui_merge_layers",${-3--1} }
 
+#@gui Filaments : fx_filaments, fx_filaments(0)+
+#@gui : Density (%) = float(50,0,100)
+#@gui : Length (%) = float(50,0,100)
+#@gui : Contour (%) = float(75,0,100)
+#@gui : Distortion (%) = float(30,0,100)
+#@gui : Smoothness = float(10,0,100)
+#@gui : Rotation (deg.) = float(0,-180,180)
+#@gui : Local normalization = bool(1)
+#@gui : sep = separator()
+#@gui : Throw From Left = bool(1)
+#@gui : Throw From Right = bool(1)
+#@gui : Throw From Above = bool(1)
+#@gui : Throw From Below = bool(1)
+#@gui : sep = separator()
+#@gui : Opacity (%) = float(50,0,100)
+#@gui : Color model = choice("White on Black","Black on White","White on Transparent","Black on Transparent")
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/18</i>.</small>")
+fx_filaments :
+  density,length,contour,distortion,smoothness,angle,normalize,is_left,is_right,is_above,is_below,opacity,\
+    colormodel=${1-13}
+  foreach {
+    lightness. b. {$smoothness/10} g. xy a[-2,-1] c
+    100%,100%,1,3,"P = I(#-1); n = norm(P); a = atan2(P[1],P[0]) + (90 + $angle)°; [ 1/(1 + n)^0.25,cos(a),sin(a) ]"
+    rm..
+    sh. 0 n. {max(1,100-$contour)%},1 rm.
+    100%,100%
+    if $density" && "$length
+      {$density*(w+h)/10},1,1,1,"*
+        begin(
+          const distortion = $distortion/1000;
+          const dmax = 2*($length%)*norm(w#0,h#0);
+          const opacity = ($opacity/10)%;
+          const is_none = !($is_left || $is_right || $is_above || $is_below);
+          const is_left = is_none || $is_left;
+          const is_right = is_none || $is_right;
+          const is_above = is_none || $is_above;
+          const is_below = is_none || $is_below;
+          const nb_throw_directions = sum(is_left,is_right,is_above,is_below);
+          throw_directions = vector(#nb_throw_directions);
+          k = 0;
+          is_left?(throw_directions[k++] = 0);
+          is_right?(throw_directions[k++] = 1);
+          is_above?(throw_directions[k++] = 2);
+          is_below?(throw_directions[k] = 3);
+        );
+
+        # Set initial particle direction.
+        case = throw_directions[int(u(nb_throw_directions))%nb_throw_directions];
+        case==0?(x = 0; y = u(h#0)%h#0; dx = 1; dy = 0.5*v):
+        case==1?(x = w#0 - 1; y = u(h#0)%h#0; dx = -1; dy = 0.5*v):
+        case==2?(x = u(w#0)%w#0; y = 0; dx = 0.5*v; dy = 1):
+        case==3?(x = u(w#0)%w#0; y = h#0 - 1; dx = 0.5*v; dy = -1);
+        n = norm(dx,dy); dx/=n; dy/=n;
+
+        # Find path of the particle through the image.
+        repeat (dmax,dl,
+          !(inrange(x,0,w#0-1) && inrange(y,0,h#0-1))?break();
+          polygon(#1,1,x,y,opacity,255);
+          u = i(#0,x,y,0,1,1);
+          v = i(#0,x,y,0,2,1);
+          dx*u + dy*v<0?(u = -u; v = -v);
+          dx = lerp(dx,u,distortion);
+          dy = lerp(dy,v,distortion);
+          n = norm(dx,dy)/i(#0,x,y,0,0,1); dx/=n; dy/=n;
+          x+=dx; y+=dy;
+        )"
+    fi
+    k[1]
+    if $normalize normalize_local. , fi
+    if $colormodel==1 *. -1 +. 255 c. 0,255
+    elif $colormodel==2 i[0] 100%,100%,1,1,255 a c
+    elif $colormodel==3 i[0] 100%,100% a c
+    fi
+  }
+
 #@gui Freaky B&W : fx_freaky_bw, fx_freaky_bw_preview
 #@gui : Strength (%) = float(90,0,100)
 #@gui : Oddness (%) = float(20,0,100)
@@ -46716,7 +46975,7 @@ fx_colorful_blobs :
   x8,y8,rx8,ry8,R8,G8,B8,p_x8,p_y8,p_rx8,p_ry8,\
   x9,y9,rx9,ry9,R9,G9,B9,p_x9,p_y9,p_rx9,p_ry9,\
   x10,y10,rx10,ry10,R10,G10,B10,p_x10,p_y10,p_rx10,p_ry10,\
-  x11,y11,rx11,ry11,R11,G11,B11,p_x11,p_y11,p_rx11,p_ry11=$*
+  x11,y11,rx11,ry11,R11,G11,B11,p_x11,p_y11,p_rx11,p_ry11=${1-138}
   if !0$_is_preview display_controls=0 fi
   if $1==1 srgb2cs=srgb2rgb cs2srgb=rgb2srgb
   elif $1==2 srgb2cs=srgb2lab cs2srgb=lab2srgb
@@ -47115,7 +47374,7 @@ fx_customize_clut_preview :
       a[0,1] x r[0] $w,100%,1,3,0
     fi
 
-    snapshot3d. {0,1.1*min(w,h)},1.2,64,64,64
+    snapshot3d. {0,round(1.1*min(w,h))},1.2,64,64,64
     autocrop. -. 64 r. {0,max(w,$w-w)},{0,max(h,$h-h)},1,3,0,0,0.5,0.5 +. 64
     to. "RGB CLUT",2,0,13,1,0.75
     a {`$w>$h?_'x':_'y'`}
@@ -48589,9 +48848,10 @@ fx_vibrance :
          lum = (R*0.2 + G*0.7 + B*0.1)/255;
          sat = cut(1 - min/lum,0,1);
          [ vib(R),vib(G),vib(B) ]"
-      }
-      a c
+      c 0,255
     }
+    a c
+  }
 
 fx_vibrance_preview :
   gui_split_preview "fx_vibrance $*",${-3--1}
@@ -48755,6 +49015,26 @@ fx_edges :
 
 fx_edges_preview :
   gui_split_preview "fx_edges ${^0}",${-3--1}
+
+#@gui Edges (Canny) : fx_canny, fx_canny_preview(0)
+#@gui : Sigma = float(5,0,20)
+#@gui : Lower Threshold = float(0.05,0,1)
+#@gui : Upper Threshold = float(0.15,0,1)
+#@gui : Monochrome = bool(1)
+#@gui : sep = separator()
+#@gui : Preview Type = choice("Full","Forward Horizontal","Forward Vertical","Backward Horizontal",
+#@gui : "Backward Vertical","Duplicate Top","Duplicate Left","Duplicate Bottom","Duplicate Right",
+#@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
+#@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>Garagecoder</i> and <i>David Tschumperlé</i>.      \
+# Latest Update: <i>2023/12/04</i>.</small>")
+fx_canny :
+  if $4 norm fi
+  foreach { split_opacity canny[0] $1,{[max($2,1e-6),max($3,1e-6)]} *[0] 255 a c }
+
+fx_canny_preview :
+  gui_split_preview "fx_canny $*",${-3--1}
 
 #@gui Edges Offsets : fx_edge_offsets, fx_edge_offsets_preview(0)
 #@gui : Smoothness = float(0,0,10)
@@ -49851,6 +50131,46 @@ fx_square_circle :
        (V+=1)*=h2 - 0.5;
        I(U,V)"
   fi
+
+#@gui Square to Circle [alt] : fx_square_circle_alt,fx_square_circle_alt_preview(1)
+#@gui : Mode = choice("Square to Circle","Circle to Square")
+#@gui : Center = point(50,50,0,1)
+#@gui : Zoom (%) = float(0,-100,100)
+#@gui : Angle (deg.) = float(0,-180,180)
+#@gui : Interpolation = choice(1,"Nearest Neighbor","Linear")
+#@gui : Boundary = choice("Transparent","Nearest","Periodic","Mirror")
+#@gui : Adapt to Image Ratio = bool(1)
+#@gui : sep = separator()
+#@gui : Preview Type = choice("Full","Forward Horizontal","Forward Vertical","Backward Horizontal",
+#@gui : "Backward Vertical","Duplicate Top","Duplicate Left","Duplicate Bottom","Duplicate Right",
+#@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
+#@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/24</i>.</small>")
+fx_square_circle_alt :
+  mode,centerx,centery,zoom,angle,interpolation,boundary,ratio=${1-8}
+  if !$boundary to_a fi
+  f. "const cx = w*$centerx%;
+      const cy = h*$centery%;
+      const zoom = 10^($zoom%);
+      const angle = $angle°;
+      const interpolation = $interpolation;
+      const boundary = $boundary;
+      const fx = $ratio?w:1;
+      const fy = $ratio?h:1;
+      x = (x - cx)/fx;
+      y = (y - cy)/fy;
+      t = atan2(y,x);
+      r = norm(x,y);
+      phi = (t + pi/4)%(pi/2) - pi/4;
+      nr = ($mode?r*cos(phi):r/cos(phi))/zoom;
+      t+=angle;
+      nx = cx + fx*nr*cos(t);
+      ny = cy + fy*nr*sin(t);
+      i(nx,ny)"
+
+fx_square_circle_alt_preview :
+  gui_split_preview "fx_square_circle_alt $*",${-3--1}
 
 #@gui Stereographic Projection : fx_project_stereographic, fx_project_stereographic_preview(1)
 #@gui : Transform = choice("Direct","Inverse")
@@ -50974,6 +51294,40 @@ _fx_noise :
 fx_noise_preview :
   gui_split_preview "fx_noise $*",${-3--1}
 
+#@gui Noise [Gradient] : fx_noise_gradient,fx_noise_gradient_preview(0)
+#@gui : Strength = float(100,0,255)
+#@gui : Smoothness[%] = float(0,0,100)
+#@gui : Noise Type = choice("Gaussian","Uniform")
+#@gui : sep = separator()
+#@gui : Channel(s) = choice(2,"All","RGBA [All]","RGB [All]","RGB [Red]","RGB [Green]","RGB [Blue]","RGBA [Alpha]",
+#@gui : "Linear RGB [All]","Linear RGB [Red]","Linear RGB [Green]","Linear RGB [Blue]","YCbCr [Luminance]",
+#@gui : "YCbCr [Blue-Red Chrominances]","YCbCr [Blue Chrominance]","YCbCr [Red Chrominance]",
+#@gui : "YCbCr [Green chrominance]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",
+#@gui : "Lab [b-Chrominance]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [Hue]",
+#@gui : "HSV [Saturation]","HSV [Value]","HSI [Intensity]","HSL [Lightness]","CMYK [Cyan]","CMYK [Magenta]",
+#@gui : "CMYK [Yellow]","CMYK [Key]","YIQ [Luma]","YIQ [Chromas]")
+#@gui : sep = separator()
+#@gui : Preview Type = choice("Full","Forward Horizontal","Forward Vertical","Backward Horizontal",
+#@gui : "Backward Vertical","Duplicate Top","Duplicate Left","Duplicate Bottom","Duplicate Right",
+#@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
+#@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/06</i>.</small>")
+_fx_noise_gradient :
+  foreach {
+    avg=${average_vectors.}
+    g[0] xy,1,2
+    foreach { +f 0 noise. {$3?$1:$1/2},$3 b. {lerp(0,10,($2%)^2)}% + }
+    g[0] x,-1,2 g[1] y,-1,2 + ilaplacian 0
+    +fc $avg + c 0,255
+  }
+
+fx_noise_gradient :
+  ac "_fx_noise_gradient $*",$-4,1
+
+fx_noise_gradient_preview :
+  gui_split_preview "fx_noise_gradient $*",${-3--1}
+
 #@gui Noise [Perlin] : fx_noise_perlin, fx_noise_perlin_preview(1)
 #@gui : Random Seed = int(0,0,65536)
 #@gui : sep = separator()
@@ -51335,6 +51689,100 @@ _fx_self_glitching :
 
 fx_self_glitching_preview :
   gui_split_preview "fx_self_glitching $*",${-3--1}
+
+#@gui Simulate CRT : fx_crt,fx_crt_preview(0)
+#@gui : CRT Type = choice("CRT-1","CRT-2")
+#@gui : Neighborhhod Size (px) = int(4,1,16)
+#@gui : Upscale Factor = choice("x1","x2","x3","x4","x5","x6","x7","x8")
+#@gui : Adaptive Pattern = bool(1)
+#@gui : Rotate Pattern = bool(0)
+#@gui : Normalize = bool(1)
+#@gui : sep = separator()
+#@gui : Preview Type = choice("Full","Forward Horizontal","Forward Vertical","Backward Horizontal",
+#@gui : "Backward Vertical","Duplicate Top","Duplicate Left","Duplicate Bottom","Duplicate Right",
+#@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
+#@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/26</i>.</small>")
+fx_crt :
+  type,nsize,upscale_factor,is_adaptive,is_rotate,is_normalize=${1-6}
+  upscale_factor+=1
+  foreach { nm={n} split_opacity l[0] {
+
+    # Retrieve image statistics.
+    if $is_normalize to_rgb s c repeat $! { avg$>,std$>:=ia#$>,id#$> } a c fi
+
+    # Algorithm parameters.
+    M=$nsize # Size of input image neighborhood
+    S:=max(1,int($M/2)) # Stride
+    Q:=$upscale_factor*$M # Size of output image neighborhood
+
+    # Create CRT pattern.
+    if $type
+      (218,65,87;229,255,125;141,247,211;68,36,213) permute. yzcx
+      r. 200%,4,1,3,0,2
+      f. "i*lerp(0.35,1,y/(h-1))" +mirror. y a[-2,-1] y
+    else
+      4,12,1,3,[255,60,0]
+      4,12,1,3,[0,200,0]
+      4,12,1,3,[0,60,255]
+      r[-3--1] 5,15,1,3,0,0
+      shift.. 0,5,0,0,2
+      shift. 0,10,0,0,2
+      a[-3--1] x
+    fi
+    if $is_rotate transpose. fi
+
+    # Add dynamics to the CRT pattern.
+    if $is_adaptive l. {
+      w:=w
+      r 300%,300%
+      +l { repeat 5 { 3,3,1,1,1 +dilate.. .,0 rm.. } r $w,$w,1,3,2 b 1 n 0,255 a z }
+      l.. { repeat 5 { 3,3,1,1,1 +erode.. .,0 rm.. } rv rm. r $w,$w,1,3,2 b 1 n 0,255 a z }
+      a z
+      rgb2hsl f "[ i0, cut(i1*lerp(1,0.5,z/(d-1)),0,1), i2 ]" hsl2rgb
+    } fi
+    /. 255
+
+    # Apply CRT pattern to image.
+    W,H={0,ceil([w,h]*$Q/$M)}
+    $W,$H,1,3
+    $W,$H,1,1
+    {0,ceil([w,h]/$S)},1,3,"*
+      begin(
+        const M = $M;
+        const M2 = int(M/2);
+        const P = w#1;
+        const Q = $Q;
+        iS = expr('x = x - w/2; y = y - h/2; gauss(norm(x,y),0.3*$Q,0)',Q,Q); # Gaussian weights for patch accumulation
+      );
+      xM = x*$S;
+      yM = y*$S;
+      iM = crop(#0,xM,yM,0,c,M,M,1,1);
+      icM = iM[M2*(M + 1)];
+      riMy = resize(iM,M,M,1,1,M,P,1,1,1);
+      riM = resize(riMy,M,P,1,1,P,P,1,1,3);
+      ind = int(icM*d#1/256);
+      p = int((xM%M)*P/M);
+      q = int((yM%M)*P/M);
+      iP = crop(#1,p,q,ind,c,P,P,1,1,2);
+      riM*=iP;
+      iQ = resize(riM,P,P,1,1,Q,Q,1,1,2);
+      xQ = int(xM*Q/M);
+      yQ = int(yM*Q/M);
+      draw(#-2,iQ,xQ,yQ,0,c,Q,Q,1,1,-1,iS);
+      !c?draw(#-1,iS,xQ,yQ,0,0,Q,Q,1,1,-1)"
+    rm.
+    max. 1e-6 /[-2,-1]
+
+    # Renormalize output with input statistics.
+    k.
+    if $is_normalize s c repeat $! { f[$>] ${avg$>}" + (i - ia)/id*"${std$>} } a c fi
+    c 0,255
+  } if $!>1 r. ..,..,1,1 a c fi => $nm }
+
+fx_crt_preview :
+  gui_split_preview "fx_crt ${1--3}",${-3--1}
 
 #@gui Streak : fx_streak,fx_streak(1)
 #@gui : Mask Color = color(255,0,0,255)
@@ -54553,7 +55001,7 @@ _fx_shapes17 :
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/03/29</i>.</small>")
 fx_pack_ellipses :
   radius_min,radius_max,radius_dilation,isotropy_min,isotropy_max,isotropy_levels,orientation_ellipse,\
-    region_analysis,bgR,bgG,bgB,bgA,render_factor,preserve_size=$*
+    region_analysis,bgR,bgG,bgB,bgA,render_factor,preserve_size=${1-14}
   isotropy_min,isotropy_max:="sort([ $isotropy_min,$isotropy_max ])/100"
   radius_min,radius_max:="sort([ $radius_min,$radius_max ])"
   render_factor+=1
@@ -57763,7 +58211,7 @@ fx_sine_curve :
   radius1,radius2,opacity,\
   colR,colG,colB,\
   antialiasing,\
-  preview_background=$*
+  preview_background=${1-55}
 
   if !narg($_is_preview) _is_preview=0 fi
   if [$prev_xc,$prev_yc]!=[$xc,$yc]
