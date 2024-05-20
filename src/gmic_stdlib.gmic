@@ -662,7 +662,8 @@ reference : skip "${2=}"
 "specified inside braces '{}', or formulas in commands that may take one as an argument (e.g. ''fill'' or ''eval'')."\n\
 "* When the context allows it, a formula is evaluated __for each pixel__ of the selected images "\
 "(e.g. ''fill'' or ''eval'')."\n\
-"* A math expression may return a __scalar__ or a __vector-valued__ result (with a fixed number of components)."\n\
+"* A math expression may return or take as an argument a __scalar__ or a __vector-valued__ result "\
+"(with a fixed number of components)."\n\
 "The mathematical parser understands the following set of functions, operators and variables:"\n\
 "## Usual math operators:"\n\
 "'||' (logical or), '&&' (logical and), '|' (bitwise or), '&' (bitwise and), "\
@@ -683,7 +684,7 @@ reference : skip "${2=}"
 "may be specified as arguments)."\n\
 "* 'mse(A,B)' returns the mean-squared error between vectors 'A' and 'B'."\n\
 "* 'atan2(y,x)' is the version of 'atan()' with two arguments 'y' and 'x' (as in C/C++)."\n\
-"* 'permut(k,n,with_order)' computes the number of permutations of 'k' objects from a set of 'n' objects."\n\
+"* 'perm(k,n,_with_order)' computes the number of permutations of 'k' objects from a set of 'n' objects."\n\
 "* 'gauss(x,_sigma,_is_normalized)' returns `exp(-x^2/(2*s^2))/(is_normalized?sqrt(2*pi*sigma^2):1)`."\n\
 "* 'cut(value,min,max)' returns 'value' if it is in range '[min,max]', or 'min' or 'max' otherwise."\n\
 "* 'narg(a_1,...,a_N)' returns the number of specified arguments (here, 'N')."\n\
@@ -709,8 +710,8 @@ reference : skip "${2=}"
 "{ -1:to-lowest | 0:to-nearest | 1:to-highest }."\n\
 "* 'lerp(a,b,t)' returns 'a*(1-t)+b*t'."\n\
 "* 'swap(a,b)' swaps the values of the given arguments."\n\
-"## Variable names:"\n\
-"Variable names below are pre-defined. They can be overridden."\n\
+"## Predefined variable names:"\n\
+"Variable names below are pre-defined. They can be overridden though."\n\
 "* 'l': length of the associated list of images."\n\
 "* 'k': index of the associated image, in '[0,l-1]'."\n\
 "* 'w': width of the associated image, if any ('0' otherwise)."\n\
@@ -761,16 +762,17 @@ reference : skip "${2=}"
 "on pixel access operators). Its initial default value is '0'."\n\
 "* The last image of the list is always associated to the evaluations of 'expressions', e.g. G'MIC sequence "\
 "\n~~~\n256,128 fill {w}\n~~~\n will create a 256x128 image filled with value 256."\n\
-"## Vector calculus:"\n\
-"Most operators are also able to work with vector-valued elements."\n\
+"## Vector-valued functions and operators:"\n\
+"The math evaluator is able to work with vector-valued elements. A math function applied on a vector-valued "\
+"argument usually returns a vector with same dimension, where each element of the input vector "\
+"has been passed to the specified function (e.g. 'abs([-1,2,-3])' returns '[1,2,3]')."\n\n\
+"There are specific functions and operators to define or compute vector-valued elements though :"\n\
 "* '[a0,a1,...,aN-1]' defines a 'N'-dimensional vector with scalar coefficients 'ak'."\n\
 "* 'vectorN(a0,a1,,...,aN-1)' does the same, with the 'ak' being repeated periodically if only a few are specified."\n\
 "* 'vector(#N,a0,a1,,...,aN-1)' does the same, and can be used for any constant expression 'N'."\n\
 "* In previous expressions, the 'ak' can be vectors themselves, to be concatenated into a single vector."\n\
 "* The scalar element 'ak' of a vector 'X' is retrieved by 'X[k]'."\n\
 "* The sub-vector '[X[p],X[p+s]...X[p+s*(q-1)]]' (of size 'q') of a vector 'X' is retrieved by 'X[p,q,s]'."\n\
-"* 'expr(formula,_w,_h,_d,_s)' outputs a vector of size 'w*h*d*s' with values generated from "\
-"the specified formula, as if one were filling an image with dimensions '(w,h,d,s)'."\n\
 "* Equality/inequality comparisons between two vectors is done with operators '==' and '!='."\n\
 "* Some vector-specific functions can be used on vector values: "\
 "'cross(X,Y)' (cross product), 'dot(X,Y)' (dot product), 'size(X)' (vector dimension), "\
@@ -787,19 +789,21 @@ reference : skip "${2=}"
 "specified interpolation mode. 'interpolation' can be "\
 "{ -1:none (memory content) | 0:none | 1:nearest | 2:average | 3:linear | 4:grid | 5:bicubic | 6:lanczos }, and "\
 "'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }."\n\
-"* Function 'resize(A,ow,oh,od,os,nw,_nh,_nd,_ns,_interpolation,_boundary_conditions,_ax,_ay,_az,_ac)' is an "\
-"extended version of the previous function. It allows to resize the vector 'A', seen as an image of size "\
-"'ow x oh x od x os' as a new image of size 'nw x nh x nd x ns', with specified resizing options."\n\
 "* Function 'find(A,B,_starting_index,_search_step)' returns the index where sub-vector 'B' appears in vector 'A', "\
 "(or '-1' if 'B' is not contained in 'A'). Argument 'A' can be also replaced by an image index '#ind'."\n\
-"* A `2`-dimensional vector may be seen as a complex number and used in those particular functions/operators: "\
+"* Specifying a vector-valued math expression as an argument of a command that operates on image values "\
+"(e.g. 'fill') modifies the whole spectrum range of the processed image(s), for each spatial coordinates `(x,y,z)`. "\
+"The command does not loop over the `c`-axis in this case."\n\
+"## Complex-valued functions:"\n\
+"A `2`-dimensional vector may be seen as a complex number and used in those particular functions/operators: "\
 "'**' (complex multiplication), '//' (complex division), '^^' (complex exponentiation), "\
 "'**=' (complex self-multiplication), '//=' (complex self-division), '^^=' (complex self-exponentiation), "\
 "'cabs()' (complex modulus), 'carg()' (complex argument), 'cconj()' (complex conjugate), "\
 "'cexp()' (complex exponential), 'clog()' (complex logarithm),  'ccos()' (complex cosine), "\
 "'csin()' (complex sine), 'csqrt()' (complex square root), 'ctan()' (complex tangent), 'ccosh()' "\
 "(complex hyperpolic cosine), 'csinh()' (complex hyperbolic sine) and 'ctanh()' (complex hyperbolic tangent)."\n\
-"* A `MN`-dimensional vector may be seen as a `M` x `N` matrix and used in those particular functions/operators: "\
+"## Matrix-valued functions:"\n\
+"A `MN`-dimensional vector may be seen as a `M` x `N` matrix and used in those particular functions/operators: "\
 "'*' (matrix-vector multiplication), 'det(A)' (determinant), 'diag(V)' (diagonal matrix from a vector), "\
 "'eig(A)' (eigenvalues/eigenvectors), 'eye(n)' (n x n identity matrix), 'invert(A,_nb_colsA,_use_LU,_lambda)' "\
 "(matrix inverse), 'mul(A,B,_nb_colsB)' (matrix-matrix multiplication), "\
@@ -807,14 +811,43 @@ reference : skip "${2=}"
 "'solve(A,B,_nb_colsB,_use_LU)' (solver of linear system A.X = B), 'svd(A,_nb_colsA)' (singular value decomposition), "\
 "'trace(A)' (matrix trace) and 'transpose(A,nb_colsA)' (matrix transpose). Argument 'nb_colsB' may be omitted if "\
 "it is equal to `1`".\n\
+"## Image-valued functions:"\n\
+"Some functions takes vector-valued arguments that represent image data :"\n\
+"* Function 'expr(formula,_w,_h,_d,_s)' outputs a vector of size 'w*h*d*s' with values generated from "\
+"the specified formula, as if one were filling an image with dimensions '(w,h,d,s)'."\n\
+"* Function 'resize(A,wA,hA,dA,sA,nwA,_nhA,_ndA,_nsA,_interpolation,_boundary_conditions,_ax,_ay,_az,_ac)' is an "\
+"extended version of the 'resize()' function. It allows to resize the vector 'A', seen as an image of size "\
+"'(ow,oh,od,os)' as a new image of size '(nw,nh,nd,ns)', with specified resizing options."\n\
+"* Function 'warp(A,wA,hA,dA,sA,B,wB,hB,dB,sB,_mode,_interpolation,_boundary_conditions)' returns the warped version "\
+"of the image 'A' (of size '(wA,hA,dA,sA)', viewed as a vector of size 'wA*hA*dA*sA') by the warping field 'B' "\
+"(of size '(wB,hB,dB,sB)'). The resulting image has size '(wB,hB,dB,sA)'. This is the math evaluator analog "\
+"to command ''warp''."\n\
+"* Function 'index(A,P,nb_channelsP,_dithering,_map_colors)' returns the indexed version "\
+"of the image 'A' by the colormap 'P'. This is the math evaluator analog to command ''index''."\n\
+"* Function 'permute(A,wA,hA,dA,sA,permutation_string)' returns a permuted version of the image 'A' "\
+"(of size '(wA,hA,dA,sA)', viewed as a vector of size 'wA*hA*dA*sA'). This is the math evaluator analog "\
+"to command ''permute''."\n\
+"* Function 'mirror(A,wA,hA,dA,sA,axes_string)' returns a mirrored version of the image 'A' "\
+"(of size '(wA,hA,dA,sA)', viewed as a vector of size 'wA*hA*dA*sA'). This is the math evaluator analog "\
+"to command ''mirror''."\n\
+"* Function 'cumulate(A,wA,hA,dA,sA,_axes_string)' returns a cumulated version of the image 'A' "\
+"(of size '(wA,hA,dA,sA)', viewed as a vector of size 'wA*hA*dA*sA'). This is the math evaluator analog "\
+"to command ''cumulate''."\n\
+"* Function 'histogram(A,nb_levels,_min_value,_max_value)' returns the histogram of the vector 'A'. "\
+"This is the math evaluator analog to command ''histogram''."\n\
+"* Function 'equalize(A,nb_levels,_min_value,_max_value)' returns the equalized version of the vector 'A'. "\
+"This is the math evaluator analog to command ''equalize''."\n\
+"* Function 'normalize(A,min_value,max_value)' returns the normalized version of the vector 'A'. "\
+"This is the math evaluator analog to command ''normalize''."\n\
 "* 'mproj(S,nb_colsS,D,nb_colsD,method,max_iter,max_residual)' projects a matrix 'S' onto a dictionary (matrix) "\
-"'D'. Equivalent to command ''mproj'' but inside the math evaluator."\n\
-"* Specifying a vector-valued math expression as an argument of a command that operates on image values "\
-"(e.g. 'fill') modifies the whole spectrum range of the processed image(s), for each spatial coordinates `(x,y,z)`. "\
-"The command does not loop over the `c`-axis in this case."\n\
+"'D'. This is the math evaluator analog to command ''mproj''."\n\
+"* Function 'noise(A,amplitude,_noise_type)' returns the noisy version of the vector 'A'. "\
+"This is the math evaluator analog to command ''noise''."\n\
+"* Function 'rand(#size,_min_value,_max_value,_pdf,_precision)' returns the a vector of 'size' random values. "\
+"This is the math evaluator analog to command ''rand''."\n\
 "## String manipulation:"\n\
-"Character strings are defined and managed as vectors objects. "\
-"Dedicated functions and initializers to manage strings are:"\n\
+"Character strings are defined as vectors objects and can be then managed as is. "\
+"Dedicated functions and initializers to manage strings exist:"\n\
 "* `['string']` and `'string'` define a vector whose values are the character codes of the "\
 "specified `character string` (e.g. `'foo'` is equal to `[ 102,111,111 ]`)."\n\
 "* `_'character'` returns the (scalar) byte code of the specified character (e.g. `_'A'` is equal to '65')."\n\
@@ -897,8 +930,8 @@ reference : skip "${2=}"
 "if they are not ambiguous (e.g. 'crop(#ind,x,y,dx,dy)' is a valid invocation of this function)."\n\
 " * 'crop(S,w,h,d,s,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_boundary_conditions)' does the same but extracts the cropped data "\
 "from a vector 'S', viewed as an image of size `w x h x d x s`."\n\
-"* 'draw(_#ind,S,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_opacity,_M,_max_M)' draws a sprite 'S' in image '[ind]' "\
-"(or in default image selected if 'ind' is not specified) at coordinates `(x,y,z,c)`."\n\
+"* 'draw(_#ind,S,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_opacity,_opacity_mask,_max_opacity_mask)' draws a sprite 'S' in image "\
+"'[ind]' (or in default image selected if 'ind' is not specified) at coordinates `(x,y,z,c)`."\n\
 "* 'draw(D,w,h,s,d,S,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_opacity,_M,_max_M)' does the same but draw the sprite 'S' in "\
 "the vector 'D', viewed as an image of size `w x h x d x s`."\n\
 "* 'polygon(_#ind,nb_vertices,coords,_opacity,_color)' draws a filled polygon in image '[ind]' (or in default image "\
@@ -976,8 +1009,8 @@ reference : skip "${2=}"
 "'[ind]' (or default image selected if 'ind' is not specified)."\n\
 "* 'correlate(I,wI,hI,dI,sI,K,wK,hK,dK,sK,_boundary_conditions,_is_normalized,_channel_mode,_xcenter,_ycenter,"\
 "_zcenter,_xstart,_ystart,_zstart,_xend,_yend,_zend,_xstride,_ystride,_zstride,_xdilation,_ydilation,_zdilation,"\
-"_interpolation_type)' returns the correlation, unrolled as a vector, of the `wI x hI x dI x sI`-sized image 'I' "\
-"with the `wK x hK x dK x sK`-sized kernel 'K' (the meaning of the other arguments are the same as in command "\
+"_interpolation_type)' returns the correlation, unrolled as a vector, of the `(wI,hI,dI,sI)`-sized image 'I' "\
+"with the `(wK,hK,dK,sK)`-sized kernel 'K' (the meaning of the other arguments are the same as in command "\
 "'correlate'). Similar function 'convolve(...)' is also defined for computing the convolution between 'I' and 'K'."\n\
 \
 "## User-defined macros:"\n\
@@ -5735,7 +5768,10 @@ _outputp : skip ${1="_"}
   if $!>1 e[0--4] "Output image"$_gmic_s" as their initial locations, prefixed by '$1'."
   else e[0--4] "Output image"$_gmic_s" as its initial location, prefixed by '$1'."
   fi
-  repeat $! { o[$>] {$>,f}$1{$>,b}.{$>,x} }
+  foreach {
+    if ['{x}']!=0 ext=.{x} else ext= fi
+    o {f}$1{b}$ext
+  }
 
 #@cli ow : eq. to 'outputw'.
 ow :
@@ -10938,7 +10974,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Patterns/Halftone",\
   "Patterns/Halftone Shapes",\
   "Patterns/Hearts",\
-  "Patterns/Hedcut (Experimental)",\
+  "Patterns/Hedcut",\
   "Patterns/Lava",\
   "Patterns/Marble",\
   "Patterns/Maze",\
@@ -11473,7 +11509,6 @@ _upload_filters_move :
   move_filter "Testing/Garagecoder/Upscale [Edge]","Repair"
   move_filter "Testing/Garagecoder/Wiremap","Rendering"
   move_filter "Testing/Garagecoder/Smooth [Geometric-Median]","Repair"
-  move_filter "Testing/Gmic Tutorials/Hedcut (Experimental)","Patterns"
   move_filter "Testing/Iain Fergusson/Easy Skin Retouch","Details"
   move_filter "Testing/Iain Fergusson/Moire Removal","Repair"
   move_filter "Testing/Iain Fergusson/Halftone Shapes","Patterns"
@@ -12863,12 +12898,12 @@ eigen2tensor :
 # R<=180?255*abs(cos(c+200*(x/w-0.5)*(y/h-0.5))):850*(a%(0.1*(c+1)))"
 #@cli : $$
 
-#@cli index : { [palette] | palette_name },0<=_dithering<=1,_map_palette={ 0 | 1 } : (+)
+#@cli index : { [palette] | palette_name },0<=_dithering<=1,_map_colors={ 0 | 1 } : (+)
 #@cli : Index selected vector-valued images by specified vector-valued palette.
 #@cli : 'palette_name' can be { default | hsv | lines | hot | cool | jet | flag | cube | rainbow | algae | amp |\
 # balance | curl | deep | delta | dense | diff | haline | ice | matter | oxy | phase | rain | solar | speed | tarn |\
 # tempo | thermal | topo | turbid | aurora | hocuspocus | srb2 | uzebox }
-#@cli : Default values: 'dithering=0' and 'map_palette=0'.
+#@cli : Default values: 'dithering=0' and 'map_colors=0'.
 #@cli : $ image.jpg +index 1,1,1
 #@cli : $ image.jpg (0;255;255^0;128;255^0;0;255) +index[-2] [-1],1,1
 #@cli : $$ https://gmic.eu/tutorial/gindex
@@ -12949,7 +12984,7 @@ negate : skip "${1=,}"
     if ['"$1"']!=',' noarg fi
   fi
 
-#@cli noise : std_deviation>=0[%],_noise_type : (+)
+#@cli noise : amplitude>=0[%],_noise_type : (+)
 #@cli : Add random noise to selected images.
 #@cli : 'noise_type' can be { 0:gaussian | 1:uniform | 2:salt&pepper | 3:poisson | 4:rice }.
 #@cli : Default value: 'noise_type=0'.
@@ -13175,7 +13210,7 @@ normalize_l2 :
 #@cli : $ image.jpg +histogram 256 normalize_sum[-1] display_graph[-1] 400,300
 normalize_sum :
   e[^-1] "Normalize image$?, s.t they have a unit sum."
-  repeat $! { /[$>] {sum={$>,is};sum!=0?sum:1} }
+  foreach { / {is!=0?is:1} }
 
 #@cli not
 #@cli : Apply boolean not operation on selected images.
@@ -13305,9 +13340,15 @@ quantize_area : check "${1=10}>0"
     rm.
   }
 
-#@cli rand : { value0[%] | [image0] },_{ value1[%] | [image1] } : [image] : (+)
-#@cli : Fill selected images with random values uniformly distributed in the specified range.
+#@cli rand : { value0[%] | [image0] },_{ value1[%] | [image1] },_[pdf],_precision : [image] : (+)
+#@cli : Fill selected images with random values in the specified range.
+#@cli : If no '[pdf]' (probability density function) is specified, random values follow a uniform distribution.
+#@cli : Argument 'precision' tells about the number of distinct values that can be generated when a '[pdf]' \
+# is specified.
 #@cli : $ 400,400,1,3 rand -10,10 +blur 10 sign[-1]
+#@cli : $ (8,2,1) 50,50 rand[-1] 0,255,[-2]
+#@cli : $ 256 gaussian[-1] 30 line[-1] 47%,0,53%,0,1,0 500,500 rand[-1] 0,255,[-2] +histogram[-1] 256 \
+# display_graph[0,2] 640,480,3,0
 
 #@cli rand_sum : sum>0,_random_function
 #@cli : Fill selected images with strictly positive, random, integer values, that sums to 'sum'.
@@ -19648,7 +19689,7 @@ syntexturize : check "${1=100%}>0 && ${2=$1}>0"
     fft
 
     # Compute coherent random phase.
-    100%,100% rand. {-pi},{pi}
+    100%,100% rand. {[-pi,pi]}
     =. 0
     if !(w%2) =. {(u<0.5)*pi},{int(w/2)} fi
     if !(h%2) =. {(u<0.5)*pi},0,{int(h/2)} fi
@@ -21945,6 +21986,58 @@ close_binary :
     fi
     rm[strokes] =>[new_strokes] $nm
   }
+
+#@cli curve : [xy_coordinates],_thickness>0,_tilt,_tilt_strength[%],_is_closed={ 0:no | 1:yes },_opacity,_color1,...
+#@cli : Draw specified parameterized curve on selected images.
+#@cli : Arguments are:
+#@cli : * '[xy_coordinates]' is the set of XY-coordinates of the curve, specified as a 2-channels image.
+#@cli : * 'thickness' is the thickness of the drawing, specified in pixels.
+#@cli : * 'tilt' is an angle, specified in degrees.
+#@cli : * 'tilt_strength' must be a float value in [0,1] (or in [0,100] if specified as a percentage).
+#@cli : * 'is_closed' is a boolean which tells if the curve is closed or not.
+#@cli : Default values: 'thickness=0', 'tilt=45'
+#@cli : $ image.jpg srand 3 16,1,1,4,u s. c,2 rbf[-2,-1] 1000,0,1 n[-2] 10,{w#0-10} n[-1] 10,{h#0-10} a[-2,-1] c \
+# curve[-2] [-1],6,0,0,0,1,0,128,0
+curve : check ${"is_image_arg $1"}" && ${2=0}>=0 && isnum(${3=45}) && inrange(${4=0},0,1) && isbool(${5=0}) && "\
+              "isnum(${6=1}) && isnum(${7=0})"
+  s0,s1=open,closed
+  e[^-1] "Draw parameterized "${s$5}" curve $1 on image$?, with thickness $2, tilt $3, tilt strength $4, "\
+         "opacity $6 and color (${7--1})."
+  pass$1 0 r. {whds/2},1,1,2,-1
+  repeat $!-1 {
+    if $2<1
+      {w},1,1,1,">
+        begin(
+          const boundary = $5?2:1;
+        );
+        pP = J[#-1,-1]; P = I(#-1);
+        polygon(#"$>",2,pP[0],pP[1],P[0],P[1],${6--1})"
+    else
+      {w+$5},1,1,1,">
+        begin(
+          const thickness = $2/2;
+          const boundary = $5?2:1;
+          U = cexp([ 0,$3° ]);
+          A = B = [ 0,0 ];
+          pP = J[#-1,-1];
+        );
+        P = I(#-1);
+        dP = P - pP;
+        ndP = norm(dP);
+        !x || ndP>1?(
+          T = x?dP/ndP:unitnorm(J[#-1,1] - P);
+          N = lerp([ -T[1],T[0] ],U,$4)*thickness;
+          C = round(P - N); D = round(P + N);
+          x?(
+            polygon(#"$>",3,A[0],A[1],B[0],B[1],C[0],C[1],${6--1});
+            polygon(#"$>",3,D[0],D[1],B[0],B[1],C[0],C[1],${6--1});
+          );
+          pP = P; A = C; B = D;
+        )"
+    fi
+    rm.
+  }
+  rm.
 
 #@cli ellipse : x[%],y[%],R[%],r[%],_angle,_opacity,_pattern,_color1,... : (+)
 #@cli : Draw specified colored ellipse on selected images.
@@ -25509,11 +25602,11 @@ tensors3d : check "${1=1}>=0 && isint(${2=2}) && $2>=0 && ${3=0.05}>=0"
   expand_xy[-2,-1] 2,0 dilate[-2,-1] 2
   permute. zyxc r[-2,-1] ${-max_whd} &[-2,-1]
 
-  100%,100% rand. 0,{{-2,d}-1} round. ri. .. f. z==i
+  100%,100% rand. 0,{-2,d-1} round. ri. .. f. z==i
   distance. 1 +. 1 +f. 1 rv[-2,-1] /[-2,-1] *. ..
   +dilate. 0,0,{d} ==[-2,-1] *. ..
 
-  1,100%,100% rand. 0,{{-2,w}-1} round. ri. .. f. x==i
+  1,100%,100% rand. 0,{-2,w-1} round. ri. .. f. x==i
   distance. 1 +. 1 +f. 1 rv[-2,-1] /[-2,-1] *. ...
   +dilate. 0,0,{d} ==[-2,-1] *[-3,-1]
 
@@ -30014,7 +30107,7 @@ cubism : check "${1=50}>=0 && ${2=10}>=0 && $2<=50 && ${5=0}>=0" skip ${3=75},${
     r.. 5,$N,1,1,3 round.. 1 a[-2,-1] x
 
     # Generate list of vertices.
-    1,$N rand. {225-$3},{225+$3} *. {pi/180}
+    1,$N rand. {225+[-$3,$3]} *. {pi/180}
     +sin. cos.. +*. -1 ... a[-4--3] x a[-2,-1] x z[-4,-2,-1] 0,2 +*[-2,-1] -1 a[-4--1] x *. {sqrt(2)*$P}
     r... 400%,100%,1,1,0,2 +[-3,-1]
 
@@ -31226,7 +31319,7 @@ _ripple0 : f {$1/2}*"(1-2*(i%"{2*$2}"<$2))"
 _ripple1 : f "I=(i%$2)/$2;$1*(2*(I<0.5?I:1-I)-0.5)"
 _ripple2 : f {-$1/2}*"cos(i*"{2*pi/$2}")"
 _ripple3 : f {-$1/2}*"abs(cos(i*"{2*pi/$2}"))"
-_ripple4 : skip $* n 0,{h-1} 1,{h} rand. {-$1/2},{$1/2} m,M:=im,iM b. {$2/10} n. $m,$M map.. . rm.
+_ripple4 : skip $* n 0,{h-1} 1,{h} rand. {[-$1,$1]/2} m,M:=im,iM b. {$2/10} n. $m,$M map.. . rm.
 
 #@cli rotoidoscope : _center_x[%],_center_y[%],_tiles>0,_smoothness[%]>=0,\
 # _boundary_conditions={ 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }
@@ -46799,6 +46892,7 @@ _fx_cluts_youssefhossam :
 #@gui CLUT from After - Before Layers : fx_clut_from_ab, fx_clut_from_ab_preview
 #@gui : Output Mode = choice("Replace Layer with CLUT","Insert New CLUT Layer","Save CLUT as .cube or .png File")
 #@gui : Output CLUT Resolution = choice{4,16,25,36,49,64,81,100,121,144,169,225,256}_2
+#@gui : CLUT format = choice("Hald CLUT","RGB LUT")
 #@gui : sep = separator()
 #@gui : Output Folder = _folder()_1-
 #@gui : Output Filename = _text("output.cube")_1+
@@ -46818,77 +46912,51 @@ _fx_cluts_youssefhossam :
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      
 #@gui : Latest Update: <i>2019/08/27</i>.</small>")
-fx_clut_from_ab : skip "${3=},${4=}"
+fx_clut_from_ab : skip "${4=},${5=}"
   if $!<2 error "At least two input layers are needed to run this filter." fi
   repeat $!-1 { l[$<,-1] {
     nm=${gui_layer_name..}
     i[0] {a=0$_is_preview?32:64;[a,a,a]},4 f[1] ">I(#0,round(I(#2)*(w#0-1)/255))+=[R,G,B,1]; I"
     l[0] {
-      s c,-3 +max. 1 /[-3,-1] ==. 0 inpaint_pde.. .,75%,1 distance. 0 *. {-1/(1+$5)} exp.
+      s c,-3 +max. 1 /[-3,-1] ==. 0 inpaint_pde.. .,75%,1 distance. 0 *. {-1/(1+$6)} exp.
       f.. "f = i(#-1); f*I + (1-f)*[x,y,z]*255/(w-1)" rm.
       S:=arg(1+$2,16,25,36,49,64,81,100,121,144,169,225,256) if $S!=w r. $S,$S,$S,3,3 fi
       c 0,255
     }
-
     if $1==2 # Output as a file
-      is_png:=str=lowercase(['"$4"']);find(str,'.png')==size(str)-4
-      is_cube:=str=lowercase(['"$4"']);find(str,'.cube')==size(str)-5
-      if !$is_png" && "!$is_cube $!is_ciube error "Filename extension must be '.cube' or '.png'." fi
-      if $is_png r[0] {0,r=round(whd^0.5);[r,r]},1,3,-1 o[0] "$3/$4"
+      is_png:=str=lowercase(['"$5"']);find(str,'.png')==size(str)-4
+      is_cube:=str=lowercase(['"$5"']);find(str,'.cube')==size(str)-5
+      if !$is_png" && "!$is_cube error "Filename extension must be '.cube' or '.png'." fi
+      if $is_png r[0] {0,r=round(whd^0.5);[r,r]},1,3,-1 o[0] "$4/$5"
       else
         if {0,w>32} r3dx[0] 32 fi
-        output_cube[0] "$3/$4"
+        output_cube[0] "$4/$5"
       fi
       rm[0]
     else
-      r[0] {0,r=round(whd^0.5);[r,r]},1,3,-1
+      l[0] {
+        if $3 s z append_tiles , # RGB LUT
+        else r[0] {0,r=round(whd^0.5);[r,r]},1,3,-1 # Hald CLUT
+        fi
+      }
       if !$1 rm[1] fi # Replace Layer with CLUT
       =>[0] "name(CLUT to '"$nm"')"
     fi
   if 0$_output_mode k[0] fi
   } }
 
-fx_clut_from_ab_preview : skip "${3=},${4=}"
+fx_clut_from_ab_preview : skip "${4=},${5=}"
   if $!<2 gui_warning_preview "At least two input layers are needed to run this filter." return fi
-  _is_preview,_output_mode=1 fx_clut_from_ab 0,4,0,0,$5
+  _is_preview,_output_mode=1
+  fx_clut_from_ab 0,4,0,0,0,$6
   foreach {
-    r {a=round(cbrt(wh));[a,a,a]},3,-1
-    +r3dx. 24 _fx_clut_from_ab_preview.
-    S:=arg(1+$2,16,25,36,49,64,81,100,121,144,169,225,256) if $S!=w#0 r[0] $S,$S,$S,3,3 fi
-    r[0] {0,r=round(whd^0.5);[r,r]},1,3,-1
-    rr2d[0] $_preview_area_width,$_preview_area_height,2,1 r2dx. 70%
-    sh. 100% b. 1% n. 0,255 rm.
-    blend alpha
+    +r {a=round(cbrt(wh));[a,a,a]},3,-1
+    +dclut. {0,round(0.75*w)},24
+    if $3 rm[0] l[0] { s z append_tiles , } else rm.. fi
+    blend[-2,-1] alpha
   }
-
   file_attr:=$1==2?2:1
-  u "{$1}{$2}{$3}_"$file_attr"{$4}_"$file_attr"{$5}"
-
-# Render 3D visualization of a CLUT.
-_fx_clut_from_ab_preview :
-  foreach {
-    fact:=256/w
-
-    # Color data, as a point cloud.
-    pointcloud3d +3d 0.5,0.5,0.5 *3d $fact circles3d {1.25*$fact} o3d {0.004*$fact}
-
-    # Add cube edges.
-    colorcube3d[]
-    l. { s3d l.. { s y,6 repeat $! { sh[$>] 4,100%,0,0 /. 1.25 rm. } } a y } # Darken colors of edges
-    p3d. 1
-    l. { repeat 8 { o:=a=$>;0.5*[a&1,(a>>1)&1,(a>>2)&1] ++3d[0] $o +-3d[0] $o } +3d } # Increase thickness of edges
-
-    # Add 3D axes, without the 'O'.
-    axes3d 64,64,64,24,R,G,B,0
-    +3d
-
-    # Render 3D snapshot.
-    pose3d 1.2451,0.120715,-0.893986,-58.3864,-0.572953,1.28275,-0.62477,-11.6557,\
-           0.696784,0.839071,1.08374,-333.008,0,0,217,1
-    snapshot3d {max(512,0$_preview_area_width,0$_preview_area_height)},1.22,255,255,255
-    autocrop frame 10,10,255
-    to_rgba flood 0,0,0,20,1,1,255,255,255,0
-  }
+  u "{$1}{$2}{$3}{$4}_"$file_attr"{$5}_"$file_attr"{$6}"
 
 #@gui Colorful Blobs : fx_colorful_blobs, fx_colorful_blobs_preview
 #@gui : Colorspace = choice(1,"sRGB","Linear RGB","Lab")
@@ -50135,6 +50203,7 @@ fx_square_circle :
 #@gui Square to Circle [alt] : fx_square_circle_alt,fx_square_circle_alt_preview(1)
 #@gui : Mode = choice("Square to Circle","Circle to Square")
 #@gui : Center = point(50,50,0,1)
+#@gui : Strength (%) = float(100,0,100)
 #@gui : Zoom (%) = float(0,-100,100)
 #@gui : Angle (deg.) = float(0,-180,180)
 #@gui : Interpolation = choice(1,"Nearest Neighbor","Linear")
@@ -50148,26 +50217,28 @@ fx_square_circle :
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/24</i>.</small>")
 fx_square_circle_alt :
-  mode,centerx,centery,zoom,angle,interpolation,boundary,ratio=${1-8}
+  mode,centerx,centery,strength,zoom,angle,interpolation,boundary,ratio=${1-9}
   if !$boundary to_a fi
-  f. "const cx = w*$centerx%;
-      const cy = h*$centery%;
-      const zoom = 10^($zoom%);
-      const angle = $angle°;
-      const interpolation = $interpolation;
-      const boundary = $boundary;
-      const fx = $ratio?w:1;
-      const fy = $ratio?h:1;
-      x = (x - cx)/fx;
-      y = (y - cy)/fy;
-      t = atan2(y,x);
-      r = norm(x,y);
-      phi = (t + pi/4)%(pi/2) - pi/4;
-      nr = ($mode?r*cos(phi):r/cos(phi))/zoom;
-      t+=angle;
-      nx = cx + fx*nr*cos(t);
-      ny = cy + fy*nr*sin(t);
-      i(nx,ny)"
+  f "const cx = w*$centerx%;
+     const cy = h*$centery%;
+     const strength = $strength%;
+     const zoom = 10^($zoom%);
+     const angle = $angle°;
+     const interpolation = $interpolation;
+     const boundary = $boundary;
+     const fx = $ratio?w:1;
+     const fy = $ratio?h:1;
+     x = (x - cx)/fx;
+     y = (y - cy)/fy;
+     t = atan2(y,x);
+     r = norm(x,y);
+     phi = (t + pi/4)%(pi/2) - pi/4;
+     nr = ($mode?r*cos(phi):r/cos(phi))/zoom;
+     nr = lerp(r,nr,strength);
+     t+=angle;
+     nx = cx + fx*nr*cos(t);
+     ny = cy + fy*nr*sin(t);
+     i(nx,ny)"
 
 fx_square_circle_alt_preview :
   gui_split_preview "fx_square_circle_alt $*",${-3--1}
@@ -51691,21 +51762,29 @@ fx_self_glitching_preview :
   gui_split_preview "fx_self_glitching $*",${-3--1}
 
 #@gui Simulate CRT : fx_crt,fx_crt_preview(0)
-#@gui : CRT Type = choice("CRT-1","CRT-2")
+#@gui : CRT Type = choice("CRT-1","CRT-2","CRT-3")
+#@gui : Upscale Factor = choice(3,"x1","x2","x3","x4","x5","x6","x7","x8")
+#@gui : Rendering Precision = choice{"Low (Faster)","High (Slower)"}
+#@gui : Smoothness (%) = float(0,0,10)
 #@gui : Neighborhhod Size (px) = int(4,1,16)
-#@gui : Upscale Factor = choice("x1","x2","x3","x4","x5","x6","x7","x8")
+#@gui : Stride (%) = float(50,0,100)
+#@gui : sep = separator()
 #@gui : Adaptive Pattern = bool(1)
-#@gui : Rotate Pattern = bool(0)
-#@gui : Normalize = bool(1)
+#@gui : Use Luma for Adaptive Pattern = bool(0)
+#@gui : Transpose Pattern = bool(0)
+#@gui : Average Over Pattern = bool(0)
+#@gui : Normalize Image = bool(1)
 #@gui : sep = separator()
 #@gui : Preview Type = choice("Full","Forward Horizontal","Forward Vertical","Backward Horizontal",
 #@gui : "Backward Vertical","Duplicate Top","Duplicate Left","Duplicate Bottom","Duplicate Right",
 #@gui : "Duplicate Horizontal","Duplicate Vertical","Checkered","Checkered Inverse")
 #@gui : Preview Split = point(50,50,0,0,200,200,200,0,10)_0
+#@gui : Preview Zoom (%) = float(0,0,100)
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/26</i>.</small>")
 fx_crt :
-  type,nsize,upscale_factor,is_adaptive,is_rotate,is_normalize=${1-6}
+  type,upscale_factor,is_precise,smoothness,nsize,stride,is_adaptive,use_luma,\
+    is_transpose,is_average,is_normalize=${1-11}
   upscale_factor+=1
   foreach { nm={n} split_opacity l[0] {
 
@@ -51714,33 +51793,37 @@ fx_crt :
 
     # Algorithm parameters.
     M=$nsize # Size of input image neighborhood
-    S:=max(1,int($M/2)) # Stride
+    S:=max(1,int($M*$stride%)) # Stride
     Q:=$upscale_factor*$M # Size of output image neighborhood
 
     # Create CRT pattern.
-    if $type
+    if $type==0
+      4,12,1,3,[255,60,0] +fc. 0,200,0 +fc. 0,60,255
+      r[-3--1] 5,15,1,3,0,0 shift.. 0,5,0,0,2 shift. 0,10,0,0,2
+      a[-3--1] x
+    elif $type==1
+      15,15,1,3 circle. 5,5,4,-1,255,0,0 circle. 10,5,4,-1,0,255,0 circle. 7,10,4,-1,0,0,255
+    else
       (218,65,87;229,255,125;141,247,211;68,36,213) permute. yzcx
       r. 200%,4,1,3,0,2
       f. "i*lerp(0.35,1,y/(h-1))" +mirror. y a[-2,-1] y
-    else
-      4,12,1,3,[255,60,0]
-      4,12,1,3,[0,200,0]
-      4,12,1,3,[0,60,255]
-      r[-3--1] 5,15,1,3,0,0
-      shift.. 0,5,0,0,2
-      shift. 0,10,0,0,2
-      a[-3--1] x
     fi
-    if $is_rotate transpose. fi
+    if $is_transpose transpose. fi
+    if $smoothness b. $smoothness%,2 fi
 
     # Add dynamics to the CRT pattern.
     if $is_adaptive l. {
       w:=w
-      r 300%,300%
-      +l { repeat 5 { 3,3,1,1,1 +dilate.. .,0 rm.. } r $w,$w,1,3,2 b 1 n 0,255 a z }
-      l.. { repeat 5 { 3,3,1,1,1 +erode.. .,0 rm.. } rv rm. r $w,$w,1,3,2 b 1 n 0,255 a z }
-      a z
+      if $w>8
+        r 300%,300%
+        +l { repeat 5 { 3,3,1,1,1 +dilate.. .,0 rm.. } r $w,$w,1,3,2 b 1,2 n 0,255 a z }
+        l.. { repeat 5 { 3,3,1,1,1 +erode.. .,0 rm.. } rv rm. r $w,$w,1,3,2 b 1,2 n 0,255 a z }
+        a z
+      else
+        r 100%,100%,15,3
+      fi
       rgb2hsl f "[ i0, cut(i1*lerp(1,0.5,z/(d-1)),0,1), i2 ]" hsl2rgb
+      if $type==1 shape_circle. {w} *[-2,-1] fi
     } fi
     /. 255
 
@@ -51748,26 +51831,52 @@ fx_crt :
     W,H={0,ceil([w,h]*$Q/$M)}
     $W,$H,1,3
     $W,$H,1,1
-    {0,ceil([w,h]/$S)},1,3,"*
+    {0,ceil([w,h]/$S)},1,3,":
       begin(
         const M = $M;
         const M2 = int(M/2);
         const P = w#1;
         const Q = $Q;
+        iP = vector(#P^2);
         iS = expr('x = x - w/2; y = y - h/2; gauss(norm(x,y),0.3*$Q,0)',Q,Q); # Gaussian weights for patch accumulation
       );
       xM = x*$S;
       yM = y*$S;
       iM = crop(#0,xM,yM,0,c,M,M,1,1);
-      icM = iM[M2*(M + 1)];
       riMy = resize(iM,M,M,1,1,M,P,1,1,1);
       riM = resize(riMy,M,P,1,1,P,P,1,1,3);
-      ind = int(icM*d#1/256);
+      $use_luma?(
+        xl = xM + M2;
+        yl = yM + M2;
+        luma = 0.22248840*i(#0,xl,yl,0,0) + 0.71690369*i(#0,xl,yl,0,1) + 0.06060791*i(#0,xl,yl,0,2);
+        ind = int(luma*d#1/256);
+      ):(
+        icM = iM[M2*(M + 1)];
+        ind = int(icM*d#1/256);
+      );
       p = int((xM%M)*P/M);
       q = int((yM%M)*P/M);
-      iP = crop(#1,p,q,ind,c,P,P,1,1,2);
-      riM*=iP;
-      iQ = resize(riM,P,P,1,1,Q,Q,1,1,2);
+
+      $is_precise?( # High-precision rendering
+        off = 0;
+        repeat (P,n,
+          repeat (P,m,
+            $use_luma?(
+              xl = xM + m*M/P;
+              yl = yM + n*M/P;
+              luma = 0.22248840*i(#0,xl,yl,0,0,1) + 0.71690369*i(#0,xl,yl,0,1,1) + 0.06060791*i(#0,xl,yl,0,2,1);
+              ind = int(luma*d#1/256);
+            ):(
+              ind = int(riM[off]*d#1/256);
+            );
+            iP[off++] = i(#1,p + m, q + n,ind,c,1,2);
+          );
+        )
+      ):( # Low-precision rendering
+        iP = crop(#1,p,q,ind,c,P,P,1,1,2);
+      );
+      $is_average?(iP*=avg(riM)):(iP*=riM);
+      iQ = resize(iP,P,P,1,1,Q,Q,1,1,2);
       xQ = int(xM*Q/M);
       yQ = int(yM*Q/M);
       draw(#-2,iQ,xQ,yQ,0,c,Q,Q,1,1,-1,iS);
@@ -51782,7 +51891,8 @@ fx_crt :
   } if $!>1 r. ..,..,1,1 a c fi => $nm }
 
 fx_crt_preview :
-  gui_split_preview "fx_crt ${1--3}",${-3--1}
+  if $-1 r. {101-$-1}%,{101-$-1}%,1,100%,0,0,0.5,0.5 fi
+  gui_split_preview "fx_crt ${1-11}",${-4--2}
 
 #@gui Streak : fx_streak,fx_streak(1)
 #@gui : Mask Color = color(255,0,0,255)
@@ -58095,6 +58205,61 @@ fx_rainbow :
     if $6<100 sh. 3 *. {$6/100} rm. fi
     blend alpha
   }
+
+#@gui Random Signature : fx_random_signature, fx_random_signature_preview(1)
+#@gui : Seed = int(16,0,65536)
+#@gui : Complexity = int(16,2,32)
+#@gui : Top-Left Corner = point(10,10,0,1,255,128,0,200,10)_0
+#@gui : Bottom-Right Corner = point(90,90,0,1,255,128,0,200,10)_0
+#@gui : Thickness (%) = float(1.5,0,10)
+#@gui : Tilt (deg.) = float(0,-180,180)
+#@gui : Tilt Strength (%) = float(45,0,100)
+#@gui : Color = color(0,0,0,255)
+#@gui : Anti-Alias = bool(1)
+#@gui : Change Seed = button()
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2024/01/04</i>.</small>")
+fx_random_signature :
+  x0,y0,x1,y1:=min($3,$5),min($4,$6),max($3,$5),max($4,$6)
+  dx,dy:=$x1-$x0,$y1-$y0
+  foreach {
+    nm=${"-gui_layer_name"}
+    srand $1 $2,1,1,4,"u(1024)" s. c,2 rbf[-2,-1] 1024
+    W,H={0,[max(1,$dx*(w-1)%),max(1,$dy*(h-1)%)]}
+    thickness:=max($dx*w#0%,$dy*h#0%)*$7%
+    thickness2:=round($thickness/2)
+    n.. $thickness2,{$W-1-$thickness2} n. $thickness2,{$H-1-$thickness2}
+    a[-2,-1] c
+    {[$W,$H]*($14+1)}
+    if $14 *.. 2 fi
+    curve. ..,{$thickness*($14+1)},$8,{$9%},0,1,255
+    if $14 r. $W,$H,1,1,2 fi
+    if $3>$5 mirror. x fi
+    if $4>$6 mirror. y fi
+
+    if inrange(0$_output_mode,1,2) # Output as new layer
+      i[-2] 100%,100%,1,3 fc.. ${10-12}
+      a[-2,-1] c
+      x,y:=round([$x0*w#0%,$y0*h#0%])
+      => name($nm" [signature]")\,pos($x\,$y)\,opacity({round($13*100/255)})
+      k.
+    else # Draw on current layer
+      100%,100%,1,{0,s} fc. ${10-12},255
+      j[0] .,$x0%,$y0%,0,0,{$13/255},..,255
+      k[0]
+    fi
+  }
+
+fx_random_signature_preview :
+  _output_mode=0
+  seed=$1
+  if $15 seed:=round(u(65535)) fi
+  foreach {
+    fx_random_signature $seed,${2--1}
+    rectangle $3%,$4%,$5%,$6%,1,0x33333333,0
+    rectangle $3%,$4%,$5%,$6%,1,0xCCCCCCCC,255
+  }
+  u "{"$seed"}{$2}{$3,$4}{$5,$6}{$7}{$8}{$9}{${10-13}}{$14}{0}"
 
 #@gui Shade Bobs : fx_shadebobs, fx_shadebobs
 #@gui : note = note("<small>Bobs parameters :</small>")

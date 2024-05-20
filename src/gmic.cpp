@@ -8103,7 +8103,7 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
         // Index image with a LUT.
         if (!std::strcmp("index",command)) {
           gmic_substitute_args(true);
-          unsigned int map_indexes = 0;
+          unsigned int map_colors = 0;
           float dithering = 0;
           sep = 0;
           if (((cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]%c%c",
@@ -8111,16 +8111,16 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f%c",
                            indices,&dithering,&end)==2 ||
                cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f,%u%c",
-                           indices,&dithering,&map_indexes,&end)==3) &&
+                           indices,&dithering,&map_colors,&end)==3) &&
               (ind=selection2cimg(indices,images.size(),images_names,"index")).height()==1) {
             const float ndithering = dithering<0?0:dithering>1?1:dithering;
             print(0,"Index values in image%s by LUT [%u], with dithering level %g%s.",
                   gmic_selection.data(),
                   *ind,
                   ndithering,
-                  map_indexes?" and index mapping":"");
+                  map_colors?" and color mapping":"");
             const CImg<T> palette = gmic_image_arg(*ind);
-            cimg_forY(selection,l) gmic_apply(index(palette,ndithering,(bool)map_indexes),false);
+            cimg_forY(selection,l) gmic_apply(index(palette,ndithering,(bool)map_colors),false);
             is_change = true;
             ++position;
             continue;
@@ -9420,27 +9420,27 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
         if (!std::strcmp("noise",command)) {
           gmic_substitute_args(false);
           int noise_type = 0;
-          float sigma = 0;
+          float amplitude = 0;
           sep = 0;
           if ((cimg_sscanf(argument,"%f%c",
-                           &sigma,&end)==1 ||
+                           &amplitude,&end)==1 ||
                (cimg_sscanf(argument,"%f%c%c",
-                            &sigma,&sep,&end)==2 && sep=='%') ||
+                            &amplitude,&sep,&end)==2 && sep=='%') ||
                cimg_sscanf(argument,"%f,%d%c",
-                           &sigma,&noise_type,&end)==2 ||
+                           &amplitude,&noise_type,&end)==2 ||
                (cimg_sscanf(argument,"%f%c,%d%c",
-                            &sigma,&sep,&noise_type,&end)==3 && sep=='%')) &&
-              sigma>=0 && noise_type>=0 && noise_type<=4) {
+                            &amplitude,&sep,&noise_type,&end)==3 && sep=='%')) &&
+              amplitude>=0 && noise_type>=0 && noise_type<=4) {
             const char *s_type = noise_type==0?"gaussian":
               noise_type==1?"uniform":
               noise_type==2?"salt&pepper":
               noise_type==3?"poisson":"rice";
-            if (sep=='%' && noise_type!=2) sigma = -sigma;
+            if (sep=='%' && noise_type!=2) amplitude = -amplitude;
             print(0,"Add %s noise to image%s, with standard deviation %g%s.",
                   s_type,
                   gmic_selection.data(),
-                  cimg::abs(sigma),sep=='%'?"%":"");
-            cimg_forY(selection,l) gmic_apply(noise(sigma,noise_type),true);
+                  cimg::abs(amplitude),sep=='%'?"%":"");
+            cimg_forY(selection,l) gmic_apply(noise(amplitude,noise_type),true);
           } else arg_error("noise");
           is_change = true;
           ++position;
@@ -11050,11 +11050,25 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
         // Fill with random values.
         if (!std::strcmp("rand",command)) {
           gmic_substitute_args(true);
-          ind0.assign(); ind1.assign();
-          sep0 = sep1 = *argx = *argy = *indices = 0;
-          value0 = value1 = 0;
-          if (cimg_sscanf(argument,"%255[][a-zA-Z0-9_.eE%+-],%255[][a-zA-Z0-9_.eE%+-]%c",
-                          gmic_use_argx,gmic_use_argy,&end)==2 &&
+          ind.assign(); ind0.assign(); ind1.assign();
+          sep = sep0 = sep1 = *argx = *argy = *argz = *indices = 0;
+          value = value0 = value1 = 0;
+          unsigned int precision = 0;
+          CImg<T> pdf;
+          if ((cimg_sscanf(argument,"%255[][a-zA-Z0-9_.eE%+-],%255[][a-zA-Z0-9_.eE%+-]%c",
+                           gmic_use_argx,gmic_use_argy,&end)==2 ||
+               ((cimg_sscanf(argument,"%255[][a-zA-Z0-9_.eE%+-],%255[][a-zA-Z0-9_.eE%+-],"
+                             "[%255[a-zA-Z0-9_.%+-]%c%c",
+                             argx,argy,gmic_use_argz,&sep,&end)==4 ||
+                 cimg_sscanf(argument,"%255[][a-zA-Z0-9_.eE%+-],%255[][a-zA-Z0-9_.eE%+-],"
+                             "[%255[a-zA-Z0-9_.%+-]%c,%lf%c",
+                             argx,argy,gmic_use_argz,&sep,&value,&end)==5 ||
+                 (cimg_sscanf(argument,"%255[][a-zA-Z0-9_.eE%+-],%255[][a-zA-Z0-9_.eE%+-],"
+                              "[%255[a-zA-Z0-9_.%+-]%c,%lf%c%c",
+                              argx,argy,gmic_use_argz,&sep,&value,&axis,&end)==6 && axis=='%')) &&
+                value>=0 &&
+                sep==']' &&
+                (ind=selection2cimg(argz,images.size(),images_names,"rand")).height()==1)) &&
               ((cimg_sscanf(argx,"[%255[a-zA-Z0-9_.%+-]%c%c",gmic_use_indices,&sep0,&end)==2 &&
                 sep0==']' &&
                 (ind0=selection2cimg(indices,images.size(),images_names,"rand")).height()==1) ||
@@ -11067,10 +11081,19 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                cimg_sscanf(argy,"%lf%c",&value1,&end)==1)) {
             if (ind0) { value0 = images[*ind0].min(); sep0 = 0; }
             if (ind1) { value1 = images[*ind1].max(); sep1 = 0; }
-            print(0,"Fill image%s with random values, in range [%g%s,%g%s].",
-                  gmic_selection.data(),
-                  value0,sep0=='%'?"%":"",
-                  value1,sep1=='%'?"%":"");
+            if (ind) {
+              print(0,"Fill image%s with random values in range [%g%s,%g%s] (with distribution [%u]).",
+                    gmic_selection.data(),
+                    value0,sep0=='%'?"%":"",
+                    value1,sep1=='%'?"%":"",
+                    *ind);
+              pdf = gmic_check(images[*ind]);
+              precision = axis=='%'?std::max(1U,(unsigned int)(value*pdf.size()/100)):!value?65536:value;
+            } else
+              print(0,"Fill image%s with random values in range [%g%s,%g%s] (uniformly distributed).",
+                    gmic_selection.data(),
+                    value0,sep0=='%'?"%":"",
+                    value1,sep1=='%'?"%":"");
             cimg_forY(selection,l) {
               CImg<T>& img = gmic_check(images[selection[l]]);
               nvalue0 = value0; nvalue1 = value1;
@@ -11080,7 +11103,8 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                 if (sep0=='%') nvalue0 = vmin + (vmax - vmin)*value0/100;
                 if (sep1=='%') nvalue1 = vmin + (vmax - vmin)*value1/100;
               }
-              gmic_apply(rand((T)nvalue0,(T)nvalue1),true);
+              if (pdf) { gmic_apply(rand((T)nvalue0,(T)nvalue1,pdf,precision),true); }
+              else { gmic_apply(rand((T)nvalue0,(T)nvalue1),true); }
             }
           } else if (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]%c%c",gmic_use_indices,&sep0,&end)==2 &&
                      sep0==']' &&
