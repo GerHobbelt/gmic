@@ -4907,7 +4907,7 @@ echo_file : skip "${2='\n'}"
          0,1,{2*$x0},{3*($x0)^2};\
          0,1,{2*$x1},{3*($x1)^2})
         ($y0;$y1;$yp0;$yp1)
-        invert.. 1 mmul[-2,-1] y. c
+        invert.. 1 m*[-2,-1] y. c
       fi
     }
     a[2--1] x map.. . rm.
@@ -9571,19 +9571,29 @@ _random_pattern_check_image :
 #@cli : Arguments 'X','Y','Z' determine the initial selection view, for 3D volumetric images.
 #@cli : The retrieved feature is returned as a 3D vector (if 'feature_type==0') or as a 6d vector
 #@cli : (if 'feature_type!=0') containing the feature coordinates.
-#@cli : Default values: 'X=Y=Z=(undefined)', 'exit_on_anykey=0' and 'is_multiaxes_selection=1'.
-nselect : check "isint(${1=0},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 && isbool(${5=0}) && isbool(${6=1})"
+#@cli : Default values: 'feature_type=2', 'X=Y=Z=50%', 'exit_on_anykey=0' and 'is_multiaxes_selection=1'.
+select : check "isint(${1=2},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 && isbool(${5=0}) && isbool(${6=1})"
+  _gmic_s="$?" v + _select ${1--1}
+  if $! rm[0--1:2] fi
+
++select : check "isint(${1=2},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 && isbool(${5=0}) && isbool(${6=1})"
+  _gmic_s="$?" v + _select ${1--1}
+  if $! mv[1--1:2] $! add_copymark[50%--1] fi
+
+_select :
   s0,s1,s2=point,segment,rectangle
-  e[^-1] "Select "${s$1}" in image$? in interactive mode, from point (${2-4})."
+  e[0--3] "Select "${s$1}" in image"$_gmic_s" in interactive mode, from point (${2-4})."
   foreach {
     nm={n} basename {n} title="[G'MIC] "${} => img
-    if !{*} w[] ${"fitscreen [img]"},0,$title fi
+    w_width,w_height=${"fitscreen [img]"}
+    if !{*} w[] $w_width,$w_height,0,$title fi
     Xs,Ys,Zs:=round([cut(ispercentage($2)?w*$2:$2,0,w-1),\
                      cut(ispercentage($3)?h*$3:$3,0,h-1),\
                      cut(ispercentage($4)?d*$4:$4,0,d-1)])
     X0,Y0,Z0,X1,Y1,Z1,area_clicked=-1
     is_volumetric={img,d>1}
     is_multiaxes:=$is_volumetric" && "$6
+    label_y=0
     step=0
 
     do
@@ -9610,7 +9620,7 @@ nselect : check "isint(${1=0},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 
         rs[areas] {*,w,h},1
         r[view,areas] {*,w,h},1,100%,0,0,0.5,0.5
         drgba[view]
-        x0,y0,x1,y1,xc,yc={areas," # Determine (x,y) coordinates of corner points
+        x0,y0,x1,y1,xc,yc={areas," # Determine (x,y) coordinates of area corners
           const w2 = int(w/2); const h2 = int(h/2);
           x0 = 0; while (!i(x0,h2), ++x0);
           y0 = 0; while (!i(w2,y0), ++y0);
@@ -9652,34 +9662,58 @@ nselect : check "isint(${1=0},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 
       fi
 
       # Render view.
-      cursor[0] {!$area" || "($step>1" && "$area==$area_clicked)}
+      cursor[0] {!$area}
       if inrange($area,1,3)
         [view]
 
         # Draw selection and cursor axes.
         eval "
-          const xc1 = $xc - 1; const yc1 = $yc - 1;
+          const step = $step;
+          const is_volumetric = $is_volumetric;
+          const box_opacity = step?0.25:0.15;
+          const vector_opacity = $1==1?0.95:0.35;
           const hatch1 = 0x00FF00FF;
           const hatch2 = 0x55555555;
           const hatch3 = 0x33333333;
-          const step = $step;
+          const xc1 = $xc - 1; const yc1 = $yc - 1;
 
-          # Retrieve 2D coordinates.
-          coords(varname,x,y,z) = (
+          coords(varname,x,y,z) = ( # Convert 3D coords to 2D coords for each area
             varname#_x1 = round(lerp($x0,$xc,x/w#$img)); varname#_y1 = round(lerp($y0,$yc,y/h#$img));
             varname#_x2 = round(lerp($xc,$x1 + 1,z/d#$img)); varname#_y2 = varname#_y1;
             varname#_x3 = varname#_x1; varname#_y3 = round(lerp($yc,$y1 + 1,z/d#$img));
           );
 
-          box_opacity = step?0.25:0.15;
-          X0 = $X0; Y0 = $Y0; Z0 = $Z0;
-          !step?(X1 = X0 + 1; Y1 = Y0 + 1; Z1 = Z0 + 1):(
-            X1 = $X1; Y1 = $Y1; Z1 = $Z1;
-            $1==1?(X0+=0.5; Y0+=0.5; Z0+=0.5; X1+=0.5; Y1+=0.5; Z1+=0.5):(
-              X0>X1?swap(X0,X1); Y0>Y1?swap(Y0,Y1); Z0>Z1?swap(Z0,Z1);
-              ++X1; ++Y1; ++Z1;
-            );
+          draw_box(x0,y0,x1,y1) = (
+            polygon(#-1,4,x0,y0,x1,y0,x1,y1,x0,y1,box_opacity,0);
+            polygon(#-1,-4,x0,y0,x1,y0,x1,y1,x0,y1,0.95,hatch2,0);
+            polygon(#-1,-4,x0,y0,x1,y0,x1,y1,x0,y1,0.95,~hatch2,255);
           );
+
+          draw_cursor(x,y0,y1,y,x0,x1) = (
+            polygon(#-1,-2,x,y0,x,y1,0.75,hatch1,0);
+            polygon(#-1,-2,x,y0,x,y1,0.75,~hatch1,255);
+            polygon(#-1,-2,x0,y,x1,y,0.75,hatch1,0);
+            polygon(#-1,-2,x0,y,x1,y,0.75,~hatch1,255);
+          );
+
+          draw_vector(x0,y0,x1,y1) = (
+            ox = abs(y1 - y0)>abs(x1 - x0); oy = 1 - ox;
+            polygon(#-1,2,x0 - ox,y0 - oy,x1 - ox,y1 - oy,vector_opacity,0);
+            polygon(#-1,2,x0 + ox,y0 + oy,x1 + ox,y1 + oy,vector_opacity,0);
+            polygon(#-1,2,x0,y0,x1,y1,vector_opacity,255);
+            ellipse(#-1,x0,y0,5,5,0,vector_opacity,0);
+            ellipse(#-1,x1,y1,5,5,0,vector_opacity,255);
+          );
+
+          # Retrieve 2D coordinates.
+          X0 = $X0; Y0 = $Y0; Z0 = $Z0;
+          !step?(X1 = X0; Y1 = Y0; Z1 = Z0):(X1 = $X1; Y1 = $Y1; Z1 = $Z1);
+          cX0 = X0 + 0.5; cY0 = Y0 + 0.5; cZ0 = Z0 + 0.5;
+          cX1 = X1 + 0.5; cY1 = Y1 + 0.5; cZ1 = Z1 + 0.5;
+          coords(sc,cX0,cY0,cZ0);
+          coords(ec,cX1,cY1,cZ1);
+          X0>X1?swap(X0,X1); Y0>Y1?swap(Y0,Y1); Z0>Z1?swap(Z0,Z1);
+          ++X1; ++Y1; ++Z1;
           coords(s,X0,Y0,Z0);
           coords(e,X1,Y1,Z1);
           coords(f,$X,$Y,$Z);
@@ -9687,63 +9721,62 @@ nselect : check "isint(${1=0},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 
 
           # Draw user selection.
           !step || $1>1?( # Filled rectangle
-            polygon(#-1,4,s_x1,s_y1,e_x1,s_y1,e_x1,e_y1,s_x1,e_y1,box_opacity,0);
-            polygon(#-1,-4,s_x1,s_y1,e_x1,s_y1,e_x1,e_y1,s_x1,e_y1,0.95,hatch2,0);
-            polygon(#-1,-4,s_x1,s_y1,e_x1,s_y1,e_x1,e_y1,s_x1,e_y1,0.95,~hatch2,255);
-            d#$img>1?(
-              polygon(#-1,4,s_x2,s_y2,e_x2,s_y2,e_x2,e_y2,s_x2,e_y2,box_opacity,0);
-              polygon(#-1,-4,s_x2,s_y2,e_x2,s_y2,e_x2,e_y2,s_x2,e_y2,0.95,hatch2,0);
-              polygon(#-1,-4,s_x2,s_y2,e_x2,s_y2,e_x2,e_y2,s_x2,e_y2,0.95,~hatch2,255);
-              polygon(#-1,4,s_x3,s_y3,e_x3,s_y3,e_x3,e_y3,s_x3,e_y3,box_opacity,0);
-              polygon(#-1,-4,s_x3,s_y3,e_x3,s_y3,e_x3,e_y3,s_x3,e_y3,0.95,hatch2,0);
-              polygon(#-1,-4,s_x3,s_y3,e_x3,s_y3,e_x3,e_y3,s_x3,e_y3,0.95,~hatch2,255);
+            draw_box(s_x1,s_y1,e_x1,e_y1);
+            is_volumetric?(
+              draw_box(s_x2,s_y2,e_x2,e_y2);
+              draw_box(s_x3,s_y3,e_x3,e_y3);
             );
           );
-
           step?( # Vector
-            polygon(#-1,-2,s_x1,s_y1,e_x1,e_y1,1,hatch3,0);
-            polygon(#-1,-2,s_x1,s_y1,e_x1,e_y1,1,~hatch3,255);
-            d#$img>1?(
-              polygon(#-1,-2,s_x2,s_y2,e_x2,e_y2,1,hatch3,0);
-              polygon(#-1,-2,s_x2,s_y2,e_x2,e_y2,1,~hatch3,255);
-              polygon(#-1,-2,s_x3,s_y3,e_x3,e_y3,1,hatch3,0);
-              polygon(#-1,-2,s_x3,s_y3,e_x3,e_y3,1,~hatch3,255);
+            draw_vector(sc_x1,sc_y1,ec_x1,ec_y1);
+            is_volumetric?(
+              draw_vector(sc_x2,sc_y2,ec_x2,ec_y2);
+              draw_vector(sc_x3,sc_y3,ec_x3,ec_y3);
             );
           );
-
-          # Draw cursor axes.
-          polygon(#-1,-2,f_x1,$y0,f_x1,yc1,0.75,hatch1,0);
-          polygon(#-1,-2,f_x1,$y0,f_x1,yc1,0.75,~hatch1,255);
-          polygon(#-1,-2,$x0,f_y1,xc1,f_y1,0.75,hatch1,0);
-          polygon(#-1,-2,$x0,f_y1,xc1,f_y1,0.75,~hatch1,255);
-          d#$img>1?(
-            polygon(#-1,-2,f_x2,$y0,f_x2,yc1,0.75,hatch1,0);
-            polygon(#-1,-2,f_x2,$y0,f_x2,yc1,0.75,~hatch1,255);
-            polygon(#-1,-2,$xc,f_y2,$x1,f_y2,0.75,hatch1,0);
-            polygon(#-1,-2,$xc,f_y2,$x1,f_y2,0.75,~hatch1,255);
-
-            polygon(#-1,-2,f_x3,$yc,f_x3,$y1,0.75,hatch1,0);
-            polygon(#-1,-2,f_x3,$yc,f_x3,$y1,0.75,~hatch1,255);
-            polygon(#-1,-2,$x0,f_y3,xc1,f_y3,0.75,hatch1,0);
-            polygon(#-1,-2,$x0,f_y3,xc1,f_y3,0.75,~hatch1,255);
+          draw_cursor(f_x1,$y0,yc1,f_y1,$x0,xc1);
+          is_volumetric?(
+            draw_cursor(f_x2,$y0,yc1,f_y2,$xc,$x1);
+            draw_cursor(f_x3,$yc,$y1,f_y3,$x0,xc1);
           )"
 
         # Draw text label.
         fontsize:=min(24,h/24)
         0
-        if !$step
+        if !$step # Point selection (or no selection started)
           if $is_volumetric t. "Point ("$Xi\,$Yi\,$Zi") = [ "{``{img,_I($Xi,$Yi,$Zi)}}" ]",0,0,$fontsize,1,255
           else t. "Point ("$Xi\,$Yi") = [ "{``{img,_I($Xi,$Yi)}}" ]",0,0,$fontsize,1,255
           fi
-        else
-          if $1==2
-            dX0,dY0,dZ0,dX1,dY1,dZ1:=min($X0,$Xi),min($Y0,$Yi),min($Z0,$Zi),max($X0,$Xi),max($Y0,$Yi),max($Z0,$Zi)
-            sizX,sizY:="[ $dX1 - $dX0,$dY1 - $dY0 ] + 1"
-            t. "Box ("$dX0\,$dY0\,$dZ0") - ("$dX1\,$dY1\,$dZ1")"\n\
-               "Size = ("$sizX\,$sizY")",0,0,$fontsize,1,255
+        elif $1==1 # Vector selection
+          len,ang={_"
+            U = [ $X1 - $X0, $Y1 - $Y0, $Z1 - $Z0 ];
+            [ norm(U),round(rad2deg(atan2(U[1],U[0]))%360,0.01) ]"}
+          if $is_volumetric
+            t. "Vector ("$X0\,$Y0\,$Z0") - ("$X1\,$Y1\,$Z1")"\n\
+               "Length = "$len,0,0,$fontsize,1,255
+          else
+            t. "Vector ("$X0\,$Y0") - ("$X1\,$Y1")"\n\
+               "Length = "$len", Angle = "$ang"\260",0,0,$fontsize,1,255
+          fi
+        elif $1==2
+          Xm,Ym,Zm,XM,YM,ZM,sizX,sizY,sizZ,len,ang={_"
+            const X0 = $X0; const Y0 = $Y0; const Z0 = $Z0;
+            const X1 = $X1; const Y1 = $Y1; const Z1 = $Z1;
+            Xm = min(X0,X1); Ym = min(Y0,Y1); Zm = min(Z0,Z1);
+            XM = max(X0,X1); YM = max(Y0,Y1); ZM = max(Z0,Z1);
+            U = [ X1 - X0, Y1 - Y0, Z1 - Z0 ];
+            [ Xm,Ym,Zm,XM,YM,ZM,abs(U) + 1,norm(U),round(rad2deg(atan2(U[1],U[0]))%360,0.01) ]"}
+          if $is_volumetric
+            t. "Box ("$Xm\,$Ym\,$Zm") - ("$XM\,$YM\,$ZM")"\n\
+               "Size = ("$sizX\,$sizY\,$sizZ"), Length = "$len,0,0,$fontsize,1,255
+          else
+            t. "Box ("$Xm\,$Ym") - ("$XM\,$YM")"\n\
+               "Size = ("$sizX\,$sizY"), Length = "$len\n\
+               "Angle = "$ang"\260",0,0,$fontsize,1,255
           fi
         fi
-        expand_xy. 4 to_rgb. j.. .,0,0,0,0,0.75 rm.
+        label_y:=$my<1.5*h?1:$my>{*,h}-1.5*h?0:$label_y
+        expand_xy. 4 to_rgb. j.. .,0,$label_y~,0,0,0.75 rm.
         w. rm.
       else w[view]
       fi
@@ -9811,12 +9844,13 @@ nselect : check "isint(${1=0},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 
       if (!$1" && "$step)" || "($1" && "$step>1+$is_multiaxes) continue=0 fi
 
     while $continue
-    rm
+    k[0]
+    if !$step X0,Y0,Z0,X1,Y1,Z1=-1 fi
     if $1==0 ($X0;$Y0;$Z0)
     elif $1==1 ($X0;$Y0;$Z0;$X1;$Y1;$Z1)
     else ({[min($X0,$X1),min($Y0,$Y1),min($Z0,$Z1),max($X0,$X1),max($Y0,$Y1),max($Z0,$Z1)]}:y)
     fi
-    => $nm
+    =>[^] $nm
   }
   cursor[0] 1
 
@@ -12382,7 +12416,7 @@ kn :
 #@cli keep_named : "name1","name2",...
 #@cli : Keep all images with specified names from the list of images.
 #@cli : Remove all images if no images with those names exist.
-#@cli : (eq. to 'kmn').
+#@cli : (eq. to 'kn').
 keep_named :
   e[^-1] "Keep images named '$*'."
   nmd $"*" k[${}]
@@ -12792,8 +12826,11 @@ med :
 #@cli mmul : value[%] : [image] : 'formula' : (no arg) : (+)
 #@cli : Compute the matrix right multiplication of selected matrices/vectors by specified value, image or \
 # mathematical expression, or compute the matrix right multiplication of selected images.
+#@cli : If the right-hand side image is vector-valued, this command multiplies each vector-valued pixels by \
+# the specified left-hand matrix.
 #@cli : (eq. to 'm*').
 #@cli : $ (0,1,0;0,0,1;1,0,0) (1;2;3) +mmul
+#@cli : $ (0,1,0;0,0,1;1,0,0) image.jpg +mmul
 
 #@cli * : eq. to 'mul'. : (+)
 
@@ -15173,7 +15210,7 @@ match_icp : check ${"is_image_arg $1"}" && ${2=1e-2}>0" skip "${3=}"
       old_err=$err
       +warp[0] .,0,0 rm..
       _match_icp[-2,-1]
-      mmul[-2,-1] r. $s,{h/$s},1,1,-1 permute. yzcx r. $w,$h,$d,$s,-1
+      m*[-2,-1] r. $s,{h/$s},1,1,-1 permute. yzcx r. $w,$h,$d,$s,-1
     }
     k.
     if "['$3']!=0" $img rv +_match_icp $3={^} rm[0,-2,-1] fi # Output linear transformation
@@ -15282,7 +15319,8 @@ match_rgb : check "${2=0.3}>=0 && ${3=8}>=0 && ${4=0.15}>=0 && ${5=64}>=0 && isb
       w[visu] -1,-1
       N=0 do
         w[] -1,-1,"[G'MIC] Add Color Guide (Constraint ""#"{1+$N}")"
-        +select[$visu] 1 if i==-1 rm. break fi
+        +select[$visu] 1 => coords
+        if i==-1 rm. break fi
         line[$visu] {i[0]},{i[1]},{i[3]},{i[4]},1,0xF0F0F0F0,0
         line[$visu] {i[0]},{i[1]},{i[3]},{i[4]},1,0x0F0F0F0F,255
         circle[$visu] {i[0]},{i[1]},5,1,0,0,0 circle[$visu] {i[0]},{i[1]},3,1,255,0,0
@@ -22478,6 +22516,60 @@ gaussian : skip ${1=15%},${2=$1},${3=0}
 #@cli : and 'color1=0'.
 #@cli : $ image.jpg +rows 50% blur[-1] 3 split[-1] c div[0] 1.5 graph[0] [1],2,0,0,0,1,255,0,0 \
 # graph[0] [2],2,0,0,0,1,0,255,0 graph[0] [3],2,0,0,0,1,0,0,255 keep[0]
+ngraph : check ${"is_image_arg $1"}" && isint(${2=1},0,3) && isint(${3=1},0,7)" skip ${4=0},${5=0},${6=1},${7=0},${8=0}
+  p_type,v_type,ymin,ymax,opacity=${2-6}
+  if ${"is_pattern $7"} pattern=$7 color=${8--1}
+  else pattern=0xFFFFFFFF color=${7--1}
+  fi
+  pass$1 1
+  if !$ymin" && "!$ymax ymin,ymax:=im,iM fi
+
+  header="begin(const ymin = "$ymin"; const ymax = "$ymax"; const delta = ymax - ymin; "\
+         "const opacity = "$opacity"; const pattern = "$pattern"; color = resize([ "$color" ],s#0,0,2));"
+
+  foreach[^-1] {
+    pass. 1 r. {whd},1,1,100%,-1
+
+    # Plot graph.
+    if inrange($p_type,1,2)
+      if w>w#0 +r. {0,w},1,1,100%,2
+      elif $p_type==2 +r. {0,w},1,1,100%,5
+      fi
+      1,1,1,2
+      eval.. >$header"
+        !x?(X = 0; Y = round(lerp(h#0 - 1,0,(i - ymin)/delta)); da_push([X,Y]));
+        nX = round(lerp(0,w#0 - 1,(x + 1)/(w - 1)));
+        nY = round(lerp(h#0 - 1,0,(j[1] - ymin)/delta));
+        nX!=X?(da_push([X,Y]); X = nX; Y = nY);
+        end(da_freeze())"
+      permute. cyzx
+      polygon[0] .,$opacity,-$pattern,$color rm.
+    fi
+    rm[^0,1]
+
+    # Plot vertices.
+    if $v_type
+      eval. $header"
+        const v_type = $v_type;
+        const siz = max(3,min(w#0,h#0)/128);
+        nX = round(lerp(0,w#0 - 1,x/(w - 1)));
+        nY = round(lerp(h#0 - 1,0,(i - ymin)/delta));
+        v_type==1?polygon(#0,1,nX,nY,opcity,color):
+        v_type==2?(polygon(#0,2,nX,nY - siz,nX,nY + siz,opacity,color);
+                   polygon(#0,2,nX - siz,nY,nX + siz,nY,opacity,color)):
+        v_type==3?(polygon(#0,2,nX - siz,nY - siz,nX + siz,nY + siz,opacity,color);
+                   polygon(#0,2,nX + siz,nY - siz,nX - siz,nY + siz,opacity,color)):
+        v_type==4?ellipse(#0,nX,nY,siz,siz,0,opacity,color):
+                  ellipse(#0,nX,nY,-siz,-siz,0,opacity,0xFFFFFFFF,color)"
+    fi
+
+    k[0]
+  }
+  rm.
+
+test_ngraph :
+  10,1,1,1,"x = lerp(-3,3,x/(w-1)); x^2"
+  800,800,1,3,200 ngraph. ..,1,5,0,0,1,0xFFFFFF44,128,0,255
 
 #@cli grid : size_x[%]>=0,size_y[%]>=0,_offset_x[%],_offset_y[%],_opacity,_pattern,_color1,...
 #@cli : Draw xy-grid on selected images.
@@ -23025,15 +23117,17 @@ polka_dots : check $1>=0 skip ${2=20},${3=50},${4=50},${5=0},${6=10},${7=1},${8=
   }
   rm[0]
 
-#@cli polygon : N>=1,x1[%],y1[%],...,xN[%],yN[%],_opacity,_pattern,_color1,... : (+)
+#@cli polygon : N>=1,x1[%],y1[%],...,xN[%],yN[%],_opacity,_pattern,_color1,... : \
+# [coords],_opacity,_pattern,_color1,... : (+)
 #@cli : Draw specified colored N-vertices polygon on selected images.
 #@cli : 'pattern' is an hexadecimal number starting with '0x' which can be omitted
 #@cli : even if a color is specified. If a pattern is specified, the polygon is
 #@cli : drawn outlined instead of filled.
+#@cli : Adding a '-' sign before 'pattern' makes the command draw an open polyline rather than a closed polygon.
 #@cli : Default values: 'opacity=1', 'pattern=(undefined)' and 'color1=0'.
 #@cli : $ image.jpg polygon 4,20%,20%,80%,30%,80%,70%,20%,80%,0.3,0,255,0 \
 # polygon 4,20%,20%,80%,30%,80%,70%,20%,80%,1,0xCCCCCCCC,255
-#@cli : $ image.jpg 2,16,1,1,'u(x?{h}:{w})' polygon[-2] {h},{^},0.6,255,0,255 remove[-1]
+#@cli : $ image.jpg 2,16,1,1,'u(x?h#0:w#0)' polygon[-2] [-1],0.6,255,0,255 remove[-1]
 
 #@cli quiver : [function_image],_sampling[%]>0,_factor>=0,_is_arrow={ 0 | 1 },_opacity,_color1,...
 #@cli : Draw specified 2D vector/orientation field on selected images.
@@ -23400,7 +23494,7 @@ yinyang :
       )"
     rm. => $nm
   }
-  mv[1--1:2] $! add_copymark[50%--1]
+  if $! mv[1--1:2] $! add_copymark[50%--1] fi
 
 dijkstra :
   foreach { nm={n} +dijkstra $* k. => $nm }
@@ -38358,14 +38452,17 @@ x_mandelbrot : skip ${1=0},${2=0.317},${3=0.03} check_display $0
 --------------------------------------------------"
 
   # Init variables and display.
-  rm w 512,512,0 _x_mandelbrot_coords $1 _x_mandelbrot_palette
+  rm w 720,720,0 _x_mandelbrot_coords $1 _x_mandelbrot_palette
 
   # Start event loop.
   do
     siz:=min({*,w,h})                                                                       # Desired window dimension.
     $siz,$siz mandelbrot. {0,^},256,$1,{[$1?$2:0,$1?$3:0]} map. [1]                         # Render fractal.
-    if $1 w. $siz,$siz,0,"[G"{`39`}"MIC] Julia Set c=("{0,@0-1}")-("{0,@2-3}"), c0=($2,$3)" # Display on window.
-    else w. $siz,$siz,0,"[G"{`39`}"MIC] Mandelbrot Set c=("{0,@0-1}")-("{0,@2-3}")" fi
+    if $1 # Display on window.
+      w. $siz,$siz,0,"[G"{`39`}"MIC] Julia Set c=("{0,_[I[0],I[1]]}")-("{0,_[I[2],I[3]]}"), c0=($2,$3)"
+    else
+      w. $siz,$siz,0,"[G"{`39`}"MIC] Mandelbrot Set c=("{0,_[I[0],I[1]]}")-("{0,_[I[2],I[3]]}")"
+    fi
     w,h={w},{h} round. select. 2,0,0,0,1                                                    # Get the user selection.
     if i[0]>0                                                                               # If valid selection found.
       M:=max(i[3]-i[0],i[4]-i[1]) # Compute max dimension of selected rectangle.
@@ -46708,7 +46805,7 @@ fx_colorblind_preview :
 # ON1 Free Photography LUTs</a></center>"}
 
 #@gui : sep = value(0)_0+
-#@gui : note = note{"<center><a href="https://marcrphoto.wordpress.com/specials/698-2/">PictureFX \
+#@gui : note = note{"<center><a href="https://marcrphoto.wordpress.com/picturefx-pro-2024/">PictureFX \
 # - A Free HaldCLUT Set</a></center>"}
 
 #@gui : sep = value(0)_0+
@@ -53707,8 +53804,8 @@ fx_frame_round :
   to_rgba frame_round $1%,$2%,$3%,${4-7}
 
 #@gui Frame [Smooth] : fx_frame_smooth, fx_frame_smooth(1)
-#@gui : Width (%) = int(10,0,100)
-#@gui : Height (%) = int(10,0,100)
+#@gui : Width (%) = int(5,0,100)
+#@gui : Height (%) = int(5,0,100)
 #@gui : Roundness = float(0.25,0,1)
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/25/04</i>.</small>")
@@ -53719,7 +53816,7 @@ fx_frame_smooth :
      if $3 r:=1+1/$3 f. 1-(abs(x/w-0.5)^$r+abs(y/h-0.5)^$r)^(1/$r)
        v:=min(i(w/2,0),i(w-1,h/2),i(w/2,h-1),i(0,h/2)) <=. $v
      fi
-     frame $sx,$sy,1
+     frame x,$sx,1 frame y,$sy,1
      inpaint_pde[0] [1],100%,1,15
      rm.
   }

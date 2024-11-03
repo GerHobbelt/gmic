@@ -351,14 +351,15 @@ CImg<T> get_draw_point(const int x, const int y, const int z, const T *const col
 }
 
 template<typename t>
-CImg<T> get_draw_polygon(const CImg<t>& pts, const T *const col, const float opacity) const {
-  return (+*this).draw_polygon(pts,col,opacity);
+CImg<T> get_draw_polygon(const CImg<t>& points, const T *const color, const float opacity) const {
+  return (+*this).draw_polygon(points,color,opacity);
 }
 
 template<typename t>
-CImg<T> get_draw_polygon(const CImg<t>& pts, const T *const col, const float opacity,
-                         const unsigned int pattern) const {
-  return (+*this).draw_polygon(pts,col,opacity,pattern);
+CImg<T> get_draw_polygon(const CImg<t>& points,
+                         const T *const color, const float opacity, const unsigned int pattern,
+                         const bool is_closed) const {
+  return (+*this).draw_polygon(points,color,opacity,pattern,is_closed);
 }
 
 CImg<T>& gmic_autocrop(const CImg<T>& color=CImg<T>::empty()) {
@@ -1620,6 +1621,27 @@ CImg<T>& operator_muleq(const char *const expression, CImgList<T> &images) {
 }
 
 template<typename t>
+CImg<T> operator_muleq(const CImg<t>& img) {
+  // Manage special case of pointwise matrix multiplication of vector-valued images.
+  if (img._spectrum>1 && _width==img._spectrum && _depth==1 && _spectrum==1) {
+    if (img.size()<~0U) { // Do it all in one step
+      CImg<t> arg = CImg<t>(img,true).resize(img._width*img._height*img._depth,img._spectrum,1,1,-1);
+      return ((*this)*=arg).resize(img._width,img._height,img._depth,_height,-1);
+    } else { // Do it row by row
+      CImg<T> res(img._width,img._height,img._depth,_height);
+      cimg_forYZ(res,y,z) {
+        CImg<t> arg = img.get_crop(0,y,z,img.width() - 1,y,z);
+        arg.resize(arg._width,arg._spectrum,1,1,-1);
+        res.draw_image(0,y,z,0,((*this)*arg).resize(img._width,1,1,_height,-1));
+      }
+      return res.move_to(*this);
+    }
+  }
+  // Otherwise use default matrix product.
+  return (*this)*=img;
+}
+
+template<typename t>
 CImg<T>& operator_neq(const t value) {
   if (is_empty()) return *this;
   cimg_openmp_for(*this,*ptr != (T)value,131072);
@@ -2476,7 +2498,7 @@ const char *gmic::builtin_commands_names[] = {
   "parallel","pass","permute","plot","point","polygon","progress",
   "quit",
   "rand","remove","repeat","resize","return","reverse","rotate","rotate3d","round",
-  "screen","select","serialize","shared","shift","sign","sinc","sinh","skip",
+  "screen","serialize","shared","shift","sign","sinc","sinh","skip",
     "smooth","solve","sort","split","sqrt","srand","status","store","streamline3d","sub3d",
   "tanh","text",
   "uncommand","unroll","unserialize",
@@ -8163,8 +8185,8 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                     nvalue = vmin + (vmax - vmin)*value/100;
                   }
                   CImgList<unsigned int> prims;
-                  const CImg<float> pts = img.get_shared_channel(k).get_isoline3d(prims,(float)nvalue);
-                  vertices.append_object3d(primitives,pts,prims);
+                  const CImg<float> points = img.get_shared_channel(k).get_isoline3d(prims,(float)nvalue);
+                  vertices.append_object3d(primitives,points,prims);
                   g_list_uc.insert(prims.size(),CImg<unsigned char>::vector(g_img_uc(0,k),
                                                                             g_img_uc(1,k),
                                                                             g_img_uc(2,k)));
@@ -8257,8 +8279,8 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                     nvalue = vmin + (vmax - vmin)*value/100;
                   }
                   CImgList<unsigned int> prims;
-                  const CImg<float> pts = channel.get_isosurface3d(prims,(float)nvalue);
-                  vertices.append_object3d(primitives,pts,prims);
+                  const CImg<float> points = channel.get_isosurface3d(prims,(float)nvalue);
+                  vertices.append_object3d(primitives,points,prims);
                   g_list_uc.insert(prims.size(),CImg<unsigned char>::vector(g_img_uc(0,k),
                                                                             g_img_uc(1,k),
                                                                             g_img_uc(2,k)));
@@ -8892,7 +8914,7 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                                 operator*=,
                                 "Multiply matrix/vector%s by %g%s",
                                 gmic_selection.data(),value,ssep,Tfloat,
-                                operator*=,
+                                operator_muleq,
                                 "Multiply matrix/vector%s by matrix/vector image [%d]",
                                 gmic_selection.data(),ind[0],
                                 operator_muleq,
@@ -10459,21 +10481,60 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
 
         // Draw polygon.
         if (!std::strcmp("polygon",command)) {
-          gmic_substitute_args(false);
-          name.assign(256);
-          double N = 0, x0 = 0, y0 = 0;
-          sep1 = sepx = sepy = *name = *color = 0;
+          gmic_substitute_args(true);
+          sep0 = sep1 = *color = 0;
           pattern = ~0U; opacity = 1;
-          if (cimg_sscanf(argument,"%lf%c",
-                          &N,&end)==2 && N>=1) {
-            N = cimg::round(N);
+          const char *p_color = 0;
+          int nb_vertices = 0;
+          CImg<bool> percents;
+          if (((cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]%c%c",
+                            gmic_use_indices,&sep,&end)==2 && sep==']') ||
+               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f%c",
+                           indices,&opacity,&end)==2 ||
+               (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f,%4095[0-9.eEinfa,+-]%c",
+                            indices,&opacity,gmic_use_color,&end)==3) ||
+               (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f,0%c%x%c",
+                            indices,&opacity,&sep1,&pattern,&end)==4 && sep1=='x') ||
+               (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f,0%c%x,%4095[0-9.eEinfa,+-]%c",
+                            indices,&opacity,&sep1,&pattern,&(*color=0),&end)==5 && sep1=='x') ||
+               (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f,%c0%c%x%c",
+                            indices,&opacity,&sep0,&sep1,&pattern,&end)==5 && sep0=='-' && sep1=='x') ||
+               (cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%f,%c0%c%x,%4095[0-9.eEinfa,+-]%c",
+                            indices,&opacity,&sep0,&sep1,&pattern,&(*color=0),&end)==6 && sep0=='-' && sep1=='x')) &&
+              (ind=selection2cimg(indices,images.size(),images_names,"polygon")).height()==1) {
+
+            vertices.assign(images[*ind],false);
+            const cimg_ulong vsiz = vertices.size();
+            if (vsiz%2)
+              error(true,0,"polygon",
+                    "Command 'polygon': Coordinates image [%u] has invalid dimensions (%u,%u,%u,%u).",
+                    *ind,vertices._width,vertices._height,vertices._depth,vertices._spectrum);
+            vertices.resize(2,vsiz/2,1,1,-1).transpose();
+            if (sep1=='x')
+              print(0,"Draw %u-vertices %s on image%s, with coords [%u], opacity %g, "
+                    "pattern 0x%x and color (%s).",
+                    vertices._width,sep0?"open polyline":"outlined polygon",
+                    gmic_selection.data(),ind[0],
+                    opacity,pattern,
+                    *color?color:"default");
+            else
+              print(0,"Draw %u-vertices filled polygon on image%s, with coords [%u], opacity %g "
+                    "and color (%s).",
+                    vertices._width,
+                    gmic_selection.data(),ind[0],
+                    opacity,
+                    *color?color:"default");
+            p_color = color;
+          } else if (cimg_sscanf(argument,"%d%c",&nb_vertices,&end)==2 && nb_vertices>=1) {
             const char
-              *nargument = argument + cimg_snprintf(name,name.width(),"%u",
-                                                    (unsigned int)N) + 1,
+              *nargument = argument + cimg_snprintf(name,name.width(),"%d",nb_vertices) + 1,
               *const eargument = argument + std::strlen(argument);
-            vertices.assign((unsigned int)N,2,1,1,0);
-            CImg<bool> percents((unsigned int)N,2,1,1,0);
-            for (unsigned int n = 0; n<(unsigned int)N; ++n) if (nargument<eargument) {
+            name.assign(256);
+            sepx = sepy = *name = 0;
+            vertices.assign(nb_vertices,2,1,1,0);
+            percents.assign(nb_vertices,2,1,1,0);
+            double x0 = 0, y0 = 0;
+            for (unsigned int n = 0; n<vertices._width; ++n) if (nargument<eargument) {
                 sepx = sepy = 0;
                 if (cimg_sscanf(nargument,"%255[0-9.eE%+-],%255[0-9.eE%+-]",
                                 gmic_use_argx,gmic_use_argy)==2 &&
@@ -10486,6 +10547,7 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                   nargument+=std::strlen(argx) + std::strlen(argy) + 2;
                 } else arg_error("polygon");
               } else arg_error("polygon");
+
             if (nargument<eargument &&
                 cimg_sscanf(nargument,"%4095[0-9.eEinfa+-]",gmic_use_color)==1 &&
                 cimg_sscanf(color,"%f",&opacity)==1) {
@@ -10493,42 +10555,45 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
               *color = 0;
             }
             if (nargument<eargument &&
+                ((sep0 = *nargument=='-' && nargument + 1<eargument?(++nargument, '-'):0) || true) &&
                 cimg_sscanf(nargument,"0%c%4095[0-9a-fA-F]",&sep1,gmic_use_color)==2 && sep1=='x' &&
                 cimg_sscanf(color,"%x%c",&pattern,&end)==1) {
               nargument+=std::strlen(color) + 3;
               *color = 0;
             }
-            const char *const p_color = nargument<eargument?nargument:&(end=0);
+            p_color = nargument<eargument?nargument:&(end=0);
             if (sep1=='x')
-              print(0,"Draw %g-vertices outlined polygon on image%s, with opacity %g, "
+              print(0,"Draw %u-vertices %s on image%s, with opacity %g, "
                     "pattern 0x%x and color (%s).",
-                    N,
+                    vertices._width,sep0?"open polyline":"outlined polygon",
                     gmic_selection.data(),
                     opacity,pattern,
                     *p_color?p_color:"default");
             else
-              print(0,"Draw %g-vertices filled polygon on image%s, with opacity %g "
+              print(0,"Draw %u-vertices filled polygon on image%s, with opacity %g "
                     "and color (%s).",
-                    N,
+                    vertices._width,
                     gmic_selection.data(),
                     opacity,
                     *p_color?p_color:"default");
-            cimg_forY(selection,l) {
-              CImg<T> &img = images[selection[l]];
-              CImg<int> coords(vertices.width(),2,1,1,0);
-              cimg_forX(coords,p) {
-                if (percents(p,0))
-                  coords(p,0) = (int)cimg::round(vertices(p,0)*(img.width() - 1)/100);
-                else coords(p,0) = (int)cimg::round(vertices(p,0));
-                if (percents(p,1))
-                  coords(p,1) = (int)cimg::round(vertices(p,1)*(img.height() - 1)/100);
-                else coords(p,1) = (int)cimg::round(vertices(p,1));
-              }
-              g_img.assign(img.spectrum(),1,1,1,(T)0).fill_from_values(p_color,true);
-              if (sep1=='x') { gmic_apply(draw_polygon(coords,g_img.data(),opacity,pattern),true); }
-              else gmic_apply(draw_polygon(coords,g_img.data(),opacity),true);
-            }
+
           } else arg_error("polygon");
+
+          cimg_forY(selection,l) {
+            CImg<T> &img = images[selection[l]];
+            CImg<int> coords(vertices.width(),2,1,1,0);
+            cimg_forX(coords,p) {
+              if (percents && percents(p,0))
+                coords(p,0) = (int)cimg::round(vertices(p,0)*(img.width() - 1)/100);
+              else coords(p,0) = (int)cimg::round(vertices(p,0));
+              if (percents && percents(p,1))
+                coords(p,1) = (int)cimg::round(vertices(p,1)*(img.height() - 1)/100);
+              else coords(p,1) = (int)cimg::round(vertices(p,1));
+            }
+            g_img.assign(img.spectrum(),1,1,1,(T)0).fill_from_values(p_color,true);
+            if (sep1=='x') { gmic_apply(draw_polygon(coords,g_img.data(),opacity,pattern,!sep0),true); }
+            else gmic_apply(draw_polygon(coords,g_img.data(),opacity),true);
+          }
           vertices.assign();
           g_img.assign();
           is_change = true;
@@ -12078,75 +12143,6 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                           formula,x,y,z);
             CImg<char>::string(title).move_to(images_names);
           } else arg_error("streamline3d");
-          is_change = true;
-          ++position;
-          continue;
-        }
-
-        // Select image feature.
-        if (!std::strcmp("select",command)) {
-          gmic_substitute_args(false);
-          unsigned int feature_type = 0, is_deep_selection = 0;
-          *argx = *argy = *argz = sep = sep0 = sep1 = 0;
-          value = value0 = value1 = 0;
-          exit_on_anykey = 0;
-          if ((cimg_sscanf(argument,"%u%c",&feature_type,&end)==1 ||
-               (cimg_sscanf(argument,"%u,%255[0-9.eE%+-]%c",
-                            &feature_type,gmic_use_argx,&end)==2) ||
-               (cimg_sscanf(argument,"%u,%255[0-9.eE%+-],%255[0-9.eE%+-]%c",
-                            &feature_type,argx,gmic_use_argy,&end)==3) ||
-               (cimg_sscanf(argument,"%u,%255[0-9.eE%+-],%255[0-9.eE%+-],%255[0-9.eE%+-]%c",
-                            &feature_type,argx,argy,gmic_use_argz,&end)==4) ||
-               (cimg_sscanf(argument,"%u,%255[0-9.eE%+-],%255[0-9.eE%+-],%255[0-9.eE%+-],%u%c",
-                            &feature_type,argx,argy,argz,&exit_on_anykey,&end)==5) ||
-               (cimg_sscanf(argument,"%u,%255[0-9.eE%+-],%255[0-9.eE%+-],%255[0-9.eE%+-],%u,%u%c",
-                            &feature_type,argx,argy,argz,&exit_on_anykey,&is_deep_selection,&end)==6)) &&
-              (!*argx ||
-               cimg_sscanf(argx,"%lf%c",&value,&end)==1 ||
-               (cimg_sscanf(argx,"%lf%c%c",&value,&sep,&end)==2 && sep=='%')) &&
-              (!*argy ||
-               cimg_sscanf(argy,"%lf%c",&value0,&end)==1 ||
-               (cimg_sscanf(argy,"%lf%c%c",&value0,&sep0,&end)==2 && sep0=='%')) &&
-              (!*argz ||
-               cimg_sscanf(argz,"%lf%c",&value1,&end)==1 ||
-               (cimg_sscanf(argz,"%lf%c%c",&value1,&sep1,&end)==2 && sep1=='%')) &&
-              value>=0 && value0>=0 && value1>=0 && feature_type<=3 && exit_on_anykey<=1 && is_deep_selection<=1) {
-            if (!*argx) { value = 50; sep = '%'; }
-            if (!*argy) { value0 = 50; sep0 = '%'; }
-            if (!*argz) { value1 = 50; sep1 = '%'; }
-
-            if (!is_display_available) {
-              print(0,
-                    "Select %s in image%s in interactive mode, from point (%g%s,%g%s,%g%s) (skipped no display %s).",
-                    feature_type==0?"point":feature_type==1?"segment":
-                    feature_type==2?"rectangle":"ellipse",gmic_selection.data(),
-                    value,sep=='%'?"%":"",value0,sep0=='%'?"%":"",value1,sep1=='%'?"%":"",
-                    cimg_display?"available":"support");
-            } else {
-              print(0,"Select %s in image%s in interactive mode, from point (%g%s,%g%s,%g%s).",
-                    feature_type==0?"point":feature_type==1?"segment":
-                    feature_type==2?"rectangle":"ellipse",gmic_selection.data(),
-                    value,sep=='%'?"%":"",value0,sep0=='%'?"%":"",value1,sep1=='%'?"%":"");
-
-              unsigned int XYZ[3];
-              cimg_forY(selection,l) {
-                CImg<T> &img = images[selection[l]];
-                XYZ[0] = (unsigned int)cimg::cut(cimg::round(sep=='%'?(img.width() - 1)*value/100:value),
-                                                 0.,img.width() - 1.);
-                XYZ[1] = (unsigned int)cimg::cut(cimg::round(sep0=='%'?(img.height() - 1)*value0/100:value0),
-                                                 0.,img.height() - 1.);
-                XYZ[2] = (unsigned int)cimg::cut(cimg::round(sep1=='%'?(img.depth() - 1)*value1/100:value1),
-                                                 0.,img.depth() - 1.);
-                if (gmic_display_window(0)) {
-                  gmic_apply(select(gmic_display_window(0),feature_type,XYZ,
-                                    (bool)exit_on_anykey,is_deep_selection),false);
-                } else {
-                  gmic_apply(select(images_names[selection[l]].data(),feature_type,XYZ,
-                                    (bool)exit_on_anykey,is_deep_selection),false);
-                }
-              }
-            }
-          } else arg_error("select");
           is_change = true;
           ++position;
           continue;
