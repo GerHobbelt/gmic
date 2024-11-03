@@ -1953,8 +1953,8 @@ d :
 # 'A': Switch alpha rendering - 'C': Center view - 'E': Go to lower-right corner - 'ENTER': Reset view - \
 # 'G': Toggle grid - 'H': Go to upper-left corner - 'K': Switch background - 'M': Toggle 3D view - \
 # 'N': Switch normalization - 'P': Print info about current image pixel on 'stdout' - \
-# 'PAGEUP' or 'PAGEDOWN': Raise/lower base channel - 'R': Rotate image - 'V': Crop image - 'Z': Switch zoom factor - \
-# '0'-'9': Set zoom factor.
+# 'PAGEUP' or 'PAGEDOWN': Raise/lower base channel - 'R': Rotate image - 'T': Plot as a 1D curve - 'V': Crop image - \
+# 'Z': Switch zoom factor - '0'-'9': Set zoom factor.
 #@cli : \n- **3D mesh view:**
 #@cli : 'LMB': Mesh rotation - 'CTRL+LMB' or 'MMB': Mesh pan - 'RMB': Mesh zoom -  \
 # 'A': Toggle axes - 'D': Switch face side mode - 'F': Change focale - 'J': Start/stop animation - \
@@ -3480,6 +3480,9 @@ _display : skip ${1=},${3=}
             $0_rmn canvas_background,canvas_label_notification
           elif {*,-P}" && "['$view_xyz']!=0 # Print current pixel value on stdout
             +e "Command 'display': I(#"$selected,$view_xyz_disp") = [ "{$selected,I($view_xyz)}" ]"
+          elif {*,-T} # Plot image as a 1D curve
+            plot[$selected] 1,4,0,0,0,0,1
+            $0_rmn canvas_background
           elif ({*,PAGEUP}" || "{*,PAGEDOWN})" && "{$selected,s>3}" && "!$setting_alpha
             n_view_base_channel={$selected,cut($view_base_channel+({*,-PAGEUP}?1:{*,-PAGEDOWN}?-1:0),0,s-3)}
             if $n_view_base_channel!=$view_base_channel
@@ -4233,7 +4236,8 @@ dg : check "${1=0}>=0 && ${2=0}>=0 && isint(${11=32},0)"
   skip ${3=1},${4=0},${5=0},${6=0},${7=0},${8=0},"${9=x-axis}","${10=y-axis}"
   _display_graph ${1-8},"$9","$10",$11
 
-#@cli display_graph : _width>=0,_height>=0,_plot_type,_vertex_type,_xmin,_xmax,_ymin,_ymax,_xlabel,_ylabel,_frame_size>=0
+#@cli display_graph : _width>=0,_height>=0,_plot_type,_vertex_type,_xmin,_xmax,_ymin,_ymax,_xlabel,_ylabel,\
+# _frame_size>=0
 #@cli : Render graph plot from selected image data.
 #@cli : 'plot_type' can be { 0:none | 1:lines | 2:splines | 3:bar }.
 #@cli : 'vertex_type' can be { 0:none | 1:points | 2,3:crosses | 4,5:circles | 6,7:squares }.
@@ -4262,7 +4266,9 @@ _display_graph : check "${1=0}>=0 && ${2=0}>=0 && isint(${11=32},0)"
     if $5==$6 xmin,xmax=0,{$siz-1} else xmin,xmax:=min(${5,6}),max(${5,6}) fi
     is_infnan=0
     if "max(isinf([im,iM])) || max(isnan([im,iM]))" +replace_infnan. 0 is_infnan=1 fi
-    if $7==$8 ymin,ymax:=dy=(iM-im)/20;[im-dy,iM+dy] else ymin,ymax:=min(${7,8}),max(${7,8}) fi
+    if $7==$8 ymin,ymax:="dy = (iM - im)/20; !dy?(dy = 0.5); [ im - dy,iM + dy ]"
+    else ymin,ymax:=min(${7,8}),max(${7,8})
+    fi
     if $is_infnan rm. fi
 
     if $3==3 xmax:=lerp($xmin,$xmax,$siz/($siz-1)) fi
@@ -4274,32 +4280,36 @@ _display_graph : check "${1=0}>=0 && ${2=0}>=0 && isint(${11=32},0)"
 
     # Create plot canvas.
     one:=$3!=3 gw:=$w-2*$11 gh:=$h-2*$11 gg:=($gw-$one)/($siz-$one)
-    $gw,$gh,1,3,255
-    if $dx>0" && "$dy>0
-      grid. {$deltax*$gw/$dx},{$deltay*$gh/$dy},{($offx-$xmin)*$gw/$dx},{$gh-($offy-$ymin)*$gh/$dy},0.25,0xCCCCCCCC,0
+    if $gw>0" && "$gh>0
+      $gw,$gh,1,3,255
+      if $dx>0" && "$dy>0
+        grid. {$deltax*$gw/$dx},{$deltay*$gh/$dy},{($offx-$xmin)*$gw/$dx},{$gh-($offy-$ymin)*$gh/$dy},0.25,0xCCCCCCCC,0
+      fi
+
+      # Define color palette for curves.
+      if s#-2==1 (100,100,200)
+      elif s#-2<=3 (220,100,100;100,220,100;100,100,220)
+      else
+        (0,255) r. 256,1,1,1,3 map. 2 z. 2,100% permute. cxyz r. 3,{-3,max(3,s)},1,1,0,2
+        sh. 0,2,0,0 f. 255,0,0,0,255,0,0,0,255 rm.
+      fi
+
+      # Draw plot for each channel.
+      repeat s#-3 { sh... $> graph... .,$3,$4,$ymax,$ymin,1,{-2,@0-2} rm. shift. 0,-1 }
+      rm[-3,-1]
+      line. 0,0,100%,0,1,110 line. 100%,0,100%,100%,1,110
+      line. 100%,100%,0,100%,1,255 line. 0,100%,0,0,1,255
+
+      100%,100%,1,1,255
+      axes. $xmin,$xmax,$ymax,$ymin,14,1,0
+      if $xmin>0 axes. 0,0,$ymax,$ymin,14,1,160 fi
+      if $xmax<0 axes. {w-1},{w-1},$ymax,$ymin,14,1,160 fi
+      if $ymin>0 axes. $xmin,$xmax,{h-1},{h-1},14,1,160 fi
+      if $ymax<0 axes. $xmin,$xmax,0,0,14,1,160 fi
+      +erode. 3 !=. 255 r.. 100%,100%,1,3 j... ..,0,0,0,0,1,.,1 rm[-2,-1]
+    else 0
     fi
 
-    # Define color palette for curves.
-    if s#-2==1 (100,100,200)
-    elif s#-2<=3 (220,100,100;100,220,100;100,100,220)
-    else
-      (0,255) r. 256,1,1,1,3 map. 2 z. 2,100% permute. cxyz r. 3,{-3,max(3,s)},1,1,0,2
-      sh. 0,2,0,0 f. 255,0,0,0,255,0,0,0,255 rm.
-    fi
-
-    # Draw plot for each channel.
-    repeat s#-3 { sh... $> graph... .,$3,$4,$ymax,$ymin,1,{-2,@0-2} rm. shift. 0,-1 }
-    rm[-3,-1]
-    line. 0,0,100%,0,1,110 line. 100%,0,100%,100%,1,110
-    line. 100%,100%,0,100%,1,255 line. 0,100%,0,0,1,255
-
-    100%,100%,1,1,255
-    axes. $xmin,$xmax,$ymax,$ymin,14,1,0
-    if $xmin>0 axes. 0,0,$ymax,$ymin,14,1,160 fi
-    if $xmax<0 axes. {w-1},{w-1},$ymax,$ymin,14,1,160 fi
-    if $ymin>0 axes. $xmin,$xmax,{h-1},{h-1},14,1,160 fi
-    if $ymax<0 axes. $xmin,$xmax,0,0,14,1,160 fi
-    +erode. 3 !=. 255 r.. 100%,100%,1,3 j... ..,0,0,0,0,1,.,1 rm[-2,-1]
     frame. xy,$11,220
     fontsize:=min(20,round(0.75*$11))
     if $fontsize
@@ -9295,18 +9305,16 @@ _parse_gui_strings :
 #@cli : 'vertex_type' can be { 0:none | 1:points | 2,3:crosses | 4,5:circles | 6,7:squares }.
 #@cli : 'xmin', 'xmax', 'ymin', 'ymax' set the coordinates of the displayed xy-axes.
 #@cli : Default values: 'plot_type=1', 'vertex_type=1', 'xmin=xmax=ymin=ymax=0 (auto)' and 'exit_on_anykey=0'.
-nplot : check "isint(${1=1},0,3) && isint(${2=0},0,7) && isbool(${7=0})" skip ${3=0},${4=0},${5=0},${6=0}
-  if $^<0 return fi
+plot : check "isint(${1=1},0,3) && isint(${2=0},0,7) && isbool(${7=0})" skip ${3=0},${4=0},${5=0},${6=0}
   _gmic_s0="$?" v + _$0 ${1-7},"",1,$[]
 
-+nplot : check "isint(${1=1},0,3) && isint(${2=1},0,7) && isbool(${7=0})" skip ${3=0},${4=0},${5=0},${6=0}
++plot : check "isint(${1=1},0,3) && isint(${2=1},0,7) && isbool(${7=0})" skip ${3=0},${4=0},${5=0},${6=0}
   _gmic_s0="$?" v + _$0 ${1-7},+,{$^>=0},$[]
 
 # $8: '+' or '' to specify output on stdout or stderr.
 # $9: print_header={ 0 | 1 }
 # $10: list of selected images indices.
-_nplot : skip ${8=},${10=}
-  if ['"$8"']!='+'" && "$^<0 return fi
+_plot : skip ${8=},${10=}
   if !$!
     if $9 e[0--5] "Plot image []." fi
     is_change 0
@@ -9336,7 +9344,9 @@ _nplot : skip ${8=},${10=}
     e[0--4] "Plot image"$_gmic_s0" = '"$log_title"'."
   fi
   w_norm0:={*}?{*,n}:-1
+  p_type,v_type=${1,2}
 
+  # Plot each image in an interactive window.
   foreach[^-1] {
     w0,h0,d0,s0:=w,h,d,s r. {whd},1,1,100%,-1
 
@@ -9354,90 +9364,132 @@ _nplot : skip ${8=},${10=}
     if $3==$4 xmin0,xmax0={0,[0,w-1]} else xmin0,xmax0:=min(${3,4}),max(${3,4}) fi
     is_infnan=0
     if "max(isinf([im,iM])) || max(isnan([im,iM]))" +replace_infnan. 0 is_infnan=1 fi
-    if $5==$6 ymin0,ymax0:=dy=(iM-im)/20;[im-dy,iM+dy] else ymin0,ymax0:=min(${5,6}),max(${5,6}) fi
+    if $5==$6 ymin0,ymax0:="dy = (iM - im)/20; !dy?(dy = 0.5); [ im - dy,iM + dy ]"
+    else ymin0,ymax0:=min(${5,6}),max(${5,6})
+    fi
     if $is_infnan rm. fi
 
-    xmin,xmax,ymin,ymax=$xmin0,$xmax0,$ymin0,$ymax0
-    x0,y0,x1,y1=-1
-    frame=32
-    step=0
+    Xmin,Xmax,xmin,xmax,ymin,ymax=0,{w-1},$xmin0,$xmax0,$ymin0,$ymax0
+    X0,X1,x0,x1,y0,y1=-1
+    select_mode=0
 
     do
       if !{*,f} w_width,w_height={*,d,e} fi # Remember window geometry when not fullscreen
 
       # Render base view.
-      if !0$view +dg[0] {*,w,h},$1,$2,$xmin,$xmax,$ymax,$ymin => view fi
+      if !0$view
+        +z[0] $Xmin,$Xmax
+        frame:=min(32,round(max({*,w,h})/20))
+        dg. {*,w,h},$p_type,$v_type,$xmin,$xmax,$ymax,$ymin,,,$frame
+        => view
+      fi
 
-      # Retrieve graph coordinates from mouse pointer.
+      # Retrieve graph coordinates corresponding to current position of mouse pointer.
       mx,my={*,x,y}
-      x,y,X={view,"
+      X,x,y={view,"
         const mx = $mx; const my = $my; const frame = $frame; const frame2 = 2*frame;
-        const xmin = $xmin; const xmax = $xmax; const ymin = $ymin; const ymax = $ymax;
-        mx<0 || !inrange(mx,frame,w - 1 - frame) || !inrange(my,frame,h - 1 - frame)?vector3(-1):(
+        const Xmin = $Xmin; const Xmax = $Xmax;
+        const xmin = $xmin; const xmax = $xmax;
+        const ymin = $ymin; const ymax = $ymax;
+        mx<0 || !inrange(mx,frame,w - 1 - frame) || !inrange(my,frame,h - 1 - frame)?[ -1,-1,-1 ]:(
           const fy = (my - frame)/(h - 1 - frame2);
           y = lerp(ymax,ymin,fy);
-          $1==3?(
+          $p_type==3?(
             const fx = (mx - frame)/(w - frame2);
+            X = int(lerp(Xmin,Xmax + 1,fx));
             x = lerp(xmin,xmax + 1,fx);
-            X = int(lerp(0,w#0,fx));
           ):(
             const fx = (mx - frame)/(w - 1 - frame2);
+            X = round(lerp(Xmin,Xmax,fx));
             x = lerp(xmin,xmax,fx);
-            X = round(lerp(0,w#0 - 1,fx));
           );
-          [ x,y,X ]
+          [ X,x,y ]
         )"}
 
       if $X>=0
-        if !$step x0,y0=$x,$y elif $step==1 x1,y1=$x,$y fi
+        cursor[0] 0
+        if !$select_mode X0,x0,y0=$X,$x,$y
+        else
+          X1,x1=$X,$x
+          if $select_mode==2
+            y1=$y
+          else
+            y0,y1:="v = crop(#0,min($X0,$X1),abs($X1-$X0) + 1); "\
+                   "m = min(v); M = max(v); dy = (M - m)/20; !dy?(dy = 0.5); "\
+                   "[ max($ymin,m - dy), min($ymax,M + dy) ]"
+          fi
+        fi
+      else cursor[0] 1
       fi
 
       # Render view.
       if $X>=0
         [view]
-        label="f["$X"] = f("{_$x}") = [ "
-        if s#0<=6 label.={_I[#0,$X]}
-        else label.={_["i(#0,$X,0,0,0),i(#0,$X,0,0,1),i(#0,$X,0,0,2)"]}" ... "\
-                    {_["i(#0,$X,0,0,s#0-3),i(#0,$X,0,0,s#0-2),i(#0,$X,0,0,s#0-1)"]}
+
+        if !$select_mode
+          label="f["$X"] = f("{_$x}") = [ "
+          if s#0<=6 label.={_I[#0,$X]}
+          else label.={_["i(#0,$X,0,0,0),i(#0,$X,0,0,1),i(#0,$X,0,0,2)"]}" ... "\
+                      {_["i(#0,$X,0,0,s#0-3),i(#0,$X,0,0,s#0-2),i(#0,$X,0,0,s#0-1)"]}
+          fi
+          label.=" ]"
+        else
+          label="[X0,X1] = ["{_[$X0,$X1]}"], "\
+                "[x0,x1] = ["{_[$x0,$x1]}"], "\
+                "[y0,y1] = ["{_[$y0,$y1]}"]"
         fi
-        label.=" ]"
-        fontsize:=cut(h/32,13,24)
+
+        fontsize:=cut(h/35,13,24)
         0 t. {``$label},0.5~,0,$fontsize,1,1 to_rgb.
         j.. .,0.5~,{($frame-h)/2},0,0,1,. rm.
 
-        eval " # Highlight closest points
-          const frame = $frame;
+        eval "
+          const dX = $Xmax - $Xmin; const dy = $ymax - $ymin;
+          const X0 = min($X0,$X1); const X1 = max($X0,$X1);
+          const mx = $mx; const my = $my;
+          const p_type = $p_type;
           const siz = 1.5*max(3,min(w,h)/128);
+          const frame = $frame;
+          const hatch1 = 0x00FF00FF;
+          const hatch2 = 0xF0F0F0F0;
+
+          draw_cursor(x,y0,y1,y,x0,x1) = (
+            polygon(#-1,-2,x,y0,x,y1,0.75,hatch1,0);
+            polygon(#-1,-2,x,y0,x,y1,0.75,~hatch1,255);
+            polygon(#-1,-2,x0,y,x1,y,0.75,hatch1,0);
+            polygon(#-1,-2,x0,y,x1,y,0.75,~hatch1,255);
+          );
+
+          # Highlight closest points.
           colors = [ 220,100,100,100,220,100,100,100,220,0,0,0 ];
           s#0==1?copy(colors,[ 100,100,200 ]);
-          x = round($1==3?lerp(frame,w - frame,$X/w#0):lerp(frame,w - 1 - frame,$X/(w#0 - 1)));
+          x = round(p_type==3?lerp(frame,w - frame,($X + 0.5 - $Xmin)/(dX + 1)):
+                              lerp(frame,w - 1 - frame,($X - $Xmin)/dX));
           repeat (s#0,c,
-            y = round(lerp($frame,h - 1 - $frame,(i(#0,$X,0,0,c) - $ymax)/($ymin - $ymax)));
-            ellipse(#-1,x,y,siz,siz,0,0.5,colors[3*min(c,3),3]);
-          )"
+            y = round(lerp(frame,h - 1 - frame,($ymax - i(#0,$X,0,0,c))/dy));
+            inrange(y,frame,h - 1 - frame)?ellipse(#-1,x,y,siz,siz,0,c<3?0.5:0.1,colors[3*min(c,3),3]);
+          );
 
-        if $step" && "$X>=0
-           d
-          eval "
-            const frame = $frame;
-            sx0 = lerp(frame,frame - w - 1,($x0 - $xmin)/($xmax - $xmin));
-            sy0 = lerp(frame,frame - h - 1,($y0 - $ymin)/($ymax - $ymin));
-            sx1 = lerp(frame,frame - w - 1,($x1 - $xmin)/($xmax - $xmin));
-            sy1 = lerp(frame,frame - h - 1,($y1 - $ymin)/($ymax - $ymin));
-            polygon(#-1,4,sx0,sy0,sx1,sy0,sx1,sy1,sx0,sy1,0.25,0);
-          "
-
-        fi
-
-        line. $mx,$frame,$mx,{h-1-$frame},0.75,0x55555555,0
-
+          # Draw user selection.
+          $select_mode && X0>=0?(
+            sx0 = p_type==3?lerp(frame,w - frame - 1,(X0 - $Xmin)/(dX + 1)):
+                            lerp(frame,w - frame - 1,(X0 - $Xmin)/dX);
+            sy0 = lerp(h - frame - 1,frame,($y0 - $ymin)/dy);
+            sx1 = p_type==3?lerp(frame,w - frame - 1,(X1 + 1 - $Xmin)/(dX + 1)):
+                            lerp(frame,w - frame - 1,(X1 - $Xmin)/dX);
+            sy1 = lerp(h - frame - 1,frame,($y1 - $ymin)/dy);
+            polygon(#-1,4,sx0,sy0,sx1,sy0,sx1,sy1,sx0,sy1,0.1,0);
+            polygon(#-1,-4,sx0,sy0,sx1,sy0,sx1,sy1,sx0,sy1,0.75,hatch2,0);
+          );
+          mx>=0?draw_cursor(mx,frame,h - 1 - frame,my,frame,w - 1 - frame); # Draw cursor
+        "
         w. -1,-1,0 rm.
       else w[view] -1,-1,0
       fi
       wait
 
       # Manage user events.
-      is_CTRL,is_lmb,is_rmb:={*,CTRLLEFT}" || "{*,CTRLRIGHT},{*,b}&1,{*,b}&2
+      is_CTRL,is_mb,is_lmb,is_rmb:={*,CTRLLEFT}" || "{*,CTRLRIGHT},{*,b}&3,{*,b}&1,{*,b}&2
       if {*,r}
         w[] {*,d,e} rmn view
       fi
@@ -9456,13 +9508,64 @@ _nplot : skip ${8=},${10=}
         rmn view
         skip {*,-F}
       fi
+      if {*,ARROWLEFT}" || "{*,ARROWRIGHT} # Left/Right shift
+        step:=ceil(($Xmax-$Xmin)/8)
+        if {*,ARROWLEFT} nXmin:=max(0,$Xmin-$step) Xmin,Xmax:=$nXmin,$Xmax+$nXmin-$Xmin
+        else nXmax:=min(w#0-1,$Xmax+$step) Xmin,Xmax:=$Xmin+$nXmax-$Xmax,$nXmax
+        fi
+        xmin,xmax:=lerp($xmin0,$xmax0,$Xmin/(w#0-1)),lerp($xmin0,$xmax0,$Xmax/(w#0-1))
+        rmn view
+      fi
+      if {*,ARROWDOWN}" || "{*,ARROWUP} # Up/Down shift
+        step,dy:=($ymax-$ymin)/8,($ymax0-$ymin0)/20
+        if {*,ARROWDOWN} nymin:=max($ymin0-$dy,$ymin-$step) ymin,ymax:=$nymin,$ymax+$nymin-$ymin
+        else nymax:=min($ymax0+$dy,$ymax+$step) ymin,ymax:=$ymin+$nymax-$ymax,$nymax
+        fi
+        rmn view
+      fi
+      if {*,o} # Zoom in/out
+        fact:=0.9^{*,-o}
+        nXmin,nXmax:=cut(int($X+[$Xmin-$X,$Xmax-$X]*$fact),0,w#0-1)
+        if abs($nXmax-$nXmin)>10
+          fact:=($nXmax-$nXmin)/($Xmax-$Xmin) # Corresponding quantized zoom factor
+          Xmin,Xmax:=$nXmin,$nXmax
+          xmin,xmax:=lerp($xmin0,$xmax0,$Xmin/(w#0-1)),lerp($xmin0,$xmax0,$Xmax/(w#0-1))
+          ymin,ymax:=$y+[$ymin-$y,$ymax-$y]*$fact
+          rmn view
+        fi
+      fi
+      if {*,P} # Change plot type
+        p_type:=($p_type+1)%4
+        rmn view
+      fi
+      if {*,V} # Change vertex type
+        v_type:=($v_type+1)%8
+        rmn view
+      fi
 
       # Manage user selection.
-      if !$step" && "$is_rmb" && "$X>=0
-        x0,y0,step=$x,$y,1
-      elif $step==1" && "!$is_rmb" && "$X>=0
-        x1,y1,step=$x,$y,0
-        rmn view
+      if !$select_mode" && "$is_mb" && "$X>=0
+        X0,x0,y0,select_mode=$X,$x,$y,{$is_lmb?1:2}
+      elif $select_mode" && "!$is_mb
+        if $X>=0
+          if $select_mode==2
+            y1=$y
+          else
+            y0,y1:="v = crop(#0,min($X0,$X1),abs($X1-$X0) + 1); "\
+                   "m = min(v); M = max(v); dy = (M - m)/20; !dy?(dy = 0.5); "\
+                   "[ max($ymin,m - dy), min($ymax,M + dy) ]"
+          fi
+
+          X1,x1,select_mode=$X,$x,0
+          if $X1!=$X0" && "$y1!=$y0
+            Xmin,Xmax,xmin,xmax,ymin,ymax:=min($X0,$X1),max($X0,$X1),min($x0,$x1),max($x0,$x1),min($y0,$y1),max($y0,$y1)
+          else
+            Xmin,Xmax,xmin,xmax,ymin,ymax=0,{0,w-1},$xmin0,$xmax0,$ymin0,$ymax0
+          fi
+          rmn view
+        else
+          X0,x0,y0,select_mode=$X,$x,$y,0
+        fi
       fi
 
       continue:={*}" && "!{*,-ESC}
@@ -9926,7 +10029,7 @@ _select :
               draw_vector(sc_x3,sc_y3,ec_x3,ec_y3);
             );
           );
-          draw_cursor(f_x1,$y0,yc1,f_y1,$x0,xc1);
+          draw_cursor(f_x1,$y0,yc1,f_y1,$x0,xc1); # Draw cursor
           is_volumetric?(
             draw_cursor(f_x2,$y0,yc1,f_y2,$xc,$x1);
             draw_cursor(f_x3,$yc,$y1,f_y3,$x0,xc1);
@@ -17034,24 +17137,24 @@ autocrop_seq : skip ${1=auto}
   else z $x0,$y0,$z0,$x1,$y1,$z1
   fi
 
-#@cli channels : c0[%],_c1[%]
+#@cli channels : c0[%],_c1[%],_boundary_conditions
 #@cli : Keep only specified channels of selected images.
-#@cli : Dirichlet boundary is used when specified channels are out of range.
-#@cli : Default value: 'c1=c0'.
-#@cli : $ image.jpg channels 0,1
+#@cli : 'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }.
+#@cli : Default values: 'c1=c0' and 'boundary_conditions=0'.
+#@cli : $ image.jpg channels 1
 #@cli : $ image.jpg luminance channels 0,2
-channels : skip ${2=$1}
-  e[^-1] "Keep channels $1...$2 of image$?."
-  z 0,0,0,$1,100%,100%,100%,$2
+channels : check "isint(${3=0},0,3)" skip ${2=$1}
+  e[^-1] "Keep channels $1...$2 of image$?, with "${"arg0 $3,dirichlet,neumann,periodic,mirror"}" boundary conditions."
+  z 0,0,0,$1,100%,100%,100%,$2,$3
 
-#@cli columns : x0[%],_x1[%]
+#@cli columns : x0[%],_x1[%],_boundary_conditions
 #@cli : Keep only specified columns of selected images.
-#@cli : Dirichlet boundary is used when specified columns are out of range.
-#@cli : Default value: 'x1=x0'.
+#@cli : 'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }.
+#@cli : Default values: 'x1=x0' and 'boundary_conditions=0'.
 #@cli : $ image.jpg columns -25%,50%
-columns : skip ${2=$1}
-  e[^-1] "Keep columns $1...$2 of image?."
-  z $1,$2
+columns : check "isint(${3=0},0,3)" skip ${2=$1}
+  e[^-1] "Keep columns $1...$2 of image?, with "${"arg0 $3,dirichlet,neumann,periodic,mirror"}" boundary conditions."
+  z $1,$2,$3
 
 #@cli z : eq. to 'crop'. : (+)
 
@@ -17622,14 +17725,14 @@ rotate_tileable : check ${2=8}>=0
     fi
   }
 
-#@cli rows : y0[%],_y1[%]
+#@cli rows : y0[%],_y1[%],_boundary_conditions
 #@cli : Keep only specified rows of selected images.
-#@cli : Dirichlet boundary conditions are used when specified rows are out of range.
-#@cli : Default value: 'y1=y0'.
+#@cli : 'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }.
+#@cli : Default values: 'y1=y0' and 'boundary_conditions=0'.
 #@cli : $ image.jpg rows -25%,50%
-rows : skip ${2=$1}
-  e[^-1] "Keep rows $1...$2 of image$?."
-  z 0,$1,100%,$2
+rows : check "isint(${3=0},0,3)" skip ${2=$1}
+  e[^-1] "Keep rows $1...$2 of image$?, with "${"arg0 $3,dirichlet,neumann,periodic,mirror"}" boundary conditions."
+  z 0,$1,100%,$2,$3
 
 #@cli scale2x
 #@cli : Resize selected images using the Scale2x algorithm.
@@ -17834,13 +17937,13 @@ shrink : check "isint(${3=0},0,3)"
          ${"arg0 $3,dirichlet,neumann,periodic,mirror"}" boundary conditions."
   expand "$1",{-$2},$3
 
-#@cli slices : z0[%],_z1[%]
+#@cli slices : z0[%],_z1[%],_boundary_conditions
 #@cli : Keep only specified slices of selected images.
-#@cli : Dirichlet boundary conditions are used when specified slices are out of range.
-#@cli : Default value: 'z1=z0'.
-slices : skip ${2=$1}
-  e[^-1] "Keep slices $1...$2 of image$?."
-  z 0,0,$1,100%,100%,$2
+#@cli : 'boundary_conditions' can be { 0:dirichlet | 1:neumann | 2:periodic | 3:mirror }.
+#@cli : Default values: 'z1=z0' and 'boundary_conditions=0'.
+slices : check "isint(${3=0},0,3)" skip ${2=$1}
+  e[^-1] "Keep slices $1...$2 of image$?, with "${"arg0 $3,dirichlet,neumann,periodic,mirror"}" boundary conditions."
+  z 0,0,$1,100%,100%,$2,$3
 
 #@cli sort : _ordering={ + | - },_axis={ x | y | z | c } : (+)
 #@cli : Sort pixel values of selected images.
@@ -30047,9 +30150,16 @@ frame : check "${2=10%}>=0" skip "${1=xy},${3=255},${4=$3},${5=$3},${6=255}"
   e[^-1] "Insert outer frame in image$? along ax"{`size(['$1'])>1?_'e':'i'`}"s '$1', with size $2 and color (${3--1})."
   no_x,no_y,no_z:="arg = ['$1']; [ find(arg,_'x')<0, find(arg,_'y')<0, find(arg,_'z')<0 ]"
   foreach { nm={n}
-    {"const siz2 = 2*(ispercentage($2)?floor(max(w,h,d)*$2):$2);
-      [ w + ($no_x?0:siz2), h + ($no_y?0:siz2), d + ($no_z?0:siz2), s ]"} fc. ${3--1}
-    j. ..,0.5~,0.5~,0.5~ k. => $nm
+    siz2:=2*(ispercentage($2)?floor(max(w,h,d)*$2):$2)
+    if $siz2>0
+      if !w
+        rm {"[ $no_x?1:$siz2, $no_y?1:$siz2, $no_z?1:$siz2, narg(${3--1}) ]"} fc. ${3--1}
+      else
+        {"[ w + ($no_x?0:$siz2), h + ($no_y?0:$siz2), d + ($no_z?0:$siz2), s ]"} fc. ${3--1}
+        j. ..,0.5~,0.5~,0.5~ k.
+      fi
+    fi
+    => $nm
   }
 
 #@cli frame_blur : _sharpness>0,_size>=0,_smoothness,_shading,_blur
