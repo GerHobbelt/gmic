@@ -417,7 +417,7 @@ reference : skip "${2=}"
 "  - When it starts by the underscore character '_'. In that case, it becomes also accessible by any command invoked "\
 "outside the current command scope (global variable)."\n\
 "  - When defined in a _subcommand_ of the current command, a variable becomes also accessible in the parent command. "\
-"A _subcommand_ of a command `foo` is a command whose name starts with `_foo` (e.g. `_foo_sub`) and that is called "\
+"A _subcommand_ of a command `foo` is a command whose name starts with `__foo_` (e.g. `__foo_sub`) and that is called "\
 "from `foo`."\n\
 "* If a variable name starts with two underscores `__`, the global variable is also shared among different threads "\
 "and can be read/set by commands running in parallel (see command ''parallel'' for this purpose). "\
@@ -1979,7 +1979,7 @@ d :
 #@cli :   - '_display_is_grid' can be { 0:off | 1:on } (default value: '1').
 #@cli :   - '_display_is_info' can be { 0:off | 1:on } (default value: '1').
 #@cli :   - '_display_normalization' can be { -1:auto | 0:off | 1:cut | 2:stretch channelwise | 3:stretch global | \
-# 4: stretch (global once) } (default value: '-1').
+# 4: stretch (global-once) } (default value: '-1').
 #@cli :   - '_display_print_images' can be { 0:off | N>0 } (default value: '5'). It sets the max number 'N' of images \
 # whose information is initially printed on `stderr` or `stdout`.
 #@cli :   - '_display_3d_is_rendered' can be { 0:off | 1:on } (default value: '1').
@@ -2481,7 +2481,6 @@ _display : skip ${1=},${3=}
               permute. zyxc
             fi
           fi
-
           if !$setting_normalization # Normalize: none
             and. 255
           elif $setting_normalization==1 # Normalize: cut
@@ -2494,10 +2493,10 @@ _display : skip ${1=},${3=}
               fi
             elif $setting_normalization==3 # Normalize: stretch (global)
               if {is_infnan,i[$selected]} $0_normalize_infnan. else n. 0,255 fi
-            else # Normalize: stretch (global once)
+            else # Normalize: stretch (global-once)
               if !narg(${display_range_global$selected})
                 if {is_infnan,i[$selected]} display_range_global$selected=${-_display_minmax_infnan}
-                else sh[$selected] $cmin,$cmax display_range_global$selected:=[im,iM] rm.
+                else display_range_global$selected={$selected,[im,iM]}
                 fi
               fi
               im,iM:=${display_range_global$selected}
@@ -3533,7 +3532,7 @@ _display : skip ${1=},${3=}
         setting_normalization:=($setting_normalization+1)%5
         notification="Normalization: "${"arg0 "$setting_normalization,\
                                         "Off,Cut,\"Stretch (channelwise)\",\
-                                        \"Stretch (global)\",\"Stretch (global once)\""}
+                                        \"Stretch (global)\",\"Stretch (global-once)\""}
         $0_flush_thumb_cache
         $0_rmn canvas_base,canvas_label_notification
       elif {*,-R} # Rotate view
@@ -5236,7 +5235,7 @@ _input_csv_val :
 #@cli : Insert new images from several filenames that match the specified glob pattern.
 #@cli : (eq. to 'ig').
 +input_glob :
-  _input_glob "$*"
+  v + _input_glob "$*"
 
 _input_glob :
   e[0--3] "Input all files that match glob pattern '"{/"$*"}"'."
@@ -5297,6 +5296,38 @@ _input_glob :
   if !$file_found
     error[0--3] "Command 'input_cached': Unknown filename '"{/"$1"}"'."
   fi
+
+#@cli in : eq. to 'input_normalized'.
++in :
+  v + _input_normalized "$*"
+
+#@cli input_normalized : filename
+#@cli : Input specified filename and constrain its value range to be in [0,255].
+#@cli : (eq. to 'in').
++input_normalized :
+  v + _input_normalized "$*"
+
+_input_normalized :
+  e[0--3] "Input file '"{/"$*"}"', in normalized range [0,255]."
+  l[] {
+    u 0 i "$1" bpp=${} autodetect=1
+    if $!==1" && "isnum($bpp)
+      if $bpp==8 autodetect=0
+      elif $bpp==16 / 257 autodetect=0
+      fi
+    fi
+    if $autodetect foreach {
+      im,iM:=im,iM
+      if $im>=0
+        if $iM<=255 # Do nothing
+        elif $iM<=1 * 255
+        elif inrange($iM,255,65535,0,1) / 257
+        else n 0,255
+        fi
+      else n 0,255
+      fi
+    } fi
+  }
 
 #@cli input_obj : filename
 #@cli : Input specified 3D mesh from a .obj Wavefront file.
@@ -7442,11 +7473,12 @@ gmd2html : skip "${1=}"
   if $is_arg embed_html=$1 else embed_html=1 noarg fi
 
   parse_gmd
-  s_section,e_section={${-_gmd_tokens}"[s_section,e_section]"}
+  s_section,e_section,s_gmic,e_gmic={${-_gmd_tokens}"[s_section,e_section,s_gmic,e_gmic]"}
   foreach {
     nm$>={b} strvar ${nm$>} fnm=${}
     if "i=="$s_section" && find(#-1,"$e_section")>0"
-      +rows 1,{"find(#-1,"$e_section")-1"} title$>={t} rm.
+      +rows 1,{"find(#-1,"$e_section")-1"}
+      replace_seq. $s_gmic,{``{'G\47MIC'}} f. "i<0?-1:i" discard. -1 title$>={t} rm.
     else title$>=
     fi
     . # [0] = Output, [1] = Input
@@ -10705,7 +10737,7 @@ update_deprecate : check "isint($1,1,999)"
 
 # update_download_html.
 # Update file versions on G'MIC download page, with specified version number.
-# $1 = version number (e.g. '3.4.0').
+# $1 = version number (e.g. '3.4.2').
 update_download_html : check "
     is_digit(c)=(c>=_'0' && c<=_'9');
     ver = ['${1=undefined}'];
@@ -12444,7 +12476,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  (340,341,$_version) sort. discard. store. compat
+  versions=340,341,342,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -12461,27 +12493,44 @@ upload_filters :
   } }
   i[1--2] ('"\n#@gui _________________\n"') y a y
 
-  # Create update file.
+  # Create update files.
   +l. {
-    e "** Generate filter update file."
+    e "** Generate filter update files."
     m "parse_gui_trigger_update : _upload_filters_move"
     v + parse_gui. update v -
     um parse_gui_trigger_update
 
+    url=http://bit.ly/2uaBRMB
+    replace_str "<i>David Tschumperlé</i>","<i><a href=\""$url"\">David Tschumperlé</a></i>"
+    is_nonnative_preview_removed=0
+    repeat narg($versions) {
+      ver:=arg0($>,$versions)
+      if !$is_nonnative_preview_removed" && "$ver>=341 # Remove non-native preview splitter for version 3.4.1+
+        l {
+          s +,{'\n'}
+          foreach {
+            if "S='#@gui :Preview Type=choice(\"Full\",';crop(0,0,1,size(S))==S"
+              rm ('"#@gui :_=value(0)"':y)
+            elif "S='#@gui :Preview Split=point(50,50';crop(0,0,1,size(S))==S"
+              rm ('"#@gui :_=point(50,50,-1)_0"':y)
+            fi
+          }
+          a y
+          replace_str "#@gui :_=separator()\n#@gui :_=value(0)\n#@gui :_=point(50,50,-1)_0",\
+                      "#@gui :_=value(0),_=point(50,50,-1)_0"
+        }
+        is_nonnative_preview_removed=1
+      fi
+      ot ${_path_rc}update$ver.gmic # Plain-text
+      o cimgz:/tmp/update$ver.gmic,uint8 # Binary-compressed
+    }
+
     # Upload filter files on G'MIC server.
     e "** Upload filter update."
-    ot ${_path_rc}update$_version.gmic
-    if "d = date(3); h = date(4); h>=7 && d>=1 && d<=5" url=http://bit.ly/2uaBRMB # url=http://bit.ly/2CmhX65
-    else url=http://bit.ly/2uaBRMB # https://bit.ly/33lRzX4 # https://bit.ly/2WeKVPv url=http://bit.ly/2uaBRMB #
-    fi
-    replace_str "<i>David Tschumperlé</i>","<i><a href=\""$url"\">David Tschumperlé</a></i>"
-    o cimgz:/tmp/update$_version.gmic,uint8
-
-    $compat
-    repeat h {
-      v:=i[$>]
-      _upload[] ${_path_rc}update$_version.gmic,plain_update$v.gmic,1
-      _upload[] /tmp/update$_version.gmic,update$v.gmic,1
+    repeat narg($versions) {
+      ver:=arg0($>,$versions)
+      _upload[] ${_path_rc}update$ver.gmic,plain_update$ver.gmic,1
+      _upload[] /tmp/update$ver.gmic,update$ver.gmic,1
     }
     rm
   }
@@ -12495,10 +12544,9 @@ upload_filters :
     e "** Upload JSON filters."
     ot ${_path_rc}/update$_version.json
 
-    $compat
-    repeat h {
-      v:=i[$>]
-      _upload[] ${_path_rc}/update$_version.json,update$v.json,1
+    repeat narg($versions) {
+      ver:=arg0($>,$versions)
+      _upload[] ${_path_rc}/update$ver.json,update$ver.json,1
     }
     rm
   }
@@ -27498,6 +27546,10 @@ nn_lib :
       );
     );
 
+    nn_optimizer_generic_update_mp(P) = (
+      repeat(w##P#_ind,_nn_k, draw(##P#_ind,unitnorm(crop(##P#_ind,_nn_k,1)),_nn_k,0,0,0,1,h##P#_ind,1,1));
+    );
+
     # Stochastic gradient descent.
     #-----------------------------
     nn_optimizer_sgd_init() = 0;
@@ -27529,19 +27581,14 @@ nn_lib :
       learning_mode?nn_optimizer_sgd_update_conv_or_fc(#P,learning_mode);
     );
 
-    nn_optimizer_sgd_update_normalize(P,learning_mode) = (
-      nn_optimizer_generic_update_normalize(sgd,#P,#learning_mode);
+    nn_optimizer_sgd_update_mp(P,learning_mode) = (
+      nn_optimizer_sgd_update_weights(P#_weights);
+      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_generic_update_mp(#P);
     );
 
-    nn_optimizer_sgd_update_nlfc(P,learning_mode) = (
-      learning_mode&1?(
-        nn_optimizer_sgd_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind/2,h##P#_ind);
-      );
-      learning_mode&2?(
-        nn_optimizer_sgd_update_weights(P#_biases);
-        draw(##P#_ind,P#_biases,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-      );
+    nn_optimizer_sgd_update_normalize(P,learning_mode) = (
+      nn_optimizer_generic_update_normalize(sgd,#P,#learning_mode);
     );
 
     # RMSprop optimizer.
@@ -27583,6 +27630,15 @@ nn_lib :
       learning_mode?nn_optimizer_rmsprop_update_conv_or_fc(#P,learning_mode);
     );
 
+    nn_optimizer_rmsprop_update_mp(P,learning_mode) = (
+      const P#_ind_g2 = $P#_g2;
+      d#P#_weights_g2 = crop(##P#_ind_g2,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_rmsprop_update_weights(P#_weights);
+      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_g2,d#P#_weights_g2,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_generic_update_mp(#P);
+    );
+
     nn_optimizer_rmsprop_update_normalize(P,learning_mode) = (
       const P#_ind_g2 = $P#_g2;
       learning_mode?(
@@ -27595,22 +27651,6 @@ nn_lib :
         );
       );
       nn_optimizer_generic_update_normalize(rmsprop,#P,#learning_mode);
-    );
-
-    nn_optimizer_rmsprop_update_nlfc(P,learning_mode) = (
-      const P#_ind_g2 = $P#_g2;
-      learning_mode&1?(
-        d#P#_weights_g2 = crop(##P#_ind_g2,0,0,w##P#_ind/2,h##P#_ind);
-        nn_optimizer_rmsprop_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind/2,h##P#_ind);
-        draw(##P#_ind_g2,d#P#_weights_g2,0,0,w##P#_ind/2,h##P#_ind);
-      );
-      learning_mode&2?(
-        d#P#_biases_g2 = crop(##P#_ind_g2,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        nn_optimizer_rmsprop_update_weights(P#_biases);
-        draw(##P#_ind,P#_biases,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        draw(##P#_ind_g2,d#P#_biases_g2,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-      );
     );
 
     # Adam optimizer.
@@ -27664,6 +27704,18 @@ nn_lib :
       learning_mode?nn_optimizer_adam_update_conv_or_fc(#P,learning_mode);
     );
 
+    nn_optimizer_adam_update_mp(P,learning_mode) = (
+      const P#_ind_m = $P#_m;
+      const P#_ind_v = $P#_v;
+      d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind,h##P#_ind);
+      d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_adam_update_weights(P#_weights);
+      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_generic_update_mp(#P);
+    );
+
     nn_optimizer_adam_update_normalize(P,learning_mode) = (
       const P#_ind_m = $P#_m;
       const P#_ind_v = $P#_v;
@@ -27681,29 +27733,6 @@ nn_lib :
         );
       );
       nn_optimizer_generic_update_normalize(adam,#P,#learning_mode);
-    );
-
-    nn_optimizer_adam_update_nlfc(P,learning_mode) = (
-      learning_mode?(
-        const P#_ind_m = $P#_m;
-        const P#_ind_v = $P#_v;
-        learning_mode&1?(
-          d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind/2,h##P#_ind);
-          d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind/2,h##P#_ind);
-          nn_optimizer_adam_update_weights(P#_weights);
-          draw(##P#_ind,P#_weights,0,0,w##P#_ind/2,h##P#_ind);
-          draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind/2,h##P#_ind);
-          draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind/2,h##P#_ind);
-        );
-        learning_mode&2?(
-          d#P#_biases_m = crop(##P#_ind_m,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-          d#P#_biases_v = crop(##P#_ind_v,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-          nn_optimizer_adam_update_weights(P#_biases);
-          draw(##P#_ind,P#_biases,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-          draw(##P#_ind_m,d#P#_biases_m,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-          draw(##P#_ind_v,d#P#_biases_v,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        );
-      );
     );
 
     # Adamax optimizer.
@@ -27755,6 +27784,18 @@ nn_lib :
       learning_mode?nn_optimizer_adamax_update_conv_or_fc(#P,learning_mode);
     );
 
+    nn_optimizer_adamax_update_mp(P,learning_mode) = (
+      const P#_ind_m = $P#_m;
+      const P#_ind_v = $P#_v;
+      d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind,h##P#_ind);
+      d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_adamax_update_weights(P#_weights);
+      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_generic_update_mp(#P);
+    );
+
     nn_optimizer_adamax_update_normalize(P,learning_mode) = (
       const P#_ind_m = $P#_m;
       const P#_ind_v = $P#_v;
@@ -27772,27 +27813,6 @@ nn_lib :
         );
       );
       nn_optimizer_generic_update_normalize(adamax,#P,#learning_mode);
-    );
-
-    nn_optimizer_adamax_update_nlfc(P,learning_mode) = (
-      const P#_ind_m = $P#_m;
-      const P#_ind_v = $P#_v;
-      learning_mode&1?(
-        d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind/2,h##P#_ind);
-        d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind/2,h##P#_ind);
-        nn_optimizer_adamax_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind/2,h##P#_ind);
-        draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind/2,h##P#_ind);
-        draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind/2,h##P#_ind);
-      );
-      learning_mode&2?(
-        d#P#_biases_m = crop(##P#_ind_m,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        d#P#_biases_v = crop(##P#_ind_v,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        nn_optimizer_adamax_update_weights(P#_biases);
-        draw(##P#_ind,P#_biases,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        draw(##P#_ind_m,d#P#_biases_m,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-        draw(##P#_ind_v,d#P#_biases_v,w##P#_ind/2,0,w##P#_ind/2,h##P#_ind);
-      );
     );
 
     #----------------
@@ -28213,71 +28233,6 @@ nn_lib :
       batch_d#OUT#_biases/=nn_batch_size;
     );
 
-    # nlfc: Nonlinear fully-connected layer.
-    #---------------------------------------
-    nn_nlfc_init_forward(OUT,IN) = (
-      const OUT#_ind = $OUT#;
-      const OUT#_width = 1;
-      const OUT#_height = 1;
-      const OUT#_depth = 1;
-      const OUT#_spectrum = h##OUT#_ind;
-      OUT#_weights = crop(##OUT#_ind,0,0,size(IN#),h##OUT#_ind);
-      OUT#_biases = crop(##OUT#_ind,size(IN#),0,size(IN#),h##OUT#_ind);
-    );
-
-    nn_nlfc_forward(OUT,IN,activation) = (
-      OUT# = vector(##OUT#_spectrum);
-      repeat(OUT#_spectrum,_nn_i,
-        _nn_res = 0;
-        repeat (size(IN#),_nn_j,
-          _nn_off = _nn_i*size(IN#) + _nn_j;
-          _nn_res+=nn_activation_#activation(OUT#_weights[_nn_off]*IN#[_nn_j] + OUT#_biases[_nn_off]);
-        );
-        OUT#[_nn_i] = _nn_res;
-      );
-    );
-
-    nn_nlfc_init_backward(OUT) = (
-      batch_d#OUT#_weights = vector(#size(OUT#_weights));
-      batch_d#OUT#_biases = vector(#size(OUT#_biases));
-    );
-
-    nn_nlfc_backward(OUT,IN,activation) = (
-      d#IN = vector(#size(IN#));
-      repeat (size(IN#),_nn_j,
-        _nn_res = _nn_off = 0;
-        repeat (OUT#_spectrum,_nn_i,
-          _nn_off = _nn_i*size(IN#) + _nn_j;
-          _nn_Wij = OUT#_weights[_nn_off];
-          _nn_res+=nn_activation_d_#activation(_nn_Wij*IN#[_nn_j] + OUT#_biases[_nn_off])*_nn_Wij*d#OUT[_nn_i];
-        );
-        d#IN[_nn_j] = _nn_res;
-      );
-
-      d#OUT#_weights = vector(#size(OUT#_weights));
-      d#OUT#_biases = vector(#size(OUT#_biases));
-      _nn_ptr = 0;
-      repeat (OUT#_spectrum,_nn_i,
-        repeat (size(IN#),_nn_j,
-          _nn_off = _nn_i*size(IN#) + _nn_j;
-          _nn_Wij = OUT#_weights[_nn_off];
-          _nn_sigmad = nn_activation_d_#activation(_nn_Wij*IN#[_nn_j] + OUT#_biases[_nn_off]);
-          d#OUT#_weights[_nn_ptr] = _nn_sigmad*IN#[_nn_j]*d#OUT[_nn_i];
-          d#OUT#_biases[_nn_ptr] = _nn_sigmad*d#OUT#[_nn_i];
-          ++_nn_ptr;
-        );
-      );
-      batch_d#OUT#_weights+=d#OUT#_weights;
-      batch_d#OUT#_biases+=d#OUT#_biases;
-    );
-
-    nn_nlfc_end_backward(OUT) = (
-      merge(batch_d#OUT#_weights,+);
-      merge(batch_d#OUT#_biases,+);
-      batch_d#OUT#_weights/=nn_batch_size;
-      batch_d#OUT#_biases/=nn_batch_size;
-    );
-
     # input: Input image or vector data.
     #-----------------------------------
     nn_input_init_forward(OUT,w,h,d,s) = (
@@ -28391,6 +28346,40 @@ nn_lib :
           );
         );
       );
+    );
+
+    # mp: Matching Pursuit layer.
+    #----------------------------
+    nn_mp_init_forward(OUT,IN,iterations) = (
+      const OUT#_ind = $OUT#;
+      const OUT#_width = 1;
+      const OUT#_height = 1;
+      const OUT#_depth = 1;
+      const OUT#_spectrum = w##OUT#_ind;
+      const OUT#_iterations = iterations;
+      OUT#_weights = crop(##OUT#_ind);
+    );
+
+    nn_mp_forward(OUT,IN) = (
+      OUT# = mproj(IN#,1,OUT#_weights,w##OUT#_ind,1,OUT#_iterations);
+#      OUT# = mproj(IN#,1,OUT#_weights,w##OUT#_ind,0);
+    );
+
+    nn_mp_init_backward(OUT) = (
+      batch_d#OUT#_weights = vector(#size(OUT#_weights));
+    );
+
+    nn_mp_backward(OUT,IN) = (
+      OUT#_tweights = transpose(OUT#_weights,OUT#_spectrum);
+     d#IN = mproj(d#OUT,1,OUT#_tweights,h##OUT#_ind,0);
+#      d#IN = mproj(d#OUT,1,OUT#_tweights,h##OUT#_ind,2);
+      d#OUT#_weights = mul(d#IN,OUT#,size(OUT#));
+      batch_d#OUT#_weights+=d#OUT#_weights;
+    );
+
+    nn_mp_end_backward(OUT) = (
+      merge(batch_d#OUT#_weights,+);
+      batch_d#OUT#_weights/=nn_batch_size;
     );
 
     # mul: Multiply two inputs.
@@ -28935,7 +28924,7 @@ nn_lib :
     );"
 
 #@cli nn_init
-#@cli : Initialize a new network.
+#@cli : Initialize a new neural network.
 nn_init :
   e[^-1] "[nn_lib] Initialize new network."
   _nn_modules_names,_nn_modules_types,_nn_trainer_data,_nn_forward,_nn_loss,_nn_backward,_nn_update,_nn_latest=
@@ -29292,41 +29281,6 @@ _nn_fc :
                  "end(nn_fc_end_backward($1));"
   _nn_init.="$0 $* "
 
-#@cli nn_nlfc : out,in,nb_channels>0,_activation,0<=_learning_mode<=3
-#@cli : Add a 'nlfc' layer (nonlinear fully connected layer) to the network.
-#@cli : 'learning_mode' can be { 0:no learning | 1:weights only | 2:biases only | 3:weights+biases }.
-#@cli : Default values: 'activation=leakyrelu' and 'learning_mode=3'.
-nn_nlfc : if ['$2']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $in
-          check "isvarname('$1') && isint($3,1) && isint(${5=3},0,3)"
-          skip ${4=leakyrelu}
-  e[^-1] "[nn_lib] Add 'nlfc' layer '$1', with input '"$in"', $3 channels and '$4' activation."
-  init=$_nn_init
-  _nn_nlfc $1_nlfc,$in,${3-5}
-  nn_rename $1,$1_nlfc
-  _nn_init=${init}"$0 $* "
-  _nn_latest=$1
-
-# [Internal] Insert 'fc' layer, with parameter image having name '$1'.
-_nn_nlfc :
-  _nn_modules_names.=$1,
-  _nn_modules_types.=nlfc,
-  _nn_$1_size=1,1,1,$3
-  _nn_$1_learning_mode=$5
-  _nn_$1_input=$2
-  _nn_$1_properties="activation=$4, learning_mode=$5"
-  if !isint($$1)
-    {2*prod($_nn_$2_size)},$3
-    f. 4*g/(w-1)
-    if $5<2 50%,100% j.. .,50% rm. fi # Set biases to 0 if they are not learnt
-    => $1
-  fi
-  _nn_forward.="begin(nn_nlfc_init_forward($1,$2));"\
-               "nn_nlfc_forward($1,$2,$4);"
-  _nn_backward..="begin(nn_nlfc_init_backward($1));"\
-                 "nn_nlfc_backward($1,$2,$4);"\
-                 "end(nn_nlfc_end_backward($1));"
-  _nn_init.="$0 $* "
-
 #@cli nn_fcnl : out,in,nb_neurons>0,_activation,0<=_learning_mode<=3
 #@cli : Add a 'fcnl' layer (fully connected layer followed by a non-linearity) to the network.
 #@cli : 'learning_mode' can be { 0:no learning | 1:weights only | 2:biases only | 3:weights+biases }.
@@ -29403,6 +29357,38 @@ nn_maxpool3d : if ['${2=.}']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $i
   _nn_backward..="nn_maxpool3d_backward($1,"$in");"
   _nn_init.="$0 $* "
   _nn_latest=$1
+
+#@cli nn_mp : out,in,nb_atoms>0,_nb_iterations>=0
+#@cli : Add a 'mp' layer (matching pursuit layer) to the network.
+nn_mp : if ['$2']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $in
+        check "isvarname('$1') && isint($3,1) && isint(${4=0},0)"
+  e[^-1] "[nn_lib] Add 'mp' layer '$1', with input '"$in"', $3 atoms and $4 iterations."
+  init=$_nn_init
+  _nn_mp $1_mp,$in,${3-4}
+  nn_rename $1,$1_mp
+  _nn_init=${init}"$0 $* "
+  _nn_latest=$1
+
+# [Internal] Insert 'mp' layer, with parameter image having name '$1'.
+_nn_mp :
+  _nn_modules_names.=$1,
+  _nn_modules_types.=mp,
+  _nn_$1_size=1,1,1,$3
+  _nn_$1_learning_mode=1
+  _nn_$1_input=$2
+  _nn_$1_properties="nb_iterations=$4"
+  if !isint($$1)
+    $3,{prod($_nn_$2_size)}
+    f. 4*g/(w-1)
+    100%,1,1,1,"draw(#-1,unitnorm(crop(#-1,x,1)),x,0,0,0,1,h#-1,1,1)" rm.
+    => $1
+  fi
+  _nn_forward.="begin(nn_mp_init_forward($1,$2,$4));"\
+               "nn_mp_forward($1,$2);"
+  _nn_backward..="begin(nn_mp_init_backward($1));"\
+                 "nn_mp_backward($1,$2);"\
+                 "end(nn_mp_end_backward($1));"
+  _nn_init.="$0 $* "
 
 #@cli nn_mul : out,in0,_in1
 #@cli : Add an 'mul' layer to the network.
@@ -29953,7 +29939,7 @@ nn_trainer : if ['${2=.}']=='.' loss=$_nn_latest else loss=$2 fi nn_check_layer 
     name=${arg0\ $>,$_nn_modules_names}
     learning_mode=${_nn_${name}_learning_mode}
 
-    if isin('$type','conv2d','conv3d','fc','nlfc','normalize')
+    if isin('$type','conv2d','conv3d','fc','mp','normalize')
       _nn_$1_update.="nn_optimizer_$4_update_"$type"("$name,$learning_mode");"
 
       # Allocate data for storing optimizer extra data (moments,...).
@@ -29993,7 +29979,7 @@ nn_size :
   repeat narg($_nn_modules_names)-1 {
     type=${arg0\ $>,$_nn_modules_types}
     name=${arg0\ $>,$_nn_modules_names}
-    if isin('$type','conv2d','conv3d','fc','nlfc','normalize') siz+={$name,whds} fi
+    if isin('$type','conv2d','conv3d','fc','mp','normalize') siz+={$name,whds} fi
   }
   u $siz
 
@@ -30021,7 +30007,7 @@ nn_save : check "s=['$1']; find(s,'.gmz')==size(s) - 4 && isbool(${2=1})"
   repeat narg($_nn_modules_names)-1 {
     type=${arg0\ $>,$_nn_modules_types}
     name=${arg0\ $>,$_nn_modules_names}
-    if isin('$type','conv2d','conv3d','fc','nlfc','normalize','trainer') sel.=$c$name c=, fi
+    if isin('$type','conv2d','conv3d','fc','mp','normalize','trainer') sel.=$c$name c=, fi
   }
   ('$_nn_init') autocrop. {'" "'} => _nn_init
   o[$sel,-1] "$1"
@@ -30037,7 +30023,7 @@ nn_store : check "isbool(${2=1})"
   repeat narg($_nn_modules_names)-1 {
     type=${arg0\ $>,$_nn_modules_types}
     name=${arg0\ $>,$_nn_modules_names}
-    if isin('$type','conv2d','conv3d','fc','nlfc','normalize','trainer') sel.=$c$name c=, fi
+    if isin('$type','conv2d','conv3d','fc','mp','normalize','trainer') sel.=$c$name c=, fi
   }
   ('$_nn_init') autocrop. {'" "'} => _nn_init
   +store[$sel,-1] "$1"
@@ -32612,6 +32598,14 @@ shadow_patch : skip ${1=0.7}
     n. $1,1 *
   }
 
+#@cli shuffle
+#@cli : Shuffle vectors of selected images with Fisher-Yates algorithm, \
+# as described in <https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle>.
+#@cli : $ uniform_distribution 8,3 shuffle
+shuffle :
+  e[^-1] "Shuffle vector values of images$? with Fisher-Yates algorithm."
+  f "<begin(P = whd);swap(I[v(0,--P)],I());I"
+
 #@cli spread : _dx>=0,_dy>=0,_dz>=0
 #@cli : Spread pixel values of selected images randomly along x,y and z.
 #@cli : Default values: 'dx=3', 'dy=dx' and 'dz=0'.
@@ -32740,8 +32734,8 @@ blend : skip "${1=},${2=},${3=}" check "isbool(${4=0})"
   # Manage when '[layer]' argument is specified.
   if $is_image_arg
     pass$1
-    if $4 foreach[^-1] { pass$1 0 rv $0 $mode,$opacity } # Selection = top layers
-    else foreach[^-1] { pass$1 $0 $mode,$opacity } # Selection = base layers
+    if $4 foreach[^-1] { pass. 0 rv $0 $mode,$opacity } # Selection = top layers
+    else foreach[^-1] { pass. $0 $mode,$opacity } # Selection = base layers
     fi
     rm.
     return
@@ -34682,7 +34676,7 @@ is_ext : skip "${1=},${2=}"
   0 => "_$1" u {"lowercase(['"{x}"'])==lowercase(['$2'])"} rm.
 
 #@cli is_image_arg : string
-#@cli : Return 1 if specified string looks like '[ind]'.
+#@cli : Return 1 if specified string is a valid single image argument like '[ind]'.
 is_image_arg : skip "${1=;}"
   u {"str = ['$1'];
       s1 = size(str) - 1;
@@ -35046,6 +35040,13 @@ math_lib :
   _doi_orientation(px,py,qx,qy,rx,ry) = (
     _doi_orientation_val = (qy - py)*(rx - qx) - (qx - px)*(ry - qy);
     !_doi_orientation_val?0:_doi_orientation_val>0?1:2;
+  );
+
+  # Check if two circles intersect.
+  # Return (0:false or 1:true).
+  do_intersect(x0,y0,r0,x1,y1,r1) = (
+    _doi_dist = norm(x0 - x1,y0 - y1);
+    _doi_dist<r0 + r1 && _doi_dist<abs(r1 - r0);
   );
 
   length_spline(P0,T0,P1,T1) = ( # Compute the length of a spline P0-P1 with tangents T0,T1
@@ -42158,7 +42159,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 2.10 - Linux 64 bits - 3.4.0</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 2.10 - Linux 64 bits - 3.4.1</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -42186,8 +42187,9 @@ fx_gmicky_preview :
 #@gui : - <b>2022/04/06</b> : version <i>3.1.0</i>.\n
 #@gui : - <b>2023/01/16</b> : version <i>3.2.0</i>.\n
 #@gui : - <b>2023/09/04</b> : version <i>3.3.0</i>.\n
-#@gui : - <span foreground="purple"><b>2024/06/14</b> : version <i>3.4.0</i> (Current stable).</span>\n
-##@gui : - <b>2024/06/XX</b> : version <i>3.4.0_pre</i> (Current pre-release).</span>\n
+#@gui : - <b>2024/06/14</b> : version <i>3.4.0</i>.\n
+#@gui : - <span foreground="purple"><b>2024/08/28</b> : version <i>3.4.1</i> (Current stable).</span>\n
+##@gui : - <b>2024/XX/XX</b> : version <i>3.4.2</i> (Current pre-release).</span>\n
 #@gui : "}
 #@gui : sep = separator()
 ##@gui : url = link{"View changelog for upcoming major version (3.4)","https://discuss.pixls.us/t/on-the-road-to-3-4"}
@@ -53587,26 +53589,26 @@ fx_droste :
       x0,y0,x1,y1,x2,y2,x3,y3:=round([\
         $1*w/100,$2*h/100,$3*w/100,$4*h/100,\
         $5*w/100,$6*h/100,$7*w/100,$8*h/100])
-      100%,100%,1,2,-32767 polygon. 4,$x0,$y0,$x1,$y1,$x2,$y2,$x3,$y3,1,-65535
+      100%,100%,1,2,32767 polygon. 4,$x0,$y0,$x1,$y1,$x2,$y2,$x3,$y3,1,65535
       sh. 0
-      f. "i==-65535?(
+      f. "i==65535?(
             x03 = "$x0"+(y-"$y0")/("$y3"-"$y0")*("$x3"-"$x0");
             x12 = "$x1"+(y-"$y1")/("$y2"-"$y1")*("$x2"-"$x1");
-            (x-x03)/(x12-x03)*(w-1)):i"
+            (x - x03)/(x12 - x03)*(w - 1)):i"
       rm.
       sh. 1
-      f. "i==-65535?(
+      f. "i==65535?(
             y01 = "$y0"+(x-"$x0")/("$x1"-"$x0")*("$y1"-"$y0");
             y32 = "$y3"+(x-"$x3")/("$x2"-"$x3")*("$y2"-"$y3");
-            (y-y01)/(y32-y01)*(h-1)):i"
+            (y - y01)/(y32 - y01)*(h - 1)):i"
       rm.
       xshift,yshift,alpha:=w*$10/100,h*$11/100,-$12*pi/180
       ca,sa,w2,h2:=cos($alpha)/$13,sin($alpha)/$13,w/2,h/2
-      f. i==-32767?i:(X=i(x,y,0,0)-$w2;Y=i(x,y,0,1)-$h2;!c?$w2-$xshift+X*$ca-Y*$sa:$h2-$yshift+X*$sa+Y*$ca)
-      if !$14 sh. 0 f. i==-32767?x:i rm. sh. 1 f. i==-32767?y:i rm.
-      elif $14==1 sh. 0 f. i==-32767?x:w-1-i rm. sh. 1 f. i==-32767?y:i rm.
-      elif $14==2 sh. 0 f. i==-32767?x:i rm. sh. 1 f. i==-32767?y:h-1-i rm.
-      else sh. 0 f. i==-32767?x:w-1-i rm. sh. 1 f. i==-32767?y:h-1-i rm.
+      f. i==32767?i:(X=i(x,y,0,0)-$w2;Y=i(x,y,0,1)-$h2;!c?$w2-$xshift+X*$ca-Y*$sa:$h2-$yshift+X*$sa+Y*$ca)
+      if !$14 sh. 0 f. i==32767?x:i rm. sh. 1 f. i==32767?y:i rm.
+      elif $14==1 sh. 0 f. i==32767?x:w-1-i rm. sh. 1 f. i==32767?y:i rm.
+      elif $14==2 sh. 0 f. i==32767?x:i rm. sh. 1 f. i==32767?y:h-1-i rm.
+      else sh. 0 f. i==32767?x:w-1-i rm. sh. 1 f. i==32767?y:h-1-i rm.
       fi
       if $16<2 warp.. .,0,{!$16},$15 rm.
       else
@@ -53980,58 +53982,6 @@ fx_fourier_transform :
 fx_fourier_transform_preview :
   fx_fourier_transform $* k[0]
   if !$_preview_error gui_resize_preview fi
-
-#@gui Fourier Transform [Old] : fx_fourier_old,fx_fourier_old_preview(1)* : *
-#@gui :Magnitude / Phase=choice{0,"One Layer (Horizontal)","One Layer (Vertical)","Two Layers"}
-#@gui :Discard Transparency=bool(1)
-#@gui :_=separator()
-#@gui :_=note("<small><b>Note:</b> Apply this filter once to get the direct FFT, and once again to get the reverse \
-# transform.</small>")
-#@gui :_=link("Click here for a video tutorial","http://www.youtube.com/watch?v=3137dDa6P4s")
-#@gui :_=separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2018/06/16</i>.</small>")
-fx_fourier_old : skip ${2=0}
-  if $2 remove_opacity fi
-  magic="GMICFFT" i=0
-  for $i<$! {
-    ni:=$i+1 nm={$i,n} is_ifft=0
-    +columns[$i] 100%
-    l. {
-      mag,m0,M0,m1,M1=${u\ {t}}
-      if ['$mag']=='$magic' is_ifft=1 fi
-      onfail
-    }
-    rm.
-    if !$is_ifft +rows[$i] 100% l. { mag,m0,M0,m1,M1=${u\ {t}} if ['$mag']=='$magic' is_ifft=2 fi onfail } rm. fi
-    if !$is_ifft
-      +rows[$i] 100% l. { mag,m0,M0=${u\ {t}} if ['$mag']=='$magic' is_ifft=3 fi onfail } rm.
-      if $is_ifft==3
-        is_ifft=0 +rows[$ni] 100%
-        l. { mag,m1,M1=${u\ {t}} if ['$mag']=='$magic' is_ifft=3 fi onfail } rm.
-      fi
-    fi
-    if !$is_ifft
-      l[$i] {
-        fftpolar +.. 1 log.. m0,M0,m1,M1:=im#0,iM#0,im#1,iM#1 n[-2,-1] 0,255
-        if !$1 ({'$magic,$m0,$M0,$m1,$M1'},0) y. a x
-        elif $1==1 ({'$magic,$m0,$M0,$m1,$M1'},0) a y
-        else ({'$magic,$m0,$M0'},0) a[-3,-1] y ({'$magic,$m1,$M1'},0) a[-2,-1] y
-        fi
-        => $nm
-      }
-    else
-      if $is_ifft==1 columns[$i] 0,{$i,w-2} s[$i] x,2
-      elif $is_ifft==2 rows[$i] 0,{$i,h-2} s[$i] y,2
-      else rows[$i,$ni] 0,{$i,h-2}
-      fi
-      l[$i,{$i+1}] { n[0] $m0,$M0 n[1] $m1,$M1 exp[0] -[0] 1 ifftpolar c 0,255 }
-    fi
-    i+=$1<2" || "$is_ifft>2?1:2
-  }
-
-fx_fourier_old_preview :
-  if $2 remove_opacity fi
-  dfft
 
 #@gui Fourier Watermark : fx_watermark_fourier, _none_
 #@gui : Text = text{"(c) G'MIC"}
@@ -54640,10 +54590,10 @@ _fx_burn :
   foreach {
     w,h={w},{h}
     +norm
-    fx_fourier_old. 2
+    fx_fourier_transform. 2
     +rows. 0,{$h-1} r. $2%,$2%,1,100%,0,0,0.5,0.5 b. $3%
     j.. .,{($w-w)/2},{($h-h)/2} rm.
-    fx_fourier_old[-2,-1] 2
+    fx_fourier_transform[-2,-1] 2
     blend overlay,$1
   }
 
