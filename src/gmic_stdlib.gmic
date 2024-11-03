@@ -2262,7 +2262,7 @@ _display : skip ${1=},${3=}
               r. {[$w,$h]-2} # -2: Keep space for frame
               if $is_alpha
                 to_rgba.
-                if $setting_alpha==1 (64,96;96,64) r. 24,24,1,1 r. $w,$h,1,3,0,2
+                if $setting_alpha==1 (64,96;96,64) r. 16,16,1,1 r. $w,$h,1,3,0,2
                 else $w,$h,1,3,{arg($setting_alpha-1,0,128,255)}
                 fi
                 sh.. 100% j.. ...,0,0,0,0,1,.,255 rm[-3,-1]
@@ -2327,7 +2327,7 @@ _display : skip ${1=},${3=}
       $canvas_width,$canvas_height,1,3,{arg0($setting_background>>1,0,64,128,192,255)}
       if $setting_background&1
         amp:=$setting_background==1?32:12
-        24,24,1,1,-$amp +f. $amp a[-2,-1] x +mirror. x a[-2,-1] y
+        16,16,1,1,-$amp +f. $amp a[-2,-1] x +mirror. x a[-2,-1] y
         r. $canvas_width,$canvas_height,1,3,0,2 +[-2,-1] c. 0,255
       fi
       => canvas_background
@@ -2530,14 +2530,16 @@ _display : skip ${1=},${3=}
           fi
 
           np0,nq0:=[$p0,$q0]+[$joffx,$joffy]
-          np1,nq1:=[$np0,$nq0]+[$dp,$dq]-1
 
           if $is_alpha
             to_rgba.
             if $setting_alpha==1
+              coords:=$np0-1,$nq0-1,$np0+w,$nq0+h
+              rectangle[canvas_base] $coords,0.5,0x0F0F0F0F,0 # Draw image boundaries
+              rectangle[canvas_base] $coords,0.5,0xF0F0F0F0,255
               sh. 100% j[canvas_base] ..,$np0,$nq0,0,0,1,.,255 rm.
             else
-              $dp,$dq,1,3,{arg($setting_alpha-1,0,128,255)}
+              100%,100%,1,3,{arg($setting_alpha-1,0,128,255)}
               sh.. 100% j.. ...,0,0,0,0,1,.,255 rm[-3,-1]
               j[canvas_base] .,$np0,$nq0
             fi
@@ -2617,7 +2619,7 @@ _display : skip ${1=},${3=}
           fi
           r. $area_3d_width,$area_3d_height,1,3,3
           if $is_checkerboard
-            24,24,1,1,48 +f. 64 a[-2,-1] x +mirror. x a[-2,-1] y r. {-2,[w,h]},1,3,0,2 +[-2,-1] /. 2
+            16,16,1,1,48 +f. 64 a[-2,-1] x +mirror. x a[-2,-1] y r. {-2,[w,h]},1,3,0,2 +[-2,-1] /. 2
           fi
           round.
           => canvas_3d_background
@@ -2662,7 +2664,7 @@ _display : skip ${1=},${3=}
                                                                       $setting_3d_side_mode==1,\
                                                                       $setting_3d_is_zbuffer,\
                                                                       $setting_3d_focale*$fact]}
-          if $setting_3d_outline_mode" && "!$is_volumetric # Draw primitive outlines
+          if $setting_3d_outline_mode" && "!$is_volumetric" && "$setting_3d_rendering_mode>1 # Draw primitive outlines
             +z. 0,8,0,{7+3*$nbv} j[area_3d_mesh_notexture] .,0,8 rm.
             [area_3d_view],[area_3d_view],1,1,-1
             j3d. [area_3d_mesh_notexture],50%,50%,0,1,2,{$setting_3d_side_mode==1},$setting_3d_is_zbuffer,\
@@ -4546,7 +4548,7 @@ _display_rgba : skip "${1=},${2=$1},${3=$1}"
   foreach {
     if s==2" || "s==4
       if $is_rgb i[0] 100%,100%,100%,3 fc[0] {[$*]}
-      else i[0] (64,96;96,64) r[0] 24,24 r[0] [1],[1],[1],{s-1},0,2
+      else i[0] (64,96;96,64) r[0] 16,16 r[0] [1],[1],[1],{s-1},0,2
       fi
       =>[0] {1,n}
       sh. {s-1} j[0] [1],0,0,0,0,1,[2],255 k[0]
@@ -5384,7 +5386,7 @@ _input_glob :
               da_push(#2,3,v0,v1,v2);
               da_push(#3,p_rgb[0],p_rgb[1],p_rgb[2]);
             ):( # Textured triangle
-              fact = p_whs[0,2] - 1;
+              fact = p_whs[0,2];
               xyt0*=fact; xyt1*=fact; xyt2*=fact;
               da_push(#2,9,v0,v1,v2,xyt0[0],xyt0[1],xyt1[0],xyt1[1],xyt2[0],xyt2[1]);
               push_texture();
@@ -5402,7 +5404,7 @@ _input_glob :
                 da_push(#3,p_rgb[0],p_rgb[1],p_rgb[2]);
               ):( # Textured quadrangle
                 xyt3 = I[#5,vt3];
-                fact = p_whs[0,2] - 1;
+                fact = p_whs[0,2];
                 xyt0*=fact; xyt1*=fact; xyt2*=fact; xyt3*=fact;
                 da_push(#2,12,v0,v1,v2,v3,xyt0[0],xyt0[1],xyt1[0],xyt1[1],xyt2[0],xyt2[1],xyt3[0],xyt3[1]);
                 push_texture();
@@ -9130,14 +9132,19 @@ parse_gui_gmicol :
         ('"    <button name=\""$name"\" alignment=\""$arg0"\""$randomizable$responsivity$visibility"/>\n"')
 
       elif ['$type']=='choice'
-        default=0 n=0 choices=
-        l[] { if isnum($arg0)&&isint($arg0) default=$arg0 n+=1 fi onfail }
-        ('"    <choice name=\""$name"\" value=\""$default"\""$randomizable$responsivity$visibility">\n"')
-        repeat $nbargs-$n { a=$>
-          choice=${arg{$n+$a}}
-          ('"      <item name=\""$choice"\"/>\n"')
-        }
-        ('"    </choice>\n"')
+
+        if ['$name']=='Preview\ Type' # Replace 'Preview Type' by a value
+          ('"    <value name=\""$name"\" value=\"0\"/>\n"')
+        else
+          default=0 n=0 choices=
+          l[] { if isnum($arg0)&&isint($arg0) default=$arg0 n+=1 fi onfail }
+          ('"    <choice name=\""$name"\" value=\""$default"\""$randomizable$responsivity$visibility">\n"')
+          repeat $nbargs-$n { a=$>
+            choice=${arg{$n+$a}}
+            ('"      <item name=\""$choice"\"/>\n"')
+          }
+          ('"    </choice>\n"')
+        fi
 
       elif ['$type']=='color'
         if $nbargs==1" && "['$arg0'][0]==_'#' # Convert colors specified as '#RRGGBB[AA]'
@@ -9177,15 +9184,21 @@ parse_gui_gmicol :
         ('"    <note name=\""$name"\""$visibility">\n"$arg0"\n    </note>"\n')
 
       elif ['$type']=='point'
-        if $nbargs>2 removable=" removable=\""$arg2"\"" else removable= fi
-        if $nbargs>3 burst=" burst=\""$arg3"\"" else burst= fi
-        if $nbargs>4 red=" red=\""$arg4"\"" else red= fi
-        if $nbargs>5 green=" green=\""$arg5"\"" else green= fi
-        if $nbargs>6 blue=" blue=\""$arg6"\"" else blue= fi
-        if $nbargs>7 alpha=" alpha=\""$arg7"\"" else alpha= fi
-        if $nbargs>8 radius=" radius=\""$arg8"\"" else radius= fi
-         ('"    <point name=\""$name"\" x=\""$arg0"\" y=\""$arg1"\""$removable$burst$red$green$blue$alpha\
-           $randomizable$responsivity$visibility"/>\n"')
+
+        if ['$name']=='Preview\ Split' # Replace 'Preview Split' by a value
+          ('"    <value name=\""$name" (X)\" value=\"50\"/>\n"')
+          ('"    <value name=\""$name" (Y)\" value=\"50\"/>\n"')
+        else
+          if $nbargs>2 removable=" removable=\""$arg2"\"" else removable= fi
+          if $nbargs>3 burst=" burst=\""$arg3"\"" else burst= fi
+          if $nbargs>4 red=" red=\""$arg4"\"" else red= fi
+          if $nbargs>5 green=" green=\""$arg5"\"" else green= fi
+          if $nbargs>6 blue=" blue=\""$arg6"\"" else blue= fi
+          if $nbargs>7 alpha=" alpha=\""$arg7"\"" else alpha= fi
+          if $nbargs>8 radius=" radius=\""$arg8"\"" else radius= fi
+            ('"    <point name=\""$name"\" x=\""$arg0"\" y=\""$arg1"\""$removable$burst$red$green$blue$alpha\
+             $randomizable$responsivity$visibility"/>\n"')
+        fi
 
       elif ['$type']=='separator'
         ('"    <separator"$visibility"/>\n"')
@@ -9212,6 +9225,7 @@ parse_gui_gmicol :
   if ['$current_category']!=0 ('"\n</category>\n"') fi
   ('"\n</categories>"')
   y a y html2utf8
+  replace_str "<separator/>\n    <value","<value"
   e "\r  >> "${_vt100_g}{`s=vector64(_'" "');copy(s,'"Output done!"');s`}$_vt100_n
 
 #
@@ -9551,13 +9565,260 @@ _random_pattern_check_image :
 #@cli : Take screenshot, optionally grabbed with specified coordinates, and insert it
 #@cli : at the end of the image list.
 
-#@cli select : feature_type,_X[%]>=0,_Y[%]>=0,_Z[%]>=0,_exit_on_anykey={ 0 | 1 },_is_deep_selection={ 0 | 1 } : (+)
+#@cli select : feature_type,_X[%]>=0,_Y[%]>=0,_Z[%]>=0,_exit_on_anykey={ 0 | 1 },_is_multiaxes_selection={ 0 | 1 }
 #@cli : Interactively select a feature from selected images (use the instant display window [0] if opened).
 #@cli : 'feature_type' can be { 0:point | 1:segment | 2:rectangle | 3:ellipse }.
 #@cli : Arguments 'X','Y','Z' determine the initial selection view, for 3D volumetric images.
 #@cli : The retrieved feature is returned as a 3D vector (if 'feature_type==0') or as a 6d vector
 #@cli : (if 'feature_type!=0') containing the feature coordinates.
-#@cli : Default values: 'X=Y=Z=(undefined)', 'exit_on_anykey=0' and 'is_deep_selection=0'.
+#@cli : Default values: 'X=Y=Z=(undefined)', 'exit_on_anykey=0' and 'is_multiaxes_selection=1'.
+nselect : check "isint(${1=0},0,2) && ${2=50%}>=0 && ${3=50%}>=0 && ${4=50%}>=0 && isbool(${5=0}) && isbool(${6=1})"
+  s0,s1,s2=point,segment,rectangle
+  e[^-1] "Select "${s$1}" in image$? in interactive mode, from point (${2-4})."
+  foreach {
+    nm={n} basename {n} title="[G'MIC] "${} => img
+    if !{*} w[] ${"fitscreen [img]"},0,$title fi
+    Xs,Ys,Zs:=round([cut(ispercentage($2)?w*$2:$2,0,w-1),\
+                     cut(ispercentage($3)?h*$3:$3,0,h-1),\
+                     cut(ispercentage($4)?d*$4:$4,0,d-1)])
+    X0,Y0,Z0,X1,Y1,Z1,area_clicked=-1
+    is_volumetric={img,d>1}
+    is_multiaxes:=$is_volumetric" && "$6
+    step=0
+
+    do
+      if !{*,f} w_width,w_height={*,d,e} fi # Remember window geometry when not fullscreen
+
+      # Render base view.
+      if !0$view
+        rmn areas
+        sh[img] 0,{img,min(3,s)-1}
+        if $is_volumetric # 3D Volumetric image -> 2D projections
+          +slices. $Zs
+          +columns.. $Xs permute. zyxc a[-2,-1] x
+          +rows.. $Ys permute. xzyc a[-2,-1] y
+          to_rgb. => view rm..
+          {img,[w,h]},1,1,1
+          {img,[d,h]},1,1,2 a[-2,-1] x
+          {img,[w,d]},1,1,3 a[-2,-1] y
+          => areas
+        else # 2D image
+          +n. 0,255 to_rgb. => view rm..
+          {img,[w,h]},1,1,1 => areas
+        fi
+        n[view] 0,255 rs[view] {*,w,h},2 max[view] 0 to_rgba[view]
+        rs[areas] {*,w,h},1
+        r[view,areas] {*,w,h},1,100%,0,0,0.5,0.5
+        drgba[view]
+        x0,y0,x1,y1,xc,yc={areas," # Determine (x,y) coordinates of corner points
+          const w2 = int(w/2); const h2 = int(h/2);
+          x0 = 0; while (!i(x0,h2), ++x0);
+          y0 = 0; while (!i(w2,y0), ++y0);
+          x1 = w - 1; while (!i(x1,y0), --x1);
+          y1 = h - 1; while (!i(x0,y1), --y1);
+          xc = x0; while (i(xc,y0)==1, ++xc);
+          yc = y0; while (i(x0,yc)==1, ++yc);
+          [ x0,y0,x1,y1,xc,yc ]"}
+      fi
+
+      # Retrieve 3D coordinates from mouse pointer.
+      mx,my,area={*,x,y},{areas,i({*,x,y})}
+      X,Y,Z,Xi,Yi,Zi={img,"
+        XYZ =
+          !$area?[-1,-1,-1]:
+          inrange($mx,$x0,$xc,1,0)?(
+            X = lerp(0,w,($mx - $x0)/($xc - $x0));
+            Y = lerp(0,h,($my - $y0)/($yc - $y0));
+            Z = lerp(0,d,($my - $yc)/($y1 + 1 - $yc));
+            $my<$yc?[ X,Y,$Zs ]:[ X,$Ys,Z ];
+          ):(
+            Y = lerp(0,h,($my - $y0)/($yc - $y0));
+            Z = lerp(0,d,($mx - $xc)/($x1 + 1 - $xc));
+            [ $Xs,Y,Z ];
+          );
+        [ XYZ,int(XYZ) ]"}
+
+      if $X>=0
+        if !$step
+          X0,Y0,Z0=$Xi,$Yi,$Zi
+        elif $step==1" && "$area==$area_clicked
+          X1,Y1,Z1=$Xi,$Yi,$Zi
+        elif $step==2" && "$area!=$area_clicked
+          if $area_clicked==1 Z1=$Zi
+          elif $area_clicked==2 X1=$Xi
+          elif $area_clicked==3 Y1=$Yi
+          fi
+        fi
+      fi
+
+      # Render view.
+      cursor[0] {!$area" || "($step>1" && "$area==$area_clicked)}
+      if inrange($area,1,3)
+        [view]
+
+        # Draw selection and cursor axes.
+        eval "
+          const xc1 = $xc - 1; const yc1 = $yc - 1;
+          const hatch1 = 0x00FF00FF;
+          const hatch2 = 0x55555555;
+          const hatch3 = 0x33333333;
+          const step = $step;
+
+          # Retrieve 2D coordinates.
+          coords(varname,x,y,z) = (
+            varname#_x1 = round(lerp($x0,$xc,x/w#$img)); varname#_y1 = round(lerp($y0,$yc,y/h#$img));
+            varname#_x2 = round(lerp($xc,$x1 + 1,z/d#$img)); varname#_y2 = varname#_y1;
+            varname#_x3 = varname#_x1; varname#_y3 = round(lerp($yc,$y1 + 1,z/d#$img));
+          );
+
+          box_opacity = step?0.25:0.15;
+          X0 = $X0; Y0 = $Y0; Z0 = $Z0;
+          !step?(X1 = X0 + 1; Y1 = Y0 + 1; Z1 = Z0 + 1):(
+            X1 = $X1; Y1 = $Y1; Z1 = $Z1;
+            $1==1?(X0+=0.5; Y0+=0.5; Z0+=0.5; X1+=0.5; Y1+=0.5; Z1+=0.5):(
+              X0>X1?swap(X0,X1); Y0>Y1?swap(Y0,Y1); Z0>Z1?swap(Z0,Z1);
+              ++X1; ++Y1; ++Z1;
+            );
+          );
+          coords(s,X0,Y0,Z0);
+          coords(e,X1,Y1,Z1);
+          coords(f,$X,$Y,$Z);
+          !step || $1>1?(--e_x1; --e_y1; --e_x2; --e_y2; --e_x3; --e_y3);
+
+          # Draw user selection.
+          !step || $1>1?( # Filled rectangle
+            polygon(#-1,4,s_x1,s_y1,e_x1,s_y1,e_x1,e_y1,s_x1,e_y1,box_opacity,0);
+            polygon(#-1,-4,s_x1,s_y1,e_x1,s_y1,e_x1,e_y1,s_x1,e_y1,0.95,hatch2,0);
+            polygon(#-1,-4,s_x1,s_y1,e_x1,s_y1,e_x1,e_y1,s_x1,e_y1,0.95,~hatch2,255);
+            d#$img>1?(
+              polygon(#-1,4,s_x2,s_y2,e_x2,s_y2,e_x2,e_y2,s_x2,e_y2,box_opacity,0);
+              polygon(#-1,-4,s_x2,s_y2,e_x2,s_y2,e_x2,e_y2,s_x2,e_y2,0.95,hatch2,0);
+              polygon(#-1,-4,s_x2,s_y2,e_x2,s_y2,e_x2,e_y2,s_x2,e_y2,0.95,~hatch2,255);
+              polygon(#-1,4,s_x3,s_y3,e_x3,s_y3,e_x3,e_y3,s_x3,e_y3,box_opacity,0);
+              polygon(#-1,-4,s_x3,s_y3,e_x3,s_y3,e_x3,e_y3,s_x3,e_y3,0.95,hatch2,0);
+              polygon(#-1,-4,s_x3,s_y3,e_x3,s_y3,e_x3,e_y3,s_x3,e_y3,0.95,~hatch2,255);
+            );
+          );
+
+          step?( # Vector
+            polygon(#-1,-2,s_x1,s_y1,e_x1,e_y1,1,hatch3,0);
+            polygon(#-1,-2,s_x1,s_y1,e_x1,e_y1,1,~hatch3,255);
+            d#$img>1?(
+              polygon(#-1,-2,s_x2,s_y2,e_x2,e_y2,1,hatch3,0);
+              polygon(#-1,-2,s_x2,s_y2,e_x2,e_y2,1,~hatch3,255);
+              polygon(#-1,-2,s_x3,s_y3,e_x3,e_y3,1,hatch3,0);
+              polygon(#-1,-2,s_x3,s_y3,e_x3,e_y3,1,~hatch3,255);
+            );
+          );
+
+          # Draw cursor axes.
+          polygon(#-1,-2,f_x1,$y0,f_x1,yc1,0.75,hatch1,0);
+          polygon(#-1,-2,f_x1,$y0,f_x1,yc1,0.75,~hatch1,255);
+          polygon(#-1,-2,$x0,f_y1,xc1,f_y1,0.75,hatch1,0);
+          polygon(#-1,-2,$x0,f_y1,xc1,f_y1,0.75,~hatch1,255);
+          d#$img>1?(
+            polygon(#-1,-2,f_x2,$y0,f_x2,yc1,0.75,hatch1,0);
+            polygon(#-1,-2,f_x2,$y0,f_x2,yc1,0.75,~hatch1,255);
+            polygon(#-1,-2,$xc,f_y2,$x1,f_y2,0.75,hatch1,0);
+            polygon(#-1,-2,$xc,f_y2,$x1,f_y2,0.75,~hatch1,255);
+
+            polygon(#-1,-2,f_x3,$yc,f_x3,$y1,0.75,hatch1,0);
+            polygon(#-1,-2,f_x3,$yc,f_x3,$y1,0.75,~hatch1,255);
+            polygon(#-1,-2,$x0,f_y3,xc1,f_y3,0.75,hatch1,0);
+            polygon(#-1,-2,$x0,f_y3,xc1,f_y3,0.75,~hatch1,255);
+          )"
+
+        # Draw text label.
+        fontsize:=min(24,h/24)
+        0
+        if !$step
+          if $is_volumetric t. "Point ("$Xi\,$Yi\,$Zi") = [ "{``{img,_I($Xi,$Yi,$Zi)}}" ]",0,0,$fontsize,1,255
+          else t. "Point ("$Xi\,$Yi") = [ "{``{img,_I($Xi,$Yi)}}" ]",0,0,$fontsize,1,255
+          fi
+        else
+          if $1==2
+            dX0,dY0,dZ0,dX1,dY1,dZ1:=min($X0,$Xi),min($Y0,$Yi),min($Z0,$Zi),max($X0,$Xi),max($Y0,$Yi),max($Z0,$Zi)
+            sizX,sizY:="[ $dX1 - $dX0,$dY1 - $dY0 ] + 1"
+            t. "Box ("$dX0\,$dY0\,$dZ0") - ("$dX1\,$dY1\,$dZ1")"\n\
+               "Size = ("$sizX\,$sizY")",0,0,$fontsize,1,255
+          fi
+        fi
+        expand_xy. 4 to_rgb. j.. .,0,0,0,0,0.75 rm.
+        w. rm.
+      else w[view]
+      fi
+      wait
+
+      # Manage user events.
+      is_CTRL,is_lmb,is_rmb:={*,CTRLLEFT}" || "{*,CTRLRIGHT},{*,b}&1,{*,b}&2
+      if {*,r}
+        w[] {*,d,e} rmn view
+      fi
+      if $is_CTRL" && "{*,D}
+        nw,nh:=round(1.25*[{*,w,h}])
+        if $nw<{*,u}" && "$nh<{*,v} w[] $nw,$nh rmn view fi
+        skip {*,-D}
+      fi
+      if $is_CTRL" && "{*,C}
+        nw,nh:=round(0.75*[{*,w,h}])
+        if $nw>32" && "$nh>32 w[] $nw,$nh rmn view fi
+        skip {*,-C}
+      fi
+      if $is_CTRL" && "{*,F}
+        if {*,f} w[] $w_width,$w_height,-1,0 else w[] {*,u,v},-1,1 fi
+        rmn view
+        skip {*,-F}
+      fi
+      if {*,o}
+        delta={*,o}
+        if $is_volumetric
+          if $area==1 Zs={img,cut($Zs+$delta,0,d-1)}
+          elif $area==2 Xs={img,cut($Xs+$delta,0,w-1)}
+          elif $area==3 Ys={img,cut($Ys+$delta,0,h-1)}
+          fi
+          rmn view
+          skip {*,-o}
+        fi
+      fi
+      if $is_rmb" && "$X>=0
+        Xs,Ys,Zs=$Xi,$Yi,$Zi
+        if $is_volumetric rmn view fi
+      fi
+
+      # Manage user selection.
+      if $step==0" && "$is_lmb" && "$X>=0
+        X0,Y0,Z0=$Xi,$Yi,$Zi
+        area_clicked,step=$area,1
+        if $is_volumetric rmn view fi
+      elif $step==1" && "$is_lmb" && "$X>=0
+        Xs,Ys,Zs:=int([$X1,$Y1,$Z1])
+        if $is_volumetric rmn view fi
+      elif $step==1" && "!$is_lmb
+        if $X<0 X0,Y0,Z0,X1,Y1,Z1,area_clicked=-1 step=0 # Reset selection
+        else X1,Y1,Z1,step=$Xi,$Yi,$Zi,2
+        fi
+      elif $step==2" && "!$is_lmb
+        Xs,Ys,Zs:=int([$X1,$Y1,$Z1])
+        if $is_volumetric rmn view fi
+      elif $step==2" && "$is_lmb
+        if $X<0 X0,Y0,Z0,X1,Y1,Z1,area_clicked=-1 step=0
+        else X1,Y1,Z1,step=$Xi,$Yi,$Zi,3
+        fi
+      fi
+
+      continue:={*}" && "!{*,ESC}
+      if $5" && "!$is_CTRL" && "{*,k} continue=0 fi
+      if (!$1" && "$step)" || "($1" && "$step>1+$is_multiaxes) continue=0 fi
+
+    while $continue
+    rm
+    if $1==0 ($X0;$Y0;$Z0)
+    elif $1==1 ($X0;$Y0;$Z0;$X1;$Y1;$Z1)
+    else ({[min($X0,$X1),min($Y0,$Y1),min($Z0,$Z1),max($X0,$X1),max($Y0,$Y1),max($Z0,$Z1)]}:y)
+    fi
+    => $nm
+  }
+  cursor[0] 1
 
 #@cli serialize : _datatype,_is_compressed={ 0 | 1 },_store_names={ 0 | 1 } : (+)
 #@cli : Serialize selected list of images into a single image, optionally in a compressed form.
@@ -22707,17 +22968,17 @@ plasma : check "isnum(${1=1}) && isnum(${2=1}) && isint(${3=8},0)"
   foreach {
     nm={n}
     scale:="1<<min($3,12)"
-    w,h:=w,h {round([w,h],$scale,1)},1,100% rm..
+    w,h:=w,h {round([w,h],$scale,1)},100%,100% rm..
 
     # Init step.
-    {ceil([w,h]/$scale)},1,100%,":
+    {ceil([w,h]/$scale)},100%,100%,":
       const scale = $scale; const noise = $1*scale + $2;
       i(#0,x*scale,y*scale) = u(-noise,noise)" rm.
 
     for $scale>1 {
 
       # Square step.
-      {ceil([w,h]/$scale)},1,100%,":
+      {ceil([w,h]/$scale)},100%,100%,":
         const scale = $scale; const scale2 = scale/2; const noise = $1*scale + $2; const boundary = 2;
         Xt = x*scale + scale2; Yt = y*scale + scale2;
         X0 = Xt - scale2; Y0 = Yt - scale2;
@@ -22726,7 +22987,7 @@ plasma : check "isnum(${1=1}) && isnum(${2=1}) && isint(${3=8},0)"
       " rm.
 
       # Diamond step.
-      {ceil([w,h]/$scale)*[1,2]},1,100%,":
+      {ceil([w,h]/$scale)*[1,2]},100%,100%,":
         const scale = $scale; const scale2 = scale/2; const noise = $1*scale + $2; const boundary = 2;
         Xt = x*scale + (y%2?0:scale2); Yt = y*scale2;
         i(#0,Xt,Yt) = avg(i(#0,Xt - scale2,Yt),i(#0,Xt,Yt - scale2),
@@ -22734,7 +22995,7 @@ plasma : check "isnum(${1=1}) && isnum(${2=1}) && isint(${3=8},0)"
       " rm.
      scale>>=1;
     }
-    r $w,$h,1,100%,0,0,0.5,0.5
+    r $w,$h,100%,100%,0,0,0.5,0.5
     => $nm
   }
 
@@ -25213,7 +25474,7 @@ snapshot3d : check "("${"is_image_arg $1"}" || isint(${1=1024},1)) && ${2=1}>=0 
   else # Default background color
     e[0--3] "Take $1x$1 snapshot of 3D object$?, with zoom factor $2, default background and FOV "$fov"."
     3,3,1,1,"0,0,0,0,0,100,100,0,50" permute. cyzx r. $1,$1,1,3,3
-    24,24,1,1,48 +f. 64 a[-2,-1] x +mirror. x a[-2,-1] y r. {-2,[w,h]},1,3,0,2 +[-2,-1] /. 2 round.
+    16,16,1,1,48 +f. 64 a[-2,-1] x +mirror. x a[-2,-1] y r. {-2,[w,h]},1,3,0,2 +[-2,-1] /. 2 round.
   fi
 
   ofocale3d=$_focale3d
@@ -32091,57 +32352,75 @@ watermark_visible : check "inrange(${2=0.3},0,1) && ${6=0.5}>=0"
 #@cli : $ command "ex : $""=arg repeat $""# +blend[0,1] ${arg{$>+1}} \
 # text_outline[-1] Mode:\" \"${arg{$>+1}},2,2,23,2,1,255 done" image.jpg testimage2d {w},{h} \
 # ex softdodge,softlight,stamp,subtract,value,vividlight,xor
-blend : skip "${1=},${2=},${3=},${4=}"
-  if !${"is_image_arg $1"}
-    if ['$1']!=0 mode=$1 else mode=alpha fi
-    if ['$2']!=0 opacity=$2 else opacity=1 fi
-    e[0--3] "Blend image$? together, using '"$mode"' mode and opacity "$opacity"."
-    repeat $!-1 { $0.. .,$mode,$opacity rm. }
+#@cli nblend : [layer],blending_mode,_opacity[%],_selection_is={ 0:base-layers | 1:top-layers } : \
+# blending_mode,_opacity[%]
+blend : skip "${1=},${2=},${3=}" check "isbool(${4=0})"
+
+  # Parse command arguments.
+  is_image_arg:=${"is_image_arg $1"}
+  if $is_image_arg mode,opacity=${2,3} else mode,opacity=${1,2} fi
+  if ['$mode']==0 mode=alpha fi
+  if ['$opacity']==0 opacity=1 fi
+  opacity:=$opacity # Manage both 'value' and 'value%'
+  check "inrange($opacity,0,1)"
+  if !$opacity return fi
+
+  # Manage when '[layer]' argument is specified.
+  if $is_image_arg
+    pass$1
+    if $4 foreach[^-1] { pass$1 0 rv $0 $mode,$opacity } # Selection = top layers
+    else foreach[^-1] { pass$1 $0 $mode,$opacity } # Selection = base layers
+    fi
+    rm.
     return
   fi
-  if ['$2']!=0 mode=$2 else mode=alpha fi
-  if ['$3']!=0 opacity:=$3 else opacity=1 fi
-  if ['$4']!=0 selection_mode=$4 else selection_mode=0 fi
-  if $selection_mode s0,s1=foreground,background else s0,s1=background,foreground fi
 
-  e[^-1] "Blend "$s0" image$? with "$s1" image $1, using '"$mode"' mode and opacity "$opacity"."
-  if !$opacity return fi
-  pass$1 1
-  foreach[^-1] { nm={n}
-    pass. 0 if $selection_mode rv fi # -> [0] = background, [1] = foreground
-    nb_col_channels,is_alpha_b,is_alpha_f:=max(s#0,s)>=3?3:1,!(s#0%2),!(s%2)||w<w#0||h<h#0||d<d#0||$opacity!=1
-    to_colormode[0] {$nb_col_channels+$is_alpha_b}
-    to_colormode[1] {$nb_col_channels+$is_alpha_f}
-    if $opacity<1 sh[1] 100% *. $opacity rm. fi
-    r[1] [0],[0],[0],100%,0,0,0.5,0.5
-    if ['$mode']=='seamless' blend_seamless 0
-    elif ['$mode']=='seamless_mixed' blend_seamless 1
-    else
-      s[0,1] c,-$nb_col_channels
-      if $is_alpha_b # Background has alpha
-        _$0_$mode[0,2]
-        if $is_alpha_f # Foreground has alpha
-          *[0] [1] /[0] 255 j[0] [2],0,0,0,0,1,[3],255 # Co = Cf*Af + Cb*Ab*(1-Af)
-          +f. 255 j[1] .,0,0,0,0,1,[3],255 # Ao = Af + Ab*(1 - Af)
-          k[0,1] +max. 1 /. 255 /[0,-1] a c # [ Co/Ao, Ao ]
-        else # Foreground has no alpha
-          j[0] [2],0,0,0,0,1 rm.
-          if ['$mode']=='alpha' f. 255 fi
-          a c
-        fi
-      else # Background has no alpha
-        _$0_$mode[0,1]
-        if $is_alpha_f j[0] [1],0,0,0,0,1,.,255 k[0] # Foreground has alpha
-        else k[1] # Foreground has no alpha
-        fi
+  # Manage when no image argument is specified.
+  e[^-1] "Blend image$? together, using '"$mode"' mode and opacity "$opacity"."
+  is_mode_alpha:=isin(['$mode'],'alpha','normal')
+  nm0={0,n} w0,h0,d0:=w#0,h#0,d#0
+
+  repeat $!-1 { l[-2,-1] {
+    # Constrain both images to have the size of the background layer #0.
+    foreach {
+      if max([w,h,d]<[$w0,$h0,$d0])" && "isin(s,1,3) # Add alpha-channel if image is going to be extended
+        r 100%,100%,100%,{s+1},0 sh 100% f. 255 rm.
+      fi
+    }
+    r $w0,$h0,$d0,100%,0,0,0.5,0.5
+
+    # Split background and foreground layers into colors[+alpha].
+    if ['$mode']=='seamless' +blend_seamless 0 is_mode_alpha=1 rm..
+    elif ['$mode']=='seamless_mixed' +blend_seamless 1 is_mode_alpha=1 rm..
+    fi
+    l[1] { if isin(s,2,4) s c,{-s+1} => f_c,f_a else => f_c fi }
+    l[0] { if isin(s,2,4) s c,{-s+1} => b_c,b_a else => b_c fi }
+    r[b_c,f_c] 100%,100%,100%,{max(s#$b_c,s#$f_c)} # Ensure background/foreground colors have same dimension
+    if !$is_mode_alpha l[b_c,f_c] { _blend_$mode => b_c,f_c } fi # Compute blending operation of color components
+
+    # Alpha-blend result.
+    if $b_a # Background has alpha
+      if !0$f_a [f_c],[f_c],[f_c],1,255 is_fa_255=1 => f_a # If foreground has no alpha, create a fully opaque one
+      else is_fa_255=0
+      fi
+      if !$is_mode_alpha # For non-alpha blending modes, restrict effect to region of background alpha
+        *[f_a] [b_a] /[f_a] 255
+      fi
+      if $is_fa_255 j[b_a] [f_a],0,0,0,0,$opacity,[f_a],255
+      else +f[f_a] 255 j[b_a] .,0,0,0,0,$opacity,[f_a],255 rm.
+      fi
+      j[b_c] [f_c],0,0,0,0,$opacity,[f_a],255
+    else # Background has no alpha
+      if $f_a # Foreground has alpha
+        j[b_c] [f_c],0,0,0,0,$opacity,[f_a],255
+      else # Foreground has no alpha
+        j[b_c] [f_c],0,0,0,0,$opacity
       fi
     fi
-    => $nm
-  }
-  rm.
+    if $b_a k[b_c,b_a] a c else k[b_c] fi
+  } }
+  => $nm0
 
-_blend_alpha :
-_blend_normal :
 _blend_and :
   &[1] [0]
 _blend_add :
@@ -38998,7 +39277,7 @@ _x_paint :
 
     # Open/refresh brush window.
     if $refresh_brush
-      rm. (32,64;64,32) r. 24,24,1,3,1 r. {8*48},{4*48},1,3,0,2
+      rm. (32,64;64,32) r. 16,16,1,3,1 r. {8*48},{4*48},1,3,0,2
       repeat 4 { y=$>
         repeat 8 {
           ellipse. {48*$>+24},{48*$y+24},{2*$>+1},{(2*$>+1)*$brushthickness},$brushangle,{1-$y/4},255
@@ -39828,7 +40107,7 @@ x_select_function1d : skip ${1=xsf_variable},${2=220},${3=$2},${4=$2} check_disp
       fi
       grid. {(w-1)/8},{(h-1)/8},0,0,0.2,0xCCCCCCCC,0
       line. 0,100%,100%,0,0.2,0
-       frame. 24,24,200
+      frame. xy,24,200
       rectangle. 23,23,{w-24},{h-24},1,0xFFFFFFFF,232 line. 23,23,23,{h-24},1,128 line. 23,23,{w-24},23,1,128
       if $is_additional_data" && "{0,h}>1 # Render colored X-axis guide.
         if {0,h}>2 +rows[0] 1,3 else +rows[0] 1 r. 100%,3 fi
@@ -41667,6 +41946,9 @@ fx_support_us :
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2014/16/04</i>.</small>")
 gui_download_all_data :
 
+  # Fonts.
+  l[] { input_cached gmic_fonts.gmz rm onfail rm }
+
   # Color Presets.
   l[] { input_cached gmic_cluts.gmz rm onfail rm }
 
@@ -42878,7 +43160,7 @@ fx_bokeh :
   }
 
 _fx_bokeh0 : shape_star $1,3        # Triangle.
-_fx_bokeh1 : $1,$1,1,1,1             # Square.
+_fx_bokeh1 : $1,$1,1,1,1            # Square.
 _fx_bokeh2 : shape_diamond $1       # Diamond.
 _fx_bokeh3 : shape_polygon $1,5,45  # Pentagon.
 _fx_bokeh4 : shape_polygon $1,6,45  # Hexagon.
@@ -53467,7 +53749,7 @@ fx_old_photo :
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/20/06</i>.</small>")
 fx_polaroid :
-  vignette ${8-10} polaroid $1,$2 drop_shadow $3%,$4%,$5%,$6,$7 rotate $8,1,0
+  vignette ${9-11} polaroid $1,$2 drop_shadow $3%,$4%,$5%,$6,$7 rotate $8,1,0
 
 #@gui Tunnel : fx_tunnel, fx_tunnel(1)
 #@gui : Depth = int(4,1,100)
@@ -54513,7 +54795,7 @@ fx_illuminate_shape2d_preview_interactive :
     r $siz,1,100%,3
     s. c,-3 !=. 0 l.. { - 128 / 127 s c,-2 / } a[-2,-1] c # Gradient map
     rv s. c,-3
-    (64,96;96,64) r. 24,24 r. ..,..,1,3,0,2
+    (64,96;96,64) r. 16,16 r. ..,..,1,3,0,2
     30,30,1,1 circle. 50%,50%,15%,1,1 b. 4 n. 0,1
     100%,100%,1,3,[255,255,0]
     => normal,rgb,alpha,background,light_alpha,light_rgb
