@@ -716,6 +716,7 @@ reference : skip "${2=}"
 "previous function with vector-valued arguments."\n\
 "* 'round(value,rounding_value,direction)' returns a rounded value. 'direction' can be "\
 "{ -1:to-lowest | 0:to-nearest | 1:to-highest }."\n\
+"* 'softmax(V,_temperature)' returns the softmax of specified vector 'V'. Default value for 'temperature' is 1."\n\
 "* 'lerp(a,b,t)' returns 'a*(1-t)+b*t'."\n\
 "* 'swap(a,b)' swaps the values of the given arguments."\n\
 "## Predefined variable names:"\n\
@@ -785,7 +786,7 @@ reference : skip "${2=}"
 "* Equality/inequality comparisons between two vectors is done with operators '==' and '!='."\n\
 "* Some vector-specific functions can be used on vector values: "\
 "'cross(X,Y)' (cross product), 'dot(X,Y)' (dot product), 'size(X)' (vector dimension), "\
-"'sort(X,_is_increasing,_nb_elts,_size_elt)' (sorted values), 'reverse(A)' (reverse order of components), "\
+"'sort(X,_is_increasing,_nb_elts,_size_elt,_sort_index)' (sorted values), 'reverse(A)' (reverse order of components), "\
 "'map(X,P,_nb_channelsX,_nb_channelsP,_boundary_conditions)', "\
 "'shift(A,_length,_boundary_conditions)' and 'same(A,B,_nb_vals,_is_case_sensitive)' (vector equality test)."\n\
 "* Function 'normP(u1,...,un)' computes the LP-norm of the specified vector "\
@@ -5251,16 +5252,14 @@ _input_glob :
   e[^-1] "Input palette from file '"{/"$*"}"'."
   l[] {
     it[] "$*" discard 13 replace 9,32 s -,10
-    colors=0
-    foreach {
-      l {
-        s -,32
-        if $!>=3" && "isint({0,t})" && "isint({1,t})" && "isint({2,t}) colors=$colors;{0,t},{1,t},{2,t} fi
-        rm 0
-        onfail rm 0
-      }
-    }
-    rm ($colors) rows 1,100% => "$1" permute yzcx
+    foreach { l {
+      s -,32
+      if $!>=3" && "isint({0,t})" && "isint({1,t})" && "isint({2,t}) ({0,t}^{1,t}^{2,t}) k.
+      else rm 0
+      fi
+      onfail rm 0
+    } }
+    a x => "$1"
   }
 
 #@cli input_cached : "basename.ext",_try_downloading_from_gmic_server={ 0 | 1 }
@@ -12505,7 +12504,7 @@ upload_filters :
     is_nonnative_preview_removed=0
     repeat narg($versions) {
       ver:=arg0($>,$versions)
-      if !$is_nonnative_preview_removed" && "$ver>=341 # Remove non-native preview splitter for version 3.4.1+
+      if !$is_nonnative_preview_removed" && "$ver>=342 # Remove non-native preview splitter for version 3.4.2+
         l {
           s +,{'\n'}
           foreach {
@@ -13240,6 +13239,15 @@ rad2deg :
 #@cli : Compute the pointwise hyperbolic sine of selected images.
 #@cli : $ image.jpg +normalize -3,3 sinh[-1]
 #@cli : $ 300,1,1,1,'4*x/w+u' +sinh display_graph 400,300
+
+#@cli softmax : _temperature>0
+#@cli : Compute the softmax of selected images.
+#@cli : Default value: 'temperature=1'.
+#@cli : $ 100,1,1,1,"x<w/2?x:w-x" +softmax 10 display_graph ,
+softmax : skip "${1=1}"
+  l[] { if "isnum($1) && $1>0" temperature=$1 else temperature=1 noarg fi onfail temperature=1 noarg }
+  e[^-1] "Compute softmax of image$?, with temperature "$temperature"."
+  foreach { eval "S = crop(); draw(softmax(S,"$temperature"),0,0,0,0,w,h,d,s)" }
 
 #@cli sqr : (+)
 #@cli : Compute the pointwise square function of selected images.
@@ -27525,22 +27533,22 @@ nn_lib :
         draw(##P#_ind,batch_#P#_avg,2,0,1,h##P#_ind,0.01);
         draw(##P#_ind,batch_#P#_var,3,0,1,h##P#_ind,0.01);
         learning_mode&1?(
-          nn_optimizer_#O#_update_weights(P#_alpha);
+          nn_optimizer_#O#_update_params(P#_alpha);
           draw(##P#_ind,P#_alpha,0,0,1,h##P#_ind);
         );
         learning_mode&2?(
-          nn_optimizer_#O#_update_weights(P#_beta);
+          nn_optimizer_#O#_update_params(P#_beta);
           draw(##P#_ind,P#_beta,1,0,1,h##P#_ind);
         );
       ):( # Global normalization
         i[##P#_ind,2] = lerp(P#_avg,batch_#P#_avg,0.01);
         i[##P#_ind,3] = lerp(P#_var,batch_#P#_var,0.01);
         learning_mode&1?(
-          nn_optimizer_#O#_update_weights(P#_alpha);
+          nn_optimizer_#O#_update_params(P#_alpha);
           i[##P#_ind,0] = P#_alpha;
         );
         learning_mode&2?(
-          nn_optimizer_#O#_update_weights(P#_beta);
+          nn_optimizer_#O#_update_params(P#_beta);
           i[##P#_ind,1] = P#_beta;
         );
       );
@@ -27554,17 +27562,17 @@ nn_lib :
     #-----------------------------
     nn_optimizer_sgd_init() = 0;
 
-    nn_optimizer_sgd_update_weights(W) = (
+    nn_optimizer_sgd_update_params(W) = (
       W#-=nn_learning_rate*batch_d#W;
     );
 
     nn_optimizer_sgd_update_conv_or_fc(P,learning_mode) = (
       learning_mode&1?(
-        nn_optimizer_sgd_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind - 1,h##P#_ind);
+        nn_optimizer_sgd_update_params(P#_params);
+        draw(##P#_ind,P#_params,0,0,w##P#_ind - 1,h##P#_ind);
       );
       learning_mode&2?(
-        nn_optimizer_sgd_update_weights(P#_biases);
+        nn_optimizer_sgd_update_params(P#_biases);
         draw(##P#_ind,P#_biases,w##P#_ind - 1,0,1,h##P#_ind);
       );
     );
@@ -27582,8 +27590,8 @@ nn_lib :
     );
 
     nn_optimizer_sgd_update_mp(P,learning_mode) = (
-      nn_optimizer_sgd_update_weights(P#_weights);
-      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_sgd_update_params(P#_params);
+      draw(##P#_ind,P#_params,0,0,w##P#_ind,h##P#_ind);
       nn_optimizer_generic_update_mp(#P);
     );
 
@@ -27597,7 +27605,7 @@ nn_lib :
       const nn_optimizer_rmsprop_beta = 0.9;
     );
 
-    nn_optimizer_rmsprop_update_weights(W) = (
+    nn_optimizer_rmsprop_update_params(W) = (
       d#W#_g2 = lerp(batch_d#W^2,d#W#_g2,nn_optimizer_rmsprop_beta);
       W#-=nn_learning_rate*batch_d#W/sqrt(1e-8 + d#W#_g2);
     );
@@ -27605,14 +27613,14 @@ nn_lib :
     nn_optimizer_rmsprop_update_conv_or_fc(P,learning_mode) = (
       const P#_ind_g2 = $P#_g2;
       learning_mode&1?(
-        d#P#_weights_g2 = crop(##P#_ind_g2,0,0,w##P#_ind - 1,h##P#_ind);
-        nn_optimizer_rmsprop_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind - 1,h##P#_ind);
-        draw(##P#_ind_g2,d#P#_weights_g2,0,0,w##P#_ind - 1,h##P#_ind);
+        d#P#_params_g2 = crop(##P#_ind_g2,0,0,w##P#_ind - 1,h##P#_ind);
+        nn_optimizer_rmsprop_update_params(P#_params);
+        draw(##P#_ind,P#_params,0,0,w##P#_ind - 1,h##P#_ind);
+        draw(##P#_ind_g2,d#P#_params_g2,0,0,w##P#_ind - 1,h##P#_ind);
       );
       learning_mode&2?(
         d#P#_biases_g2 = crop(##P#_ind_g2,w##P#_ind - 1,0,1,h##P#_ind);
-        nn_optimizer_rmsprop_update_weights(P#_biases);
+        nn_optimizer_rmsprop_update_params(P#_biases);
         draw(##P#_ind,P#_biases,w##P#_ind - 1,0,1,h##P#_ind);
         draw(##P#_ind_g2,d#P#_biases_g2,w##P#_ind - 1,0,1,h##P#_ind);
       );
@@ -27632,10 +27640,10 @@ nn_lib :
 
     nn_optimizer_rmsprop_update_mp(P,learning_mode) = (
       const P#_ind_g2 = $P#_g2;
-      d#P#_weights_g2 = crop(##P#_ind_g2,0,0,w##P#_ind,h##P#_ind);
-      nn_optimizer_rmsprop_update_weights(P#_weights);
-      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
-      draw(##P#_ind_g2,d#P#_weights_g2,0,0,w##P#_ind,h##P#_ind);
+      d#P#_params_g2 = crop(##P#_ind_g2,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_rmsprop_update_params(P#_params);
+      draw(##P#_ind,P#_params,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_g2,d#P#_params_g2,0,0,w##P#_ind,h##P#_ind);
       nn_optimizer_generic_update_mp(#P);
     );
 
@@ -27665,7 +27673,7 @@ nn_lib :
       );
     );
 
-    nn_optimizer_adam_update_weights(W) = (
+    nn_optimizer_adam_update_params(W) = (
       d#W#_m = lerp(batch_d#W,d#W#_m,nn_optimizer_adam_beta1);
       d#W#_v = lerp(batch_d#W^2,d#W#_v,nn_optimizer_adam_beta2);
       W#-=nn_learning_rate*nn_optimizer_adam_alpha_t*d#W#_m/sqrt(1e-8 + d#W#_v);
@@ -27675,17 +27683,17 @@ nn_lib :
       const P#_ind_m = $P#_m;
       const P#_ind_v = $P#_v;
       learning_mode&1?(
-        d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind - 1,h##P#_ind);
-        d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind - 1,h##P#_ind);
-        nn_optimizer_adam_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind - 1,h##P#_ind);
-        draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind - 1,h##P#_ind);
-        draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind - 1,h##P#_ind);
+        d#P#_params_m = crop(##P#_ind_m,0,0,w##P#_ind - 1,h##P#_ind);
+        d#P#_params_v = crop(##P#_ind_v,0,0,w##P#_ind - 1,h##P#_ind);
+        nn_optimizer_adam_update_params(P#_params);
+        draw(##P#_ind,P#_params,0,0,w##P#_ind - 1,h##P#_ind);
+        draw(##P#_ind_m,d#P#_params_m,0,0,w##P#_ind - 1,h##P#_ind);
+        draw(##P#_ind_v,d#P#_params_v,0,0,w##P#_ind - 1,h##P#_ind);
       );
       learning_mode&2?(
         d#P#_biases_m = crop(##P#_ind_m,w##P#_ind - 1,0,1,h##P#_ind);
         d#P#_biases_v = crop(##P#_ind_v,w##P#_ind - 1,0,1,h##P#_ind);
-        nn_optimizer_adam_update_weights(P#_biases);
+        nn_optimizer_adam_update_params(P#_biases);
         draw(##P#_ind,P#_biases,w##P#_ind - 1,0,1,h##P#_ind);
         draw(##P#_ind_m,d#P#_biases_m,w##P#_ind - 1,0,1,h##P#_ind);
         draw(##P#_ind_v,d#P#_biases_v,w##P#_ind - 1,0,1,h##P#_ind);
@@ -27707,12 +27715,12 @@ nn_lib :
     nn_optimizer_adam_update_mp(P,learning_mode) = (
       const P#_ind_m = $P#_m;
       const P#_ind_v = $P#_v;
-      d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind,h##P#_ind);
-      d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind,h##P#_ind);
-      nn_optimizer_adam_update_weights(P#_weights);
-      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
-      draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind,h##P#_ind);
-      draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind,h##P#_ind);
+      d#P#_params_m = crop(##P#_ind_m,0,0,w##P#_ind,h##P#_ind);
+      d#P#_params_v = crop(##P#_ind_v,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_adam_update_params(P#_params);
+      draw(##P#_ind,P#_params,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_m,d#P#_params_m,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_v,d#P#_params_v,0,0,w##P#_ind,h##P#_ind);
       nn_optimizer_generic_update_mp(#P);
     );
 
@@ -27745,7 +27753,7 @@ nn_lib :
       );
     );
 
-    nn_optimizer_adamax_update_weights(W) = (
+    nn_optimizer_adamax_update_params(W) = (
       d#W#_m = lerp(batch_d#W,d#W#_m,nn_optimizer_adamax_beta1);
       d#W#_v = vmax(abs(batch_d#W),nn_optimizer_adamax_beta2*d#W#_v);
       W#-=(nn_learning_rate/nn_optimizer_adamax_ombeta1_t)*d#W#_m/sqrt(1e-8 + d#W#_v);
@@ -27755,17 +27763,17 @@ nn_lib :
       const P#_ind_m = $P#_m;
       const P#_ind_v = $P#_v;
       learning_mode&1?(
-        d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind - 1,h##P#_ind);
-        d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind - 1,h##P#_ind);
-        nn_optimizer_adamax_update_weights(P#_weights);
-        draw(##P#_ind,P#_weights,0,0,w##P#_ind - 1,h##P#_ind);
-        draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind - 1,h##P#_ind);
-        draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind - 1,h##P#_ind);
+        d#P#_params_m = crop(##P#_ind_m,0,0,w##P#_ind - 1,h##P#_ind);
+        d#P#_params_v = crop(##P#_ind_v,0,0,w##P#_ind - 1,h##P#_ind);
+        nn_optimizer_adamax_update_params(P#_params);
+        draw(##P#_ind,P#_params,0,0,w##P#_ind - 1,h##P#_ind);
+        draw(##P#_ind_m,d#P#_params_m,0,0,w##P#_ind - 1,h##P#_ind);
+        draw(##P#_ind_v,d#P#_params_v,0,0,w##P#_ind - 1,h##P#_ind);
       );
       learning_mode&2?(
         d#P#_biases_m = crop(##P#_ind_m,w##P#_ind - 1,0,1,h##P#_ind);
         d#P#_biases_v = crop(##P#_ind_v,w##P#_ind - 1,0,1,h##P#_ind);
-        nn_optimizer_adamax_update_weights(P#_biases);
+        nn_optimizer_adamax_update_params(P#_biases);
         draw(##P#_ind,P#_biases,w##P#_ind - 1,0,1,h##P#_ind);
         draw(##P#_ind_m,d#P#_biases_m,w##P#_ind - 1,0,1,h##P#_ind);
         draw(##P#_ind_v,d#P#_biases_v,w##P#_ind - 1,0,1,h##P#_ind);
@@ -27787,12 +27795,12 @@ nn_lib :
     nn_optimizer_adamax_update_mp(P,learning_mode) = (
       const P#_ind_m = $P#_m;
       const P#_ind_v = $P#_v;
-      d#P#_weights_m = crop(##P#_ind_m,0,0,w##P#_ind,h##P#_ind);
-      d#P#_weights_v = crop(##P#_ind_v,0,0,w##P#_ind,h##P#_ind);
-      nn_optimizer_adamax_update_weights(P#_weights);
-      draw(##P#_ind,P#_weights,0,0,w##P#_ind,h##P#_ind);
-      draw(##P#_ind_m,d#P#_weights_m,0,0,w##P#_ind,h##P#_ind);
-      draw(##P#_ind_v,d#P#_weights_v,0,0,w##P#_ind,h##P#_ind);
+      d#P#_params_m = crop(##P#_ind_m,0,0,w##P#_ind,h##P#_ind);
+      d#P#_params_v = crop(##P#_ind_v,0,0,w##P#_ind,h##P#_ind);
+      nn_optimizer_adamax_update_params(P#_params);
+      draw(##P#_ind,P#_params,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_m,d#P#_params_m,0,0,w##P#_ind,h##P#_ind);
+      draw(##P#_ind_v,d#P#_params_v,0,0,w##P#_ind,h##P#_ind);
       nn_optimizer_generic_update_mp(#P);
     );
 
@@ -27929,14 +27937,14 @@ nn_lib :
       const OUT#_stride = stride;
       const OUT#_dilation = dilation;
       const OUT#_boundary_conditions = boundary_conditions;
-      OUT#_weights = crop(##OUT#_ind,0,0,w##OUT#_ind - 1,OUT#_spectrum);
+      OUT#_params = crop(##OUT#_ind,0,0,w##OUT#_ind - 1,OUT#_spectrum);
       OUT#_biases = crop(##OUT#_ind,w##OUT#_ind - 1,0,1,OUT#_spectrum);
     );
 
     nn_conv2d_forward(OUT,IN) = (
       OUT# = convolve(IN#,
                       IN#_width,IN#_height,IN#_depth,IN#_spectrum,
-                      OUT#_weights,
+                      OUT#_params,
                       OUT#_kernel_size,OUT#_kernel_size,1,IN#_spectrum*OUT#_spectrum,
                       OUT#_boundary_conditions,0,2,
                       OUT#_kernel_center,OUT#_kernel_center,0,
@@ -27948,7 +27956,7 @@ nn_lib :
     );
 
     nn_conv2d_init_backward(OUT,IN) = (
-      batch_d#OUT#_weights = vector(#size(OUT#_weights));
+      batch_d#OUT#_params = vector(#size(OUT#_params));
       batch_d#OUT#_biases = vector(#size(OUT#_biases));
     );
 
@@ -27963,7 +27971,7 @@ nn_lib :
         draw(d#IN,IN#_width,IN#_height,IN#_depth,IN#_spectrum,
              correlate(d#OUT,
                        OUT#_width,OUT#_height,OUT#_depth,OUT#_spectrum,
-                       crop(OUT#_weights,w##OUT#_ind - 1,OUT#_spectrum,1,1,
+                       crop(OUT#_params,w##OUT#_ind - 1,OUT#_spectrum,1,1,
                             _nn_k*OUT#_kernel_size2,0,OUT#_kernel_size2,OUT#_spectrum),
                        OUT#_kernel_size,OUT#_kernel_size,1,OUT#_spectrum,
                        0,0,2,
@@ -27983,9 +27991,9 @@ nn_lib :
       # Compute dLOSS/dweights.
       const OUT#_dcenter = OUT#_dilation*OUT#_kernel_center;
       const OUT#_kend = OUT#_kernel_size - 1 + OUT#_offset;
-      d#OUT#_weights = vector(#size(OUT#_weights));
+      d#OUT#_params = vector(#size(OUT#_params));
       repeat (OUT#_spectrum,_nn_k,
-        draw(d#OUT#_weights,
+        draw(d#OUT#_params,
              OUT#_kernel_size,OUT#_kernel_size,1,OUT#_spectrum*IN#_spectrum,
              correlate(crop(d#OUT,OUT#_width,OUT#_height,OUT#_depth,OUT#_spectrum,
                             0,0,0,_nn_k,OUT#_width,OUT#_height,OUT#_depth,1),
@@ -28001,13 +28009,13 @@ nn_lib :
              0,0,0,_nn_k*IN#_spectrum,
              OUT#_kernel_size,OUT#_kernel_size,1,IN#_spectrum);
       );
-      batch_d#OUT#_weights+=d#OUT#_weights;
+      batch_d#OUT#_params+=d#OUT#_params;
     );
 
     nn_conv2d_end_backward(OUT) = (
-      merge(batch_d#OUT#_weights,+);
+      merge(batch_d#OUT#_params,+);
       merge(batch_d#OUT#_biases,+);
-      batch_d#OUT#_weights/=nn_batch_size;
+      batch_d#OUT#_params/=nn_batch_size;
       batch_d#OUT#_biases/=nn_batch_size;
     );
 
@@ -28027,14 +28035,14 @@ nn_lib :
       const OUT#_stride = stride;
       const OUT#_dilation = dilation;
       const OUT#_boundary_conditions = boundary_conditions;
-      OUT#_weights = crop(##OUT#_ind,0,0,w##OUT#_ind - 1,OUT#_spectrum);
+      OUT#_params = crop(##OUT#_ind,0,0,w##OUT#_ind - 1,OUT#_spectrum);
       OUT#_biases = crop(##OUT#_ind,w##OUT#_ind - 1,0,1,OUT#_spectrum);
     );
 
     nn_conv3d_forward(OUT,IN) = (
       OUT# = convolve(IN#,
                       IN#_width,IN#_height,IN#_depth,IN#_spectrum,
-                      OUT#_weights,
+                      OUT#_params,
                       OUT#_kernel_size,OUT#_kernel_size,OUT#_kernel_size,IN#_spectrum*OUT#_spectrum,
                       OUT#_boundary_conditions,0,2,
                       OUT#_kernel_center,OUT#_kernel_center,OUT#_kernel_center,
@@ -28046,7 +28054,7 @@ nn_lib :
     );
 
     nn_conv3d_init_backward(OUT,IN) = (
-      batch_d#OUT#_weights = vector(#size(OUT#_weights));
+      batch_d#OUT#_params = vector(#size(OUT#_params));
       batch_d#OUT#_biases = vector(#size(OUT#_biases));
     );
 
@@ -28061,7 +28069,7 @@ nn_lib :
         draw(d#IN,IN#_width,IN#_height,IN#_depth,IN#_spectrum,
              correlate(d#OUT,
                        OUT#_width,OUT#_height,OUT#_depth,OUT#_spectrum,
-                       crop(OUT#_weights,w##OUT#_ind - 1,OUT#_spectrum,1,1,
+                       crop(OUT#_params,w##OUT#_ind - 1,OUT#_spectrum,1,1,
                             _nn_k*OUT#_kernel_size3,0,OUT#_kernel_size3,OUT#_spectrum),
                        OUT#_kernel_size,OUT#_kernel_size,OUT#_kernel_size,OUT#_spectrum,
                        0,0,2,
@@ -28081,9 +28089,9 @@ nn_lib :
       # Compute dLOSS/dweights.
       const OUT#_dcenter = OUT#_dilation*OUT#_kernel_center;
       const OUT#_kend = OUT#_kernel_size - 1 + OUT#_offset;
-      d#OUT#_weights = vector(#size(OUT#_weights));
+      d#OUT#_params = vector(#size(OUT#_params));
       repeat (OUT#_spectrum,_nn_k,
-        draw(d#OUT#_weights,
+        draw(d#OUT#_params,
              OUT#_kernel_size,OUT#_kernel_size,OUT#_kernel_size,OUT#_spectrum*IN#_spectrum,
              correlate(crop(d#OUT,OUT#_width,OUT#_height,OUT#_depth,OUT#_spectrum,
                             0,0,0,_nn_k,OUT#_width,OUT#_height,OUT#_depth,1),
@@ -28099,13 +28107,13 @@ nn_lib :
              0,0,0,_nn_k*IN#_spectrum,
              OUT#_kernel_size,OUT#_kernel_size,OUT#_kernel_size,IN#_spectrum);
       );
-      batch_d#OUT#_weights+=d#OUT#_weights;
+      batch_d#OUT#_params+=d#OUT#_params;
     );
 
     nn_conv3d_end_backward(OUT) = (
-      merge(batch_d#OUT#_weights,+);
+      merge(batch_d#OUT#_params,+);
       merge(batch_d#OUT#_biases,+);
-      batch_d#OUT#_weights/=nn_batch_size;
+      batch_d#OUT#_params/=nn_batch_size;
       batch_d#OUT#_biases/=nn_batch_size;
     );
 
@@ -28205,31 +28213,31 @@ nn_lib :
       const OUT#_height = 1;
       const OUT#_depth = 1;
       const OUT#_spectrum = h##OUT#_ind;
-      OUT#_weights = crop(##OUT#_ind,0,0,size(IN#),h##OUT#_ind);
+      OUT#_params = crop(##OUT#_ind,0,0,size(IN#),h##OUT#_ind);
       OUT#_biases = crop(##OUT#_ind,size(IN#),0,1,h##OUT#_ind);
     );
 
     nn_fc_forward(OUT,IN) = (
-      OUT# = mul(OUT#_weights,IN#);
+      OUT# = mul(OUT#_params,IN#);
       OUT#+=OUT#_biases;
     );
 
     nn_fc_init_backward(OUT) = (
-      batch_d#OUT#_weights = vector(#size(OUT#_weights));
+      batch_d#OUT#_params = vector(#size(OUT#_params));
       batch_d#OUT#_biases = vector(#size(OUT#_biases));
     );
 
     nn_fc_backward(OUT,IN) = (
-      d#IN = mul(transpose(OUT#_weights,size(IN#)),d#OUT);
-      d#OUT#_weights = mul(d#OUT,IN#,size(IN#));
-      batch_d#OUT#_weights+=d#OUT#_weights;
+      d#IN = mul(transpose(OUT#_params,size(IN#)),d#OUT);
+      d#OUT#_params = mul(d#OUT,IN#,size(IN#));
+      batch_d#OUT#_params+=d#OUT#_params;
       batch_d#OUT#_biases+=d#OUT;
     );
 
     nn_fc_end_backward(OUT) = (
-      merge(batch_d#OUT#_weights,+);
+      merge(batch_d#OUT#_params,+);
       merge(batch_d#OUT#_biases,+);
-      batch_d#OUT#_weights/=nn_batch_size;
+      batch_d#OUT#_params/=nn_batch_size;
       batch_d#OUT#_biases/=nn_batch_size;
     );
 
@@ -28357,29 +28365,62 @@ nn_lib :
       const OUT#_depth = 1;
       const OUT#_spectrum = w##OUT#_ind;
       const OUT#_iterations = iterations;
-      OUT#_weights = crop(##OUT#_ind);
-    );
+      const OUT#_temperature = 1; # Softmax temperature
+      OUT#_params = crop(##OUT#_ind);
+     );
 
     nn_mp_forward(OUT,IN) = (
-      OUT# = mproj(IN#,1,OUT#_weights,w##OUT#_ind,1,OUT#_iterations);
-#      OUT# = mproj(IN#,1,OUT#_weights,w##OUT#_ind,0);
+      OUT# = vector(##OUT#_spectrum);
+      OUT#_alphas = OUT#_betas = vector(##OUT#_spectrum*OUT#_iterations);
+      OUT#_inputs = vector(##OUT#_iterations*size(IN#));
+      OUT#_input = IN#;
+
+      repeat (OUT#_iterations,k,
+        OUT#_alpha = mul(IN#,OUT#_params,OUT#_spectrum); # dot product with atoms
+        OUT#_beta = softmax(abs(OUT#_alpha),OUT#_temperature)*OUT#_alpha;
+        draw(OUT#_alphas,OUT#_iterations,OUT#_spectrum,1,1,OUT#_alpha,k,0,0,0,1,OUT#_spectrum,1,1);
+        draw(OUT#_betas,OUT#_iterations,OUT#_spectrum,1,1,OUT#_beta,k,0,0,0,1,OUT#_spectrum,1,1);
+        draw(OUT#_inputs,OUT#_iterations,size(IN#),1,1,OUT#_input,k,0,0,1,size(IN#),1,1);
+        OUT#+=OUT#_beta;
+        OUT#_input-=mul(OUT#_params,OUT#,1);
+      );
     );
 
     nn_mp_init_backward(OUT) = (
-      batch_d#OUT#_weights = vector(#size(OUT#_weights));
+      batch_d#OUT#_params = vector(#size(OUT#_params));
     );
 
     nn_mp_backward(OUT,IN) = (
-      OUT#_tweights = transpose(OUT#_weights,OUT#_spectrum);
-     d#IN = mproj(d#OUT,1,OUT#_tweights,h##OUT#_ind,0);
-#      d#IN = mproj(d#OUT,1,OUT#_tweights,h##OUT#_ind,2);
-      d#OUT#_weights = mul(d#IN,OUT#,size(OUT#));
-      batch_d#OUT#_weights+=d#OUT#_weights;
+      OUT#_jacobian = vector(##OUT#_spectrum^2);
+
+      repeat (OUT#_iterations,k,
+        bk = OUT#_iterations - k - 1;
+        OUT#_alpha = crop(OUT#_alphas,OUT#_iterations,OUT#_spectrum,1,1,bk,0,0,0,1,OUT#_spectrum,1,1);
+        OUT#_beta = crop(OUT#_betas,OUT#_iterations,OUT#_spectrum,1,1,bk,0,0,0,1,OUT#_spectrum,1,1);
+
+        # Compute Jacobian matrix.
+        p = 0;
+        repeat (OUT#_spectrum,i,
+          repeat (OUT#_spectrum,j,
+            OUT#_jacobian[p++] = OUT#_beta[i]*(
+              (i==j)*(1 + abs(OUT#_alpha[j])/OUT#_temperature) -
+              sign(OUT#_alpha[i])/OUT#_temperature*OUT#_alpha[j]*OUT#_beta[j]
+            );
+          );
+        );
+
+        d#OUT#_alpha = mul(OUT#_jacobian,d#OUT);
+        d#OUT#_alpha/=OUT#_iterations;
+        OUT#_input = crop(OUT#_inputs,OUT#_iterations,size(IN#),1,1,bk,0,0,0,1,size(IN#),1,1);
+        d#OUT#_params = mul(OUT#_input,d#OUT#_alpha,OUT#_spectrum);
+      );
+      d#IN = mul(OUT#_params,d#OUT#_alpha);
+      batch_d#OUT#_params+=d#OUT#_params;
     );
 
     nn_mp_end_backward(OUT) = (
-      merge(batch_d#OUT#_weights,+);
-      batch_d#OUT#_weights/=nn_batch_size;
+      merge(batch_d#OUT#_params,+);
+      batch_d#OUT#_params/=nn_batch_size;
     );
 
     # mul: Multiply two inputs.
@@ -28421,8 +28462,7 @@ nn_lib :
 
     # Special case: Softmax.
     nn_softmax_forward(OUT,IN) = (
-      OUT# = exp(IN# - max(IN#));
-      OUT#/=sum(OUT#);
+      OUT# = softmax(IN#);
     );
 
     nn_softmax_backward(OUT,IN) = (
@@ -29362,9 +29402,10 @@ nn_maxpool3d : if ['${2=.}']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $i
 #@cli : Add a 'mp' layer (matching pursuit layer) to the network.
 nn_mp : if ['$2']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $in
         check "isvarname('$1') && isint($3,1) && isint(${4=0},0)"
-  e[^-1] "[nn_lib] Add 'mp' layer '$1', with input '"$in"', $3 atoms and $4 iterations."
+  nb_iterations:=$4?$4:$3
+  e[^-1] "[nn_lib] Add 'mp' layer '$1', with input '"$in"', $3 atoms and "$nb_iterations" iterations."
   init=$_nn_init
-  _nn_mp $1_mp,$in,${3-4}
+  _nn_mp $1_mp,$in,$3,$nb_iterations
   nn_rename $1,$1_mp
   _nn_init=${init}"$0 $* "
   _nn_latest=$1
@@ -29380,9 +29421,9 @@ _nn_mp :
   if !isint($$1)
     $3,{prod($_nn_$2_size)}
     f. 4*g/(w-1)
-    100%,1,1,1,"draw(#-1,unitnorm(crop(#-1,x,1)),x,0,0,0,1,h#-1,1,1)" rm.
     => $1
   fi
+  [$1],1,1,1,"draw(#-1,unitnorm(crop(#-1,x,1)),x,0,0,0,1,h#-1,1,1)" rm. # Force atoms to have unit norm
   _nn_forward.="begin(nn_mp_init_forward($1,$2,$4));"\
                "nn_mp_forward($1,$2);"
   _nn_backward..="begin(nn_mp_init_backward($1));"\
@@ -34680,7 +34721,17 @@ is_ext : skip "${1=},${2=}"
 is_image_arg : skip "${1=;}"
   u {"str = ['$1'];
       s1 = size(str) - 1;
-      (str[0]==_'[' && str[s1]==_']') || (str[0]==_'.' && str[s1]==_'.') && min(str)>=45 && max(str)<=122"}
+      str=='.' || str=='..' || str=='...' || (
+        str[0]==_'[' && str[s1]==_']' && (
+          ok_charset = 1;
+          repeat (size(str) - 2,k,
+            c = str[k + 1];
+            ok_charset&=(isin(c,_'%',_'+',_'-',_'.',_'^') || inrange(c,_'0',_'9') ||
+                         inrange(c,_'A',_'Z')) || inrange(c,_'a',_'z');
+          );
+          ok_charset
+        )
+      )"}
 
 #@cli is_pattern : string
 #@cli : Return 1 if specified string looks like a drawing pattern '0x......'.
@@ -42159,7 +42210,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 2.10 - Linux 64 bits - 3.4.1</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 2.10 - Linux 64 bits - 3.4.2</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -42188,8 +42239,8 @@ fx_gmicky_preview :
 #@gui : - <b>2023/01/16</b> : version <i>3.2.0</i>.\n
 #@gui : - <b>2023/09/04</b> : version <i>3.3.0</i>.\n
 #@gui : - <b>2024/06/14</b> : version <i>3.4.0</i>.\n
-#@gui : - <span foreground="purple"><b>2024/08/28</b> : version <i>3.4.1</i> (Current stable).</span>\n
-##@gui : - <b>2024/XX/XX</b> : version <i>3.4.2</i> (Current pre-release).</span>\n
+#@gui : - <span foreground="purple"><b>2024/09/04</b> : version <i>3.4.2</i> (Current stable).</span>\n
+##@gui : - <b>2024/XX/XX</b> : version <i>3.4.3</i> (Current pre-release).</span>\n
 #@gui : "}
 #@gui : sep = separator()
 ##@gui : url = link{"View changelog for upcoming major version (3.4)","https://discuss.pixls.us/t/on-the-road-to-3-4"}
