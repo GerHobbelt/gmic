@@ -548,7 +548,7 @@ reference : skip "${2=}"
 "  - `.gif` __files:__ Animated gif files can be saved, using the input expression "\
 "'filename.gif,fps>0,nb_loops'. Specify 'nb_loops=0' to get an infinite number of animation "\
 "loops (this is the default behavior)."\n\
-"  - `.jpeg` __files:__ The output quality may be specified (in %), using the output expression "\
+"  - `.jpeg` and `.webp` __files:__ The output quality may be specified (in %), using the output expression "\
 "'filename.jpg,30' (here, to get a 30% quality output). '100' is the default."\n\
 "  - `.mnc` __files:__ The output header can set from another file, using the output expression "\
 "'filename.mnc,header_template.mnc'. "\n\
@@ -12579,14 +12579,12 @@ upload_binaries : check "isbool(${2=1})"
   file$N=gmic_$1_debian11_bullseye_amd64.deb            N+=1
   file$N=gmic_$1_debian12_bookworm_amd64.deb            N+=1
   file$N=gmic_$1_ubuntu20-04_focal_amd64.deb            N+=1
-  file$N=gmic_$1_ubuntu21-10_impish_amd64.deb           N+=1
   file$N=gmic_$1_ubuntu22-04_jammy_amd64.deb            N+=1
   file$N=gmic_$1_ubuntu24-04_noble_amd64.deb            N+=1
 
   file$N=gmic_$1_gimp2.10_debian11_bullseye_amd64.zip   N+=1
   file$N=gmic_$1_gimp2.10_debian12_bookworm_amd64.zip   N+=1
   file$N=gmic_$1_gimp2.10_ubuntu20-04_focal_amd64.zip   N+=1
-  file$N=gmic_$1_gimp2.10_ubuntu21-10_impish_amd64.zip  N+=1
   file$N=gmic_$1_gimp2.10_ubuntu22-04_jammy_amd64.zip   N+=1
   file$N=gmic_$1_gimp2.10_ubuntu24-04_noble_amd64.zip   N+=1
 
@@ -13073,6 +13071,18 @@ deg2rad :
 #@cli : (eq. to '>').
 #@cli : $ image.jpg gt {ia}
 #@cli : $ image.jpg +mirror x gt
+
+#@cli isinf
+#@cli : Select 'inf' values in selected images.
+isinf :
+  e[^-1] "Select 'inf' values in image$?."
+  f "isinf(i)"
+
+#@cli isnan
+#@cli : Select 'nan' values in selected images.
+isnan :
+  e[^-1] "Select 'nan' values in image$?."
+  f "isnan(i)"
 
 #@cli <= : eq. to 'le'. : (+)
 
@@ -17063,10 +17073,21 @@ apply_scales : check "isint($2,1) && ${3=25%}>=0 && ${4=100%}>=0 && ${5=1}>0 && 
     rm[0] =>[^] $nm
   }
 
-#@cli autocrop : value1,value2,... : (no arg) : (+)
-#@cli : Autocrop selected images by specified vector-valued intensity.
-#@cli : If no arguments are provided, cropping value is guessed.
+#@cli autocrop : _axes,_value1,_value2,...
+#@cli : Autocrop selected images according to specified axes and values.
+#@cli : 'axes' can be { x | y | z | c | xy | xz | xc | yz | yc | zc | xyz | xyc | xzc | yzc | xyzc }.
+#@cli : If no 'axes' are provided, autocrop is assumed to be spatial only (e.g. 'axes=xyz').
+#@cli : If no value arguments are provided, cropping value is automatically guessed.
+#@cli : Default values: 'axes=xyz'.
+#@cli : See also: ''autocrop_coords''.
 #@cli : $ 400,400,1,3 fill_color 64,128,255 ellipse 50%,50%,120,120,0,1,255 +autocrop
+autocrop : skip "${1=xyz}"
+  __$0_coords_ ${1--1} if ${} noarg fi
+  e[^-1] "Autocrop image$?, for axe"$s" '"$axes"' and value '"$value"'."
+  foreach {
+    _autocrop_coords $axes,$is_x,$is_y,$is_z,$is_c,$is_auto,$value
+    if narg(${}) z ${} fi
+  }
 
 #@cli autocrop_components : _threshold[%],_min_area[%]>=0,_is_high_connectivity={ 0 | 1 },\
 # _output_type={ 0:crop | 1:segmentation | 2:coordinates }
@@ -17099,6 +17120,69 @@ autocrop_components : skip ${1=0%} check "${2=0.1%}>=0 && isbool(${3=0}) && isin
     if !$! 0 fi
     if $4==2 a x fi
   }
+
+#@cli autocrop_coords : _axes,_value1,_value2,...
+#@cli : Return coordinates of the bounding box that would be used to autocrop selected images, \
+# according to specified axes and values.
+#@cli : 'axes' can be { x | y | z | c | xy | xz | xc | yz | yc | zc | xyz | xyc | xzc | yzc | xyzc }.
+#@cli : If no 'axes' are provided, autocrop is assumed to be spatial only (e.g. 'axes=xyz').
+#@cli : If no value arguments are provided, cropping value is automatically guessed.
+#@cli : Default values: 'axes=xyz'.
+#@cli : See also: ''autocrop''.
+__autocrop_coords_ : skip "${1=xyz},${2=}"
+  is_noarg=0
+  if isin(['$1'],'x','y','z','c','xy','xz','xc','yz','yc','zc','xyz','xyc','xzc','yzc','xyzc')
+    axes=$1
+    if isnum($2) value=${2--1} else value=auto fi
+  else
+    axes=xyz
+    if isnum($1) value=${1--1} else value=auto is_noarg=1 fi
+  fi
+  s= if size(['$axes'])>1 s=s fi
+  is_x,is_y,is_z,is_c:=s='$axes';[find(s,_'x')>=0,find(s,_'y')>=0,find(s,_'z')>=0,find(s,_'c')>=0]
+  is_auto:=['$value']=='auto'
+  u $is_noarg
+
+autocrop_coords : skip "${1=xyz},${2=}"
+  __$0_ ${1--1} if ${} noarg fi
+  e[^-1] "Return autocrop coordinates for image$?, for axe"$s" '"$axes"' and value '"$value"'."
+  _autocrop_coords $axes,$is_x,$is_y,$is_z,$is_c,$is_auto,$value
+
+# _autocrop_coords : axes,is_x,is_y,is_z,is_c,is_auto,value1,...
+_autocrop_coords :
+  l_value=${7--1}
+  res,sep=
+  foreach {
+    x0,y0,z0,c0,x1,y1,z1,c1=-1
+    if $6
+      l_value:="const w1 = w - 1; const h1 = h - 1; const d1 = d - 1;
+                vmed(I[0],I[0],I(w1,0,0),I(w1,h1,0),I(0,h1,0), # I[0] must be doubled!
+                     I(0,0,d1),I(w1,0,0),I(w1,h1,d1),I(0,h1,d1))"
+    fi
+    eval. "
+      begin(
+        x0 = y0 = z0 = c0 = inf;
+        x1 = y1 = z1 = c1 = -inf;
+        value = $5?(["$l_value"][0]):resize([ "$l_value" ],s,0,2);
+      );
+      (!$5 && I!=value) || ($5 && i!=value)?(
+        $2?(x0 = min(x0,x); x1 = max(x1,x));
+        $3?(y0 = min(y0,y); y1 = max(y1,y));
+        $4?(z0 = min(z0,z); z1 = max(z1,z));
+        $5?(c0 = min(c0,c); c1 = max(c1,c));
+      );
+      end(
+        $2?(merge(x0,min); merge(x1,max); set('x0',isinf(x0)?0:x0); set('x1',isinf(x1)?w - 1:x1));
+        $3?(merge(y0,min); merge(y1,max); set('y0',isinf(y0)?0:y0); set('y1',isinf(y1)?h - 1:y1));
+        $4?(merge(z0,min); merge(z1,max); set('z0',isinf(z0)?0:z0); set('z1',isinf(z1)?d - 1:z1));
+        $5?(merge(c0,min); merge(c1,max); set('c0',isinf(c0)?0:c0); set('c1',isinf(c1)?s - 1:c1));
+      )"
+    if !$2" && "max(${3-5}) x0,x1=0,{w-1} fi
+    if !$3" && "max(${4-5}) y0,y1=0,{h-1} fi
+    if !$4" && "$5 z0,z1=0,{d-1} fi
+    ($x0,$y0,$z0,$c0;$x1,$y1,$z1,$c1) discard. -1 res.=$sep{^} sep=, rm.
+  }
+  u $res
 
 #@cli autocrop_seq : value1,value2,... | auto
 #@cli : Autocrop selected images using the crop geometry of the last one by specified vector-valued intensity,
@@ -28358,32 +28442,46 @@ nn_lib :
 
     # mp: Matching Pursuit layer.
     #----------------------------
-    nn_mp_init_forward(OUT,IN,iterations) = (
+    nn_mp_init_forward(OUT,IN,iterations,temperature) = (
       const OUT#_ind = $OUT#;
       const OUT#_width = 1;
       const OUT#_height = 1;
       const OUT#_depth = 1;
       const OUT#_spectrum = w##OUT#_ind;
       const OUT#_iterations = iterations;
-      const OUT#_temperature = 1; # Softmax temperature
+      const OUT#_temperature = temperature; # Softmax temperature
       OUT#_params = crop(##OUT#_ind);
      );
 
     nn_mp_forward(OUT,IN) = (
       OUT# = vector(##OUT#_spectrum);
-      OUT#_alphas = OUT#_betas = vector(##OUT#_spectrum*OUT#_iterations);
+      OUT#_dots = OUT#_softmaxs = vector(##OUT#_spectrum*OUT#_iterations);
       OUT#_inputs = vector(##OUT#_iterations*size(IN#));
       OUT#_input = IN#;
 
       repeat (OUT#_iterations,k,
-        OUT#_alpha = mul(IN#,OUT#_params,OUT#_spectrum); # dot product with atoms
-        OUT#_beta = softmax(abs(OUT#_alpha),OUT#_temperature)*OUT#_alpha;
-        draw(OUT#_alphas,OUT#_iterations,OUT#_spectrum,1,1,OUT#_alpha,k,0,0,0,1,OUT#_spectrum,1,1);
-        draw(OUT#_betas,OUT#_iterations,OUT#_spectrum,1,1,OUT#_beta,k,0,0,0,1,OUT#_spectrum,1,1);
         draw(OUT#_inputs,OUT#_iterations,size(IN#),1,1,OUT#_input,k,0,0,1,size(IN#),1,1);
+
+       # OUT#_dictionary = crop(OUT#_params,OUT#_spectrum,size(IN#),1,1,
+       #                        k*OUT#_spectrum/OUT#_iterations,0,0,0,
+       #                        OUT#_spectrum/OUT#_iterations,size(IN#),1,1);
+       # OUT#_l_dot = mul(OUT#_input,OUT#_dictionary,OUT#_spectrum/OUT#_iterations); # dot product of signal with all dictionary atoms
+       # OUT#_dot = vector(##OUT#_spectrum);
+       # draw(OUT#_dot,1,OUT#_spectrum,1,1,OUT#_l_dot,0,k*OUT#_spectrum/OUT#_iterations,0,0,1,size(OUT#_l_dot),1,1);
+
+        OUT#_dot = mul(OUT#_input,OUT#_params,OUT#_spectrum); # dot product of signal with all dictionary atoms
+
+        draw(OUT#_dots,OUT#_iterations,OUT#_spectrum,1,1,OUT#_dot,k,0,0,0,1,OUT#_spectrum,1,1);
+        OUT#_softmax = softmax(abs(OUT#_dot),OUT#_temperature);
+        draw(OUT#_softmaxs,OUT#_iterations,OUT#_spectrum,1,1,OUT#_softmax,k,0,0,0,1,OUT#_spectrum,1,1);
+        OUT#_beta = OUT#_softmax*OUT#_dot;
         OUT#+=OUT#_beta;
-        OUT#_input-=mul(OUT#_params,OUT#,1);
+
+        draw(#$OUT#_stats,OUT#_softmax,0,0,0,0,size(OUT#_softmax),1,1,1,-1);
+
+        OUT#_input-=mul(OUT#_params,OUT#_beta,1);
       );
+      OUT#_residual = OUT#_input;
     );
 
     nn_mp_init_backward(OUT) = (
@@ -28391,30 +28489,33 @@ nn_lib :
     );
 
     nn_mp_backward(OUT,IN) = (
+      d#OUT#_params = vector(#size(OUT#_params));
+      d#OUT#_residual = 2*OUT#_residual; # Minimize norm of residual
       OUT#_jacobian = vector(##OUT#_spectrum^2);
 
       repeat (OUT#_iterations,k,
         bk = OUT#_iterations - k - 1;
-        OUT#_alpha = crop(OUT#_alphas,OUT#_iterations,OUT#_spectrum,1,1,bk,0,0,0,1,OUT#_spectrum,1,1);
-        OUT#_beta = crop(OUT#_betas,OUT#_iterations,OUT#_spectrum,1,1,bk,0,0,0,1,OUT#_spectrum,1,1);
+        OUT#_dot = crop(OUT#_dots,OUT#_iterations,OUT#_spectrum,1,1,bk,0,0,0,1,OUT#_spectrum,1,1);
+        OUT#_softmax = crop(OUT#_softmaxs,OUT#_iterations,OUT#_spectrum,1,1,bk,0,0,0,1,OUT#_spectrum,1,1);
 
         # Compute Jacobian matrix.
         p = 0;
         repeat (OUT#_spectrum,i,
           repeat (OUT#_spectrum,j,
-            OUT#_jacobian[p++] = OUT#_beta[i]*(
-              (i==j)*(1 + abs(OUT#_alpha[j])/OUT#_temperature) -
-              sign(OUT#_alpha[i])/OUT#_temperature*OUT#_alpha[j]*OUT#_beta[j]
+            OUT#_jacobian[p++] = OUT#_softmax[i]*(
+              (i==j)*(1 + abs(OUT#_dot[j])/OUT#_temperature) -
+              OUT#_dot[j]*sign(OUT#_dot[i])/OUT#_temperature*OUT#_softmax[j]
             );
           );
         );
 
-        d#OUT#_alpha = mul(OUT#_jacobian,d#OUT);
-        d#OUT#_alpha/=OUT#_iterations;
+        d#OUT#_dot = mul(OUT#_jacobian,d#OUT)/OUT#_iterations;
         OUT#_input = crop(OUT#_inputs,OUT#_iterations,size(IN#),1,1,bk,0,0,0,1,size(IN#),1,1);
-        d#OUT#_params = mul(OUT#_input,d#OUT#_alpha,OUT#_spectrum);
+        d#OUT#_params+=mul(OUT#_input,d#OUT#_dot,OUT#_spectrum);
+        d#OUT#_residual = mul(OUT#_params,d#OUT#_dot) -
+                          mul(OUT#_params,mul(OUT#_jacobian,mul(transpose(OUT#_params,OUT#_spectrum),d#OUT#_residual)));
       );
-      d#IN = mul(OUT#_params,d#OUT#_alpha);
+      d#IN = d#OUT#_residual;
       batch_d#OUT#_params+=d#OUT#_params;
     );
 
@@ -29398,14 +29499,15 @@ nn_maxpool3d : if ['${2=.}']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $i
   _nn_init.="$0 $* "
   _nn_latest=$1
 
-#@cli nn_mp : out,in,nb_atoms>0,_nb_iterations>=0
+#@cli nn_mp : out,in,nb_atoms>0,_nb_iterations>=0,_temperature
 #@cli : Add a 'mp' layer (matching pursuit layer) to the network.
+#@cli : Default values: 'nb_iterations=0' and 'temperature=0.2'.
 nn_mp : if ['$2']=='.' in=$_nn_latest else in=$2 fi nn_check_layer $in
-        check "isvarname('$1') && isint($3,1) && isint(${4=0},0)"
+        check "isvarname('$1') && isint($3,1) && isint(${4=0},0) && ${5=0.2}>0"
   nb_iterations:=$4?$4:$3
-  e[^-1] "[nn_lib] Add 'mp' layer '$1', with input '"$in"', $3 atoms and "$nb_iterations" iterations."
+  e[^-1] "[nn_lib] Add 'mp' layer '$1', with input '"$in"', $3 atoms, "$nb_iterations" iterations and temperature $5."
   init=$_nn_init
-  _nn_mp $1_mp,$in,$3,$nb_iterations
+  _nn_mp $1_mp,$in,$3,$nb_iterations,$5
   nn_rename $1,$1_mp
   _nn_init=${init}"$0 $* "
   _nn_latest=$1
@@ -29417,14 +29519,17 @@ _nn_mp :
   _nn_$1_size=1,1,1,$3
   _nn_$1_learning_mode=1
   _nn_$1_input=$2
-  _nn_$1_properties="nb_iterations=$4"
+  _nn_$1_properties="nb_iterations=$4, temperature=$5"
   if !isint($$1)
     $3,{prod($_nn_$2_size)}
     f. 4*g/(w-1)
     => $1
   fi
+  if !isint($$1_stats)
+    [$1],1,1,1 => $1_stats
+  fi
   [$1],1,1,1,"draw(#-1,unitnorm(crop(#-1,x,1)),x,0,0,0,1,h#-1,1,1)" rm. # Force atoms to have unit norm
-  _nn_forward.="begin(nn_mp_init_forward($1,$2,$4));"\
+  _nn_forward.="begin(nn_mp_init_forward($1,$2,$4,$5));"\
                "nn_mp_forward($1,$2);"
   _nn_backward..="begin(nn_mp_init_backward($1));"\
                  "nn_mp_backward($1,$2);"\
@@ -34032,7 +34137,8 @@ alert : skip "${1=[G"{`39`}"MIC Alert]},${2=This is an alert box.},${3=OK}"
 
     # Create buttons graphics.
     $=arg
-    repeat $#-2 { label=${arg{$>+3}} 0 t. $label,0,0,${"font \"Times New Roman\",18"},1,-200 }
+    l[] { font=${"font \"Times New Roman\",18"} onfail font=18 }
+    repeat $#-2 { label=${arg{$>+3}} 0 t. $label,0,0,$font,1,-200 }
     r[^0] {min(128,max(64,${max_w[^0]}+12))},{min(48,max(24,${max_h[^0]}+12))},1,1,0,0,0.5,0.5
     +[^0] 200 to_rgb[^0]
     mv[0] $!
@@ -34067,7 +34173,7 @@ alert : skip "${1=[G"{`39`}"MIC Alert]},${2=This is an alert box.},${3=OK}"
     +l {
       channels 0,3 sh 1,100% -[50%--1] 200 rm[50%--1] frame xy,8,0
       if $!<6 a[^-1] x else append_tiles[^-1] , fi
-      0 t. "$2",0,0,${"font \"Times New Roman\",18"},1,0,-200,-200,-200 r. {w+16},{h+8},1,4,0
+      0 t. "$2",0,0,$font,1,0,-200,-200,-200 r. {w+16},{h+8},1,4,0
       a[-2,-1] x,0.5 rv a y,0.5
       sh 1,100% +. 200 rm.
       rectangle 0,0,100%,100%,1,0xFFFFFFFF,0
@@ -34140,22 +34246,6 @@ arg2img :
 #@cli : The variable name should be global to make this command useful (i.e. starts by an underscore).
 arg2var :
   $=arg u {$#-1} repeat ${} { $1{1+$>}=${arg{2+$>}} }
-
-#@cli autocrop_coords : value1,value2,... | auto
-#@cli : Return coordinates (x0,y0,z0,x1,y1,z1) of the autocrop that could be performed on the latest
-#@cli : of the selected images.
-#@cli : Default value: 'auto'
-autocrop_coords : skip ${1=auto}
-  is_auto:=['"$1"']=='auto'
-  w,h,d,value={w},{h},{d},{i(w-1,h-1,d-1)}
-  +=. {1+$value},100%,100%,100% _autocrop$is_auto. ${1--1} =. $value,100%,100%,100%
-  x0,y0,z0:=$w-w,$h-h,$d-d
-  _autocrop$is_auto. ${1--1}
-  x1,y1,z1:=$x0+w-1,$y0+h-1,$z0+d-1 rm.
-  u $x0,$y0,$z0,$x1,$y1,$z1
-
-_autocrop0 : autocrop $*
-_autocrop1 : skip $* autocrop
 
 #@cli average_vectors
 #@cli : Return the vector-valued average of the latest of the selected images.
@@ -37661,7 +37751,8 @@ x_fire : skip "${1=}" check_display $0
   if {*,w}<0.5*{*,u} w[] {[{*,w},{*,h}]*1.5} fi
   i[1] (0,255,255,255,255^0,0,255,255,255^0,0,0,128,255) r[1] 256,1,1,3,3
   i[2] (0,0,0;0,0,0;1,1,1;0,1,0) *[2] 0.21
-  text3d $label,${"font macondo,50"},8,1
+  l[] { font=${"font macondo,50"} onfail font=50 }
+  text3d $label,$font,8,1
   mv. 3 c3d[3] n3d[3] *3d[3] 320 col3d[3] 255,205,130 db3d 0 f3d 300
   100,100 rand. 0,255 ellipse. 50%,50%,5,5,0,1,300 b. 10
   sharpen. 1000 shrink. xy,1 n. 0,255 to_rgb. light3d . rm.
@@ -38612,7 +38703,8 @@ x_light : check_display $0
 -------------------------------------------"
 
   # Create warping and color images.
-  0 t. "    G\47MIC\nLight effect",0,0,${"font \"Acme\",120"},1,255 expand. xy,15 b. 3
+  l[] { font=${"font \"Acme\",120"} onfail font=120 }
+  0 t. "    G\47MIC\nLight effect",0,0,$font,1,255 expand. xy,15 b. 3
   . n.. 0,1 r.. 100%,100%,1,3
   sh.. 0 *. 120 rm.
   sh.. 1 *. 70 rm.
@@ -38894,7 +38986,8 @@ x_metaballs3d : check_display $0
     N:=i[7] (255,255,150;200,96,164;50,150,230) r. 3,$N,1,1,3 y. j.. .,0,{{-2,h}-4*$N} # Do some color tweaks.
     if !$mode circles3d.. 4 fi
     if !{1,w}
-      0 t. ${s$mode},5,5,${"font Sofia,43"},0.5,255,255,255 r. {w+5},100%,1,3,0 b. 0.7 n. 0,255
+      l[] { font=${"font Sofia,43"} onfail font=43 }
+      0 t. ${s$mode},5,5,$font,0.5,255,255,255 r. {w+5},100%,1,3,0 b. 0.7 n. 0,255
       +dilate. 3 +j[0] ..,5,3,0,0,1,.,255 mv. 1 rm[2,-2,-1]
     fi
     +j3d[1] ..,50%,50%,0,1,{!$mode?3:$mode},0,0,300,0,0,-500,0.1,1.5
@@ -39296,9 +39389,11 @@ x_pacman : check_display $0
   }
   time4=255,255,255 time3=255,255,32 time2=255,128,32 time1=255,32,32
   repeat 11 { 0 t. $<" s",0,0,23,1,${time{min(4,round(($<+1)/2))}} => time$< }
-  0 t. "Get Ready!",0,0,${"font Acme,32"},1,255 autocrop. 0 expand. xy,4 +dilate. 8 r.. 100%,100%,1,3
+  l[] { font32,font53,font64=${"font Acme,32"},${"font Acme,53"},${"font Acme,64"}
+        onfail font32,font53,font64=32,53,64 }
+  0 t. "Get Ready!",0,0,$font32,1,255 autocrop. 0 expand. xy,4 +dilate. 8 r.. 100%,100%,1,3
   => get_ready,get_readym
-  0 t. "Game\nOver!",0,0,${"font Acme,53"},1,255 autocrop. 0 expand. xy,4 +dilate. 8 r.. 100%,100%,1,3
+  0 t. "Game\nOver!",0,0,$font53,1,255 autocrop. 0 expand. xy,4 +dilate. 8 r.. 100%,100%,1,3
   => game_over,game_overm
 
   # Start game.
@@ -39331,7 +39426,7 @@ x_pacman : check_display $0
     t. "Lives :",10,0,24,1,255 t. "Score :",{w-140},0,24,1,255
     if $lives +r[pacman_2] 12,12,1,4,2 r. {100*$lives}%,100%,1,4,0,2 j.. .,90,7 rm. fi => visu
     w[visu] {visu,f=h<0.5*{*,v}?1.5:1;[w,h]*=f},0,"[G"{`39`}"MIC] Pacman" cursor[0] 0
-    0 t. "Level "$level,0,0,${"font Acme,64"},1,1 autocrop. 0 expand. xy,4 (0,255^0,255^0,0) +map.. . rm.. dilate.. 8
+    0 t. "Level "$level,0,0,$font64,1,1 autocrop. 0 expand. xy,4 (0,255^0,255^0,0) +map.. . rm.. dilate.. 8
     => levelm_N,level_N
 
     repeat 4 { xg$>:=16*$mw2 yg$>:=16*$mh2+4*$> dg$>=3 mg$>=0 }
