@@ -349,7 +349,7 @@ BOARD_LIBS = -lboard
 # Enable native support of WebP image files, using the WebP library.
 # (https://chromium.googlesource.com/webm/libwebp/)
 WEBP_CFLAGS = -Dcimg_use_webp $(shell pkg-config --cflags libwebp)
-WEBP_LIBS = $(shell pkg-config --libs libwep || echo -lwebp)
+WEBP_LIBS = $(shell pkg-config --libs libwebp || echo -lwebp)
 
 # Define predefined sets of default used flags, depending on the architecture.
 GMIC_STD_CFLAGS = -Dgmic_community $(MANDATORY_CFLAGS) $(ABORT_CFLAGS) $(PARALLEL_CFLAGS) $(FFTW_CFLAGS) $(CURL_CFLAGS) $(PNG_CFLAGS) $(JPEG_CFLAGS) $(TIFF_CFLAGS)
@@ -774,6 +774,7 @@ install:
 	@if [ -f gmic_libc.h ]; then cp -f gmic_libc.h $(DESTDIR)$(PREFIX)/$(INCLUDE)/; fi
 	@if [ -f ../resources/gmic_cluts.gmz ]; then cp -f ../resources/gmic_cluts.gmz $(DESTDIR)$(SHARE)/gmic; fi
 	@if [ -f ../resources/gmic_denoise_cnn.gmz ]; then cp -f ../resources/gmic_denoise_cnn.gmz $(DESTDIR)$(SHARE)/gmic; fi
+	@if [ -f ../resources/gmic_scale2x_cnn.gmz ]; then cp -f ../resources/gmic_scale2x_cnn.gmz $(DESTDIR)$(SHARE)/gmic; fi
 	@if [ -f ../resources/gmic_fonts.gmz ]; then cp -f ../resources/gmic_fonts.gmz $(DESTDIR)$(SHARE)/gmic; fi
 	@if [ -f ../resources/gmic_lightleaks.gmz ]; then cp -f ../resources/gmic_lightleaks.gmz $(DESTDIR)$(SHARE)/gmic; fi
 	@if [ -f ../zart/zart ]; then cp -f ../zart/zart $(DESTDIR)$(PREFIX)/$(BIN); fi

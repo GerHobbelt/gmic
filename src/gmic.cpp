@@ -2449,7 +2449,7 @@ const char *gmic::builtin_commands_names[] = {
   "ifft","image","index","inpaint","input","invert","isoline3d","isosurface3d",
   "keep",
   "label","light3d","line","local","log10","log2",
-  "matchpatch","maxabs","mdiv","median","minabs","mirror","mmul","move","mproj","mul3d","mutex",
+  "matchpatch","maxabs","mdiv","median","minabs","mirror","mmul","move","mproj","mul3d",
   "name","named","network","noarg","noise","normalize",
   "object3d","onfail","output",
   "parallel","pass","permute","point","polygon","progress",
@@ -4618,7 +4618,7 @@ CImg<char> gmic::substitute_item(const char *const source,
               is_substituted = true;
               break;
             case '^' : { // Sequence of all pixel values
-              img.value_string(delimiter).move_to(vs);
+              img.value_string(delimiter,0,"%.17g").move_to(vs);
               if (vs && *vs) { --vs._width; vs.append_string_to(substituted_items,ptr_sub); }
               *substr = 0; is_substituted = true;
             } break;
@@ -4628,7 +4628,7 @@ CImg<char> gmic::substitute_item(const char *const source,
           if (!is_substituted && *feature=='@') { // Subset of values
             if (l_feature>=2) {
               if (feature[1]=='^' && !feature[2]) { // All pixel values
-                img.value_string(delimiter).move_to(vs);
+                img.value_string(delimiter,0,"%.17g").move_to(vs);
                 if (vs && *vs) { --vs._width; vs.append_string_to(substituted_items,ptr_sub); }
                 *substr = 0; is_substituted = true;
               } else {
@@ -6303,14 +6303,13 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
         // Convolve & Correlate.
         if (!std::strcmp("convolve",command) || !std::strcmp("correlate",command)) {
           gmic_substitute_args(true);
-          unsigned int is_normalized = 0, channel_mode = 1, interpolation_type = 0;
+          unsigned int
+            is_normalized = 0, channel_mode = 1;
           int
-            xstart = 0, ystart = 0, zstart = 0,
-            xend = (int)(~0U>>1), yend = (int)(~0U>>1), zend = (int)(~0U>>1),
-            xcenter = (int)(~0U>>1), ycenter = (int)(~0U>>1), zcenter = (int)(~0U>>1);
-          float
-            xstride = 1, ystride = 1, zstride = 1,
-            xdilation = 1, ydilation = 1 , zdilation = 1;
+            xcenter = (int)(~0U>>1), ycenter = (int)(~0U>>1), zcenter = (int)(~0U>>1),
+            xstride = 1, ystride = 1, zstride = 1, xdilation = 1, ydilation = 1 , zdilation = 1,
+            xoffset = 0, yoffset = 0, zoffset = 0, xsize = (int)(~0U>>1), ysize = (int)(~0U>>1), zsize = (int)(~0U>>1);
+
           is_cond = command[2]=='n'; // is_convolve?
           boundary = 1;
           sep = 0;
@@ -6325,22 +6324,26 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                            indices,&boundary,&is_normalized,&channel_mode,&end)==4 ||
                cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d%c",
                            indices,&boundary,&is_normalized,&channel_mode,&xcenter,&ycenter,&zcenter,&end)==7 ||
+               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d%c",
+                           indices,&boundary,&is_normalized,&channel_mode,&xcenter,&ycenter,&zcenter,
+                           &xstride,&ystride,&zstride,&end)==10 ||
                cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d%c",
                            indices,&boundary,&is_normalized,&channel_mode,&xcenter,&ycenter,&zcenter,
-                           &xstart,&ystart,&zstart,&xend,&yend,&zend,&end)==13 ||
-               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f%c",
+                           &xstride,&ystride,&zstride,&xdilation,&ydilation,&zdilation,&end)==13 ||
+               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d%c",
                            indices,&boundary,&is_normalized,&channel_mode,&xcenter,&ycenter,&zcenter,
-                           &xstart,&ystart,&zstart,&xend,&yend,&zend,&xstride,&ystride,&zstride,&end)==16 ||
-               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f%c",
+                           &xstride,&ystride,&zstride,&xdilation,&ydilation,&zdilation,
+                           &xoffset,&yoffset,&zoffset,&end)==16 ||
+               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d%c",
                            indices,&boundary,&is_normalized,&channel_mode,&xcenter,&ycenter,&zcenter,
-                           &xstart,&ystart,&zstart,&xend,&yend,&zend,&xstride,&ystride,&zstride,
-                           &xdilation,&ydilation,&zdilation,&end)==19 ||
-               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%u%c",
-                           indices,&boundary,&is_normalized,&channel_mode,&xcenter,&ycenter,&zcenter,
-                           &xstart,&ystart,&zstart,&xend,&yend,&zend,&xstride,&ystride,&zstride,
-                           &xdilation,&ydilation,&zdilation,&interpolation_type,&end)==20) &&
+                           &xstride,&ystride,&zstride,&xdilation,&ydilation,&zdilation,
+                           &xoffset,&yoffset,&zoffset,&xsize,&ysize,&zsize,&end)==19) &&
               (ind=selection2cimg(indices,images.size(),images_names,"correlate")).height()==1 &&
-              boundary<=3 && channel_mode<=3 && interpolation_type<=1) {
+              boundary<=3 && channel_mode<=3 &&
+              xstride>0 && ystride>0 && zstride>0 &&
+              (xsize==(int)(~0U>>1) || xsize>=0) &&
+              (ysize==(int)(~0U>>1) || ysize>=0) &&
+              (zsize==(int)(~0U>>1) || zsize>=0)) {
 
             *argx = *argy = *argz = *argc = 0;
             if (is_verbose) {
@@ -6349,27 +6352,31 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                 cimg_snprintf(argx,_argx.width(),", kernel center (%d,%d,%d)",
                               (int)xcenter,(int)ycenter,(int)zcenter);
               }
-              if (xstart!=0 || ystart!=0 || zstart!=0 ||
-                  xend!=(int)(~0U>>1) || yend!=(int)(~0U>>1) || zend!=(int)(~0U>>1)) {
-                gmic_use_argy;
-                cimg_snprintf(argy,_argy.width(),", crop coordinates (%d,%d,%d) - (%d,%d,%d)",
-                              xstart,ystart,zstart,xend,yend,zend);
-              }
               if (xstride!=1 || ystride!=1 || zstride!=1) {
-                gmic_use_argz;
-                cimg_snprintf(argz,_argz.width(),", strides (%g,%g,%g)",
+                gmic_use_argy;
+                cimg_snprintf(argy,_argy.width(),", strides (%d,%d,%d)",
                               xstride,ystride,zstride);
               }
               if (xdilation!=1 || ydilation!=1 || zdilation!=1) {
-                gmic_use_argc;
-                cimg_snprintf(argc,_argc.width(),", dilations (%g,%g,%g)",
+                gmic_use_argz;
+                cimg_snprintf(argz,_argz.width(),", dilations (%d,%d,%d)",
                               xdilation,ydilation,zdilation);
+              }
+              if (xoffset!=0 || yoffset!=0 || zoffset!=0) {
+                gmic_use_argc;
+                cimg_snprintf(argc,_argc.width(),", offsets (%d,%d,%d)",
+                              xoffset,yoffset,zoffset);
+              }
+              if (xsize!=(int)(~0U>>1) || ysize!=(int)(~0U>>1) || zsize!=(int)(~0U>>1)) {
+                gmic_use_title;
+                cimg_snprintf(title,_title.width(),", size (%u,%u,%u)",
+                              xsize,ysize,zsize);
               }
             }
 
             print(0,
                   "%s image%s with kernel [%u], %s boundary conditions, "
-                  "with%s normalization, channel mode '%s'%s%s%s%s and %s interpolation.",
+                  "with%s normalization, channel mode '%s'%s%s%s%s%s.",
                   is_cond?"Convolve":"Correlate",
                   gmic_selection.data(),
                   *ind,
@@ -6378,19 +6385,23 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                   channel_mode==0?"all":
                   channel_mode==1?"one for one":
                   channel_mode==2?"partial sum":"full sum",
-                  *argx?argx:"",*argy?argy:"",*argz?argz:"",*argc?argc:"",
-                  interpolation_type?"linear":"nearest-neighbor");
+                  *argx?argx:"",*argy?argy:"",*argz?argz:"",*argc?argc:"",*title?title:"");
+
             const CImg<T> kernel = gmic_image_arg(*ind);
             if (is_cond) {
               cimg_forY(selection,l) gmic_apply(convolve(kernel,boundary,(bool)is_normalized,channel_mode,
-                                                         xcenter,ycenter,zcenter,xstart,ystart,zstart,xend,yend,zend,
-                                                         xstride,ystride,zstride,xdilation,ydilation,zdilation,
-                                                         interpolation_type),false);
+                                                         xcenter,ycenter,zcenter,xstride,ystride,zstride,
+                                                         xdilation,ydilation,zdilation,xoffset,yoffset,zoffset,
+                                                         xsize==(int)(~0U>>1)?~0U:(unsigned int)xsize,
+                                                         ysize==(int)(~0U>>1)?~0U:(unsigned int)ysize,
+                                                         zsize==(int)(~0U>>1)?~0U:(unsigned int)zsize),false);
             } else {
               cimg_forY(selection,l) gmic_apply(correlate(kernel,boundary,(bool)is_normalized,channel_mode,
-                                                          xcenter,ycenter,zcenter,xstart,ystart,zstart,xend,yend,zend,
-                                                          xstride,ystride,zstride,xdilation,ydilation,zdilation,
-                                                          interpolation_type),false);
+                                                          xcenter,ycenter,zcenter,xstride,ystride,zstride,
+                                                          xdilation,ydilation,zdilation,xoffset,yoffset,zoffset,
+                                                          xsize==(int)(~0U>>1)?~0U:(unsigned int)xsize,
+                                                          ysize==(int)(~0U>>1)?~0U:(unsigned int)ysize,
+                                                          zsize==(int)(~0U>>1)?~0U:(unsigned int)zsize),false);
             }
           } else arg_error(is_cond?"convolve":"correlate");
           is_change = true;
@@ -7013,7 +7024,7 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
             CImg<double> output;
             img.eval(output,name,0,0,0,0,&images);
             if (output.height()>1) // Vector-valued result
-              output.value_string().move_to(status);
+              output.value_string(',',0,"%.17g").move_to(status);
             else { // Scalar result
               gmic_use_formula;
               cimg_snprintf(formula,_formula.width(),"%.17g",*output);
@@ -8913,24 +8924,6 @@ gmic& gmic::_run(const CImgList<char>& commands_line, unsigned int& position,
                                 "Divide matrix/vector%s by expression %s",
                                 gmic_selection.data(),gmic_argument_text_printed(),
                                 "Divide matrix/vector%s");
-
-        // Manage mutexes.
-        if (!is_get && !std::strcmp("mutex",item)) {
-          gmic_substitute_args(false);
-          unsigned int number, is_lock = 1;
-          if ((cimg_sscanf(argument,"%u%c",
-                           &number,&end)==1 ||
-               cimg_sscanf(argument,"%u,%u%c",
-                           &number,&is_lock,&end)==2) &&
-              number<256 && is_lock<=1) {
-            print(0,"%s mutex #%u.",
-                  is_lock?"Lock":"Unlock",number);
-            if (is_lock) gmic_mutex().lock(number);
-            else gmic_mutex().unlock(number);
-          } else arg_error("mutex");
-          ++position;
-          continue;
-        }
 
         goto gmic_commands_others;
 
