@@ -211,16 +211,17 @@ endif
 
 # Enable optimizations for 'cli'.
 FLTO = -flto
-OPT_CFLAGS =
 ifdef IS_GCC
-OPT_CFLAGS += -O3 -mtune=generic # $(FLTO)
-OPT_LIBS = # $(FLTO)
+OPT_CFLAGS = -O3 -mtune=generic # '-Ofast' makes things unstable
+OPT_LIBS = # ${FLTO}
 endif
 ifdef IS_CLANG
-OPT_CFLAGS += -O3 -mtune=generic # $(FLTO)
+OPT_CFLAGS = -O3 -mtune=generic --stdlib=libc++ # '-Ofast' makes things unstable
+OPT_LIBS = ${FLTO}
 endif
 ifdef icpc
-OPT_CFLAGS += -fast
+OPT_CFLAGS = -fast
+OPT_LIBS =
 endif
 
 # Enable multi-threading support.
@@ -229,7 +230,7 @@ ifneq ($(OS),Windows)
 PARALLEL_LIBS = -lpthread
 endif
 
-# Enable parallelization in CImg, using OpenMP.
+# Enable parallelization, using OpenMP.
 # (http://www.openmp.org/)
 ifdef IS_CLANG
 OPENMP_CFLAGS = -I/usr/lib/gcc/x86_64-linux-gnu/9/include -Dcimg_use_openmp -fopenmp=libomp
@@ -385,7 +386,7 @@ else
 endif
 endif
 	@echo "**"
-	$(MAKE) lib cli gimp gmic_qt libc zart
+	$(MAKE) lib cli gimp gmic_qt libc
 
 native:
 	$(MAKE) "CFLAGS+=$(GMIC_STD_CFLAGS) -O3 -march=native" "LIBS+=$(GMIC_STD_LIBS)" cli
