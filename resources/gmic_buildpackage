@@ -43,7 +43,7 @@
 
 # Handle package building on Windows.
 #------------------------------------
-if [ "$OSTYPE" == "msys" ]; then
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
 
     # Determine 32/64 bits architecture.
     arch=$(uname -m)
@@ -52,6 +52,7 @@ if [ "$OSTYPE" == "msys" ]; then
     else
         BITS=32
     fi
+
     echo
     echo " - Build G'MIC packages for Windows ($BITS bits)."
 
