@@ -3595,8 +3595,9 @@ gmic& gmic::add_commands(const char *const data_commands, const char *const comm
     if (is_plus) *s_name = '+';
     *ns_name = sep = 0;
 
-    const unsigned int prev_hash = hash, prev_pos = pos;
     const char *const prev_ptr_body = ptr_body;
+    const unsigned int prev_hash = hash;
+    unsigned int prev_pos = pos;
 
     if ((!is_last_slash && std::strchr(lines,':') && // Check for a command definition (or implicit '_main_')
          cimg_sscanf(nlines,"%255[a-zA-Z0-9_] %c%262143[^\n]",ns_name,&sep,s_body.data())>=2 &&
@@ -3622,10 +3623,13 @@ gmic& gmic::add_commands(const char *const data_commands, const char *const comm
         std::memcpy(nbody.data() + l_debug_info + 2,body.data(),body._width);
         nbody.move_to(body);
       }
+
       if (!search_sorted(s_name,command_names[hash],command_names[hash].size(),pos)) {
         command_names[hash].insert(1,pos);
         commands[hash].insert(1,pos);
         command_has_arguments[hash].insert(1,pos);
+        if (prev_hash==hash && prev_pos!=~0U && prev_pos>=pos)
+          ++prev_pos; // Make sure 'prev_pos' still links to the desired command
         if (count_new) ++*count_new;
       } else if (count_replaced) ++*count_replaced;
 
@@ -3662,7 +3666,7 @@ gmic& gmic::add_commands(const char *const data_commands, const char *const comm
   }
 
   if (hash!=~0U && pos!=~0U && ptr_body) { // Freeze body of latest processed command
-    if (commands[hash][pos].end() - ptr_body>256)
+    if (true || commands[hash][pos].end() - ptr_body>256)
       commands[hash][pos].resize(ptr_body - commands[hash][pos].data() + 1,1,1,1,0);
     else
       commands[hash][pos]._width = ptr_body - commands[hash][pos].data() + 1;
@@ -4179,75 +4183,6 @@ gmic& gmic::_gmic(const char *const command_line,
   return *this;
 }
 bool gmic::is_display_available = false;
-
-// Display plots of selected images.
-//----------------------------------
-template<typename T>
-gmic& gmic::display_plots(CImgList<T>& images, CImgList<char>& image_names,
-                          const unsigned int *const variable_sizes,
-                          const CImg<unsigned int>& selection,
-                          const unsigned int plot_type, const unsigned int vertex_type,
-                          const double xmin, const double xmax,
-                          const double ymin, const double ymax,
-                          const bool exit_on_anykey) {
-  if (!images || !image_names || !selection) { print(0,"Plot image []."); return *this; }
-  const bool is_verbose = verbosity>=1 || is_debug;
-  CImg<char> gmic_selection;
-  if (is_verbose) selection2string(selection,image_names,1,gmic_selection);
-
-  // Check for available display.
-  if (!is_display_available) {
-    cimg::unused(plot_type,vertex_type,xmin,xmax,ymin,ymax,exit_on_anykey);
-    print(0,"Plot image%s (console output only, no display %s).",
-          gmic_selection.data(),cimg_display?"available":"support");
-    CImgList<char> ncommand_line;
-    unsigned int nposition = 0;
-    CImg<char>::string("").move_to(callstack); // Anonymous scope
-    CImg<char>::string("_print_no_header").move_to(ncommand_line);
-    _run(ncommand_line,nposition,images,image_names,images,image_names,variable_sizes,0,0,0,false);
-    callstack.remove();
-    return *this;
-  }
-
-  CImgList<unsigned int> empty_indices;
-  cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
-    CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
-  if (empty_indices && is_verbose) {
-    CImg<char> eselec;
-    selection2string(empty_indices>'y',image_names,1,eselec);
-    warn(0,"Command 'plot': Image%s %s empty.",
-         eselec.data(),empty_indices.size()>1?"are":"is");
-  }
-
-  CImg<char> gmic_names;
-  if (is_verbose) selection2string(selection,image_names,2,gmic_names);
-  print(0,"Plot image%s = '%s'.",
-        gmic_selection.data(),gmic_names.data());
-
-  CImgDisplay _disp, &disp = gmic_display_window(0)?gmic_display_window(0):_disp;
-  bool is_first_line = false;
-  cimg_forY(selection,l) {
-    const unsigned int uind = selection[l];
-    const CImg<T>& img = images[uind];
-    if (img) {
-      if (is_verbose && !is_first_line) {
-        cimg::mutex(29);
-        std::fputc('\n',cimg::output());
-        std::fflush(cimg::output());
-        cimg::mutex(29,0);
-        is_first_line = true;
-      }
-      img.print(image_names[uind].data());
-      if (!disp) disp.assign(cimg_fitscreen(CImgDisplay::screen_width()/2,CImgDisplay::screen_height()/2,1),0,0);
-      img.display_graph(disp.set_title("%s (%dx%dx%dx%d)",
-                                       basename(image_names[uind]),
-                                       img.width(),img.height(),img.depth(),img.spectrum()),
-                        plot_type,vertex_type,0,xmin,xmax,0,ymin,ymax,exit_on_anykey);
-      if (is_verbose) nb_carriages_default = 0;
-    }
-  }
-  return *this;
-}
 
 // Substitute '{}' and '$' expressions in a string.
 //--------------------------------------------------
