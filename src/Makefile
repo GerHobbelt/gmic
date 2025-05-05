@@ -306,6 +306,11 @@ endif
 JPEG_CFLAGS = -Dcimg_use_jpeg $(shell pkg-config --cflags libjpeg)
 JPEG_LIBS = $(shell pkg-config --libs libjpeg || echo -ljpeg)
 
+# Enable native support of JPEG XL image files, using the JXL library.
+# (https://en.wikipedia.org/wiki/JPEG_XL)
+JXL_CFLAGS = -Dcimg_use_jxl $(shell pkg-config --cflags libjxl)
+JXL_LIBS = $(shell pkg-config --libs libjxl || echo -ljxl)
+
 # Enable native support of TIFF image files, using the TIFF library.
 # (http://www.libtiff.org/)
 TIFF_CFLAGS = -Dcimg_use_tiff $(shell pkg-config --cflags libtiff-4)
@@ -489,10 +494,10 @@ gmic.o: gmic.cpp gmic.h gmic_stdlib_community.h CImg.h
 
 # Testing builds.
 #
-sdl3:
+cli_sdl3:
 	$(MAKE) "DISPLAY_CFLAGS=$(SDL3_CFLAGS)" "DISPLAY_LIBS=$(SDL3_LIBS)" cli
 
-sdl3_opencv:
+opencv_sdl3:
 	$(MAKE) "DISPLAY_CFLAGS=$(SDL3_CFLAGS)" "DISPLAY_LIBS=$(SDL3_LIBS)" opencv
 
 # CLI (shared)
@@ -641,12 +646,20 @@ gimp_debug:  gmic_qt_files CImg.h gmic_stdlib_community.h
 	cd ../gmic-qt && $(QMAKE) CONFIG+=debug GMIC_PATH=$(SRC_PATH) ASAN=on PRERELEASE=$(PRERELEASE) GMIC_DYNAMIC_LINKING=off HOST=gimp gmic_qt.pro && $(MAKE)
 	@echo "Executable 'gmic_gimp_qt' has been successfully compiled in '../gmic-qt/'."
 
+gimp_sdl3: gmic_qt_files CImg.h gmic_stdlib_community.h
+	cd ../gmic-qt && $(QMAKE) CONFIG+=release SDL3=on GMIC_PATH=$(SRC_PATH) PRERELEASE=$(PRERELEASE) GMIC_DYNAMIC_LINKING=off HOST=gimp gmic_qt.pro && $(MAKE)
+	@echo "Executable 'gmic_gimp_qt' has been successfully compiled in '../gmic-qt/'."
+
 gmic_qt: gmic_qt_files CImg.h gmic_stdlib_community.h
 	cd ../gmic-qt && $(QMAKE) CONFIG+=release GMIC_PATH=$(SRC_PATH) PRERELEASE=$(PRERELEASE) GMIC_DYNAMIC_LINKING=off HOST=none gmic_qt.pro && $(MAKE)
 	@echo "Executable 'gmic_qt' has been successfully compiled in '../gmic-qt/'."
 
 gmic_qt_debug: gmic_qt_files CImg.h gmic_stdlib_community.h
 	cd ../gmic-qt && $(QMAKE) CONFIG+=debug GMIC_PATH=$(SRC_PATH) ASAN=on PRERELEASE=$(PRERELEASE) GMIC_DYNAMIC_LINKING=off HOST=none gmic_qt.pro && $(MAKE)
+	@echo "Executable 'gmic_qt' has been successfully compiled in '../gmic-qt/'."
+
+gmic_qt_sdl3: gmic_qt_files CImg.h gmic_stdlib_community.h
+	cd ../gmic-qt && $(QMAKE) CONFIG+=release SDL3=on GMIC_PATH=$(SRC_PATH) PRERELEASE=$(PRERELEASE) GMIC_DYNAMIC_LINKING=off HOST=none gmic_qt.pro && $(MAKE)
 	@echo "Executable 'gmic_qt' has been successfully compiled in '../gmic-qt/'."
 
 gmic_qt_files:

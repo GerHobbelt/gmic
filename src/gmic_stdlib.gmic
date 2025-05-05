@@ -683,11 +683,11 @@ reference : skip "${2=}"
 "'abs()', 'acos()', 'acosh()', 'arg()', 'arg0()', 'argkth()', 'argmax()', 'argmaxabs()', "\
 "'argmin()', 'argminabs()', 'asin()', 'asinh()', 'atan()', 'atan2()', 'atanh()', 'avg()', 'bool()', 'cbrt()', "\
 "'ceil()', 'cos()', 'cosh()', 'cut()', 'deg2rad()', 'erf()', 'erfinv()', 'exp()', 'fact()', 'fibo()', 'floor()', "\
-"'gamma()', 'gauss()', 'gcd()', 'hypot()', 'int()', 'isconst()', 'isfinite()', 'isnan()', 'isnum()', 'isinf()', "\
-"'isint()', 'isbool()', 'isexpr()', 'isfile()', 'isdir()', 'isin()', 'kth()', 'lcm()', 'log()', 'log2()', 'log10()', "\
-"'max()', 'maxabs()', 'med()', 'min()', 'minabs()', 'narg()', 'prod()', 'rad2deg()', 'rol()' (left bit rotation), "\
-"'ror()' (right bit rotation), 'round()', 'sign()', 'sin()', 'sinc()', 'sinh()', 'sqrt()', 'std()', 'srand(_seed)', "\
-"'sum()', 'tan()', 'tanh()', 'var()', 'xor()'."\n\
+"'frac()', 'gamma()', 'gauss()', 'gcd()', 'hypot()', 'int()', 'isconst()', 'isfinite()', 'isnan()', 'isnum()', "\
+"'isinf()', 'isint()', 'isbool()', 'isexpr()', 'isfile()', 'isdir()', 'isin()', 'kth()', 'lcm()', 'log()', 'log2()', "\
+"'log10()', 'max()', 'maxabs()', 'med()', 'min()', 'minabs()', 'narg()', 'prod()', 'rad2deg()', "\
+"'rol()' (left bit rotation), 'ror()' (right bit rotation), 'round()', 'sign()', 'sin()', 'sinc()', 'sinh()', "\
+"'sqrt()', 'std()', 'srand(_seed)', 'sum()', 'tan()', 'tanh()', 'var()', 'xor()'."\n\
 \n\
 "* 'cov(A,B,_avgA,_avgB)' estimates the covariance between vectors 'A' and 'B' (estimated averages of these vectors "\
 "may be specified as arguments)."\n\
@@ -718,6 +718,8 @@ reference : skip "${2=}"
 "* 'vargkth()', 'vargmin()', 'vargmax()', 'vargminabs()', 'vargmaxabs()', 'vavg()', 'vkth()', 'vmin()', "\
 "'vmax()', 'vminabs()', 'vmaxabs()', 'vmed()', 'vprod()', 'vstd()', 'vsum()' and 'vvar()' are the versions of the "\
 "previous function with vector-valued arguments."\n\
+"* 'wave(x,type)' defines a periodic function, period 1, with values in [-1,1]. "\
+"'type' sets the waveform. It can be { 0:Square | 1:Triangle | 2:Sawtooth | 3:Sine }."\n\
 "* 'round(value,rounding_value,direction)' returns a rounded value. 'direction' can be "\
 "{ -1:To-lowest | 0:To-nearest | 1:To-highest }."\n\
 "* 'softmax(V,_temperature)' and 'softmin(V,_temperature)' respectively returns the softmax and softmin of specified "\
@@ -725,7 +727,8 @@ reference : skip "${2=}"
 "* 'softargmax(V,_temperature)' and 'softargmin(V,_temperature)' respectively returns the softargmax and softargmin "\
 "of specified vector 'V'. Default value for 'temperature' is 1."\n\
 "* 'lerp(a,b,t)' returns 'a*(1-t)+b*t'."\n\
-"* 'swap(a,b)' swaps the values of the given arguments."\n\
+"* 'swap(a,b)' swaps the values of the given arguments. 'swap(#ind,pos0,pos1,_is_vector)' swaps pixels of image "\
+"'[ind]', located at offsets 'pos0' and 'pos1'."\n\
 "## Predefined variable names:"\n\
 "Variable names below are pre-defined. They can be overridden though."\n\
 "* 'l': length of the associated list of images."\n\
@@ -3071,6 +3074,8 @@ _display : skip ${1=},${3=}
     fi
 
     # Render global view.
+    if $window_no_wait rmn window_view fi # Force window paint to get events managed with SDL3-based display
+
     if !0$window_view
       $window_width,$window_height,1,3 => window_view
       if $thumb_is_visible
@@ -3115,8 +3120,9 @@ _display : skip ${1=},${3=}
         j[window_view] [canvas_label_notification],1~,0,0,0,{min(1,$notification_opacity)},.,255
         rm.
         window_no_wait=1
+      else
+        window_no_wait=0
       fi
-
       w[window_view]
     fi
 
@@ -12556,14 +12562,13 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=350,351,352,353
-#  versions=354
+  versions=350,351,352,353,354,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
 
-  files=${},https://gmic.eu/gmic_stdlib.353
-#  files=${},$HOME/work/src/gmic/src/gmic_stdlib.gmic
+#  files=${},https://gmic.eu/gmic_stdlib.353
+  files=${},$HOME/work/src/gmic/src/gmic_stdlib.gmic
 
   repeat narg($files) { l[] {
     file=${"arg0 $>,"$files}
