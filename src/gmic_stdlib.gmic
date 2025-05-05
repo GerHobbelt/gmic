@@ -23486,19 +23486,22 @@ thickcircle : check "${4=3}>=0" skip ${5=1},${6=0}
 #@cli : Draw specified colored thick outlined N-vertices polygon on selected images.
 #@cli : If 'thickness<0', the command draws an open polygon rather than a closed polygon.
 #@cli : Default values: 'thickness=3', 'opacity=1', and 'color1=0'.
-#@cli : $ image.jpg thickpolygon 4,20%,20%,80%,30%,80%,70%,20%,80%,3,1,0,255,0
-#@cli : $ image.jpg 2,16,1,1,'u(x?h#0:w#0)' thickpolygon[-2] [-1],3,1,255,0,255 remove[-1]
+#@cli : $ image.jpg thickpolygon 4,20%,20%,80%,30%,80%,70%,20%,80%,5,1,0,255,0
+#@cli : $ image.jpg 2,16,1,1,'u(x?h#0:w#0)' thickpolygon[-2] [-1],5,1,255,0,255 remove[-1]
 thickpolygon : check "(isnum($1) && isint($1,1)) || "${"is_image_arg $1"}
+
+  # Parse argument list.
   $=arg
   if isnum($1) # Coordinates explicitely set in arguments
-    N=$1 x0,y0=${2,3} k,ind=1,4 repeat $N-1 { x$k,y$k=${arg$ind},${arg{$ind+1}} k+=1 ind+=2 }
+    N=$1 x0,y0=${2,3} k,ind=1,4 repeat $N-1 { x$k,y$k=${arg$ind},${arg{$ind+1}} k+=1 ind+=2 } vertices=
   else # Coordinates specified as an image
-    pass$1 N:=whds/2 repeat $N { x$>,y$>:=i[2*$>],i[2*$>+1] } rm. ind=2
+    pass$1 N:=int(whds/2) r. 2,$N,1,1,-1 permute. yzcx round. store. vertices ind=2
   fi
   thickness,is_open,opacity,color=3,0,1,0
   if $ind<=$#
-    thickness=${arg$ind} ind+=1
+    thickness:=${arg$ind} ind+=1
     if $thickness<0 thickness*=-1 is_open=1 fi
+    thickness:=round($thickness)
     if $ind<=$#
       opacity=${arg$ind} ind+=1
       if $ind<=$#
@@ -23509,14 +23512,32 @@ thickpolygon : check "(isnum($1) && isint($1,1)) || "${"is_image_arg $1"}
   e[^-1] "Draw "$N"-vertices thick outlined polygon on image [0], with thickness "$thickness", opacity "$opacity" and "\
     "color "($color)"."
   if !$thickness||!$opacity return fi
+  thickness2:="int($thickness/2)"
 
+  # Draw polygon.
   foreach {
-    vertices,c= repeat $N { vertices.=$c${x$>},${y$>} c=, }
-    +f 0 100%,100%
-    polygon.. $N,$vertices,1,0xFFFFFFFF,$color
-    polygon. $N,$vertices,1,0xFFFFFFFF,1
-    dilate[-2,-1] $thickness
-    j[0] ..,0,0,0,0,$opacity,.
+
+    # Determine polygon coordinates and bounding box.
+    if narg($vertices)
+      $vertices
+    else
+      $N,1,1,2
+      repeat $N {
+        x,y=${x$>},${y$>}
+        x,y={0,round([ispercentage($x)?w*$x:$x,ispercentage($y)?h*$y:$y])}
+        point. $>,0,0,1,$x,$y
+      }
+    fi
+    s. c
+    xm,xM={-2,cut([im-$thickness2,iM+$thickness2],0,w#0)}
+    ym,yM:=cut([im-$thickness2,iM+$thickness2],0,h#0)
+    -.. $xm -. $ym
+    y[-2,-1] a[-2,-1] x
+
+    # Draw dilated polygon.
+    {[$xM-$xm,$yM-$ym]+1} polygon. ..,1,${"if $is_open u - else u \"\" fi"}0xFFFFFFFF,1 distance. 1 le. {$thickness/2}
+    if !($thickness%2) r. {[w,h]+1},1,1,0 erode. 2 fi
+    100%,100%,1,{0,s} fc. $color j[0] .,$xm,$ym,0,0,$opacity,..
     k[0]
   }
 
