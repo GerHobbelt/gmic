@@ -5,7 +5,7 @@
 /* Global look. */
 
 body {
-    width: 1024px;
+    width: 1280px;
     color: #222222;
     /* background-color: #707090; */
     background-color: #303050;
@@ -521,7 +521,6 @@ hr {
 }
 
 .header {
-    width: 1000px;
     background-color: white;
     margin-left: auto;
     margin-right: auto;
@@ -530,11 +529,12 @@ hr {
 }
 
 .header h1 {
-    color: #aaaaaa;
+    color: #9999aa;
     text-align: center;
     font-weight: normal;
-    font-size: 115%;
+    font-size: 135%;
     margin-top: 0;
+    padding-bottom: 10px;
 }
 
 .header h2 {
@@ -555,16 +555,15 @@ hr {
 
 .header_instit {
     position: absolute;
-    top: 110px;
-    right: 32px;
+    top: 220px;
+    right: 22px;
 }
 
 .section_title {
-    width: 1000px;
     min-height: 50px;
     margin-left: auto;
     margin-right: auto;
-    background-image: url("img/section_top.png");
+    background-image: url("img/section_top1280.png");
 }
 
 .section_title p {
@@ -578,7 +577,6 @@ hr {
 }
 
 .section_content {
-    width: 1000px;
     margin-left: auto;
     margin-right: auto;
     padding-left: 30px;
@@ -586,28 +584,25 @@ hr {
     padding-top: 10px;
     padding-bottom: 10px;
     box-sizing: border-box;
-    background-image: url("img/section_middle.png");
+    background-image: url("img/section_middle1280.png");
     word-wrap: break-word;
 }
 
 .section_end {
-    width: 1000px;
     height: 10px;
     margin-left: auto;
     margin-right: auto;
-    background-image: url("img/section_bottom.png");
+    background-image: url("img/section_bottom1280.png");
 }
 
 .bloc_start {
-    width: 1000px;
     min-height: 7px;
     margin-left: auto;
     margin-right: auto;
-    background-image: url("img/section_bottom_mirrored.png");
+    background-image: url("img/section_bottom_mirrored1280.png");
 }
 
 .bloc_content {
-    width: 1000px;
     margin-left: auto;
     margin-right: auto;
     padding-left: 30px;
@@ -615,15 +610,14 @@ hr {
     padding-top: 10px;
     padding-bottom: 10px;
     box-sizing: border-box;
-    background-image: url("img/section_middle.png");
+    background-image: url("img/section_middle1280.png");
 }
 
 .bloc_end {
-    width: 1000px;
     height: 10px;
     margin-left: auto;
     margin-right: auto;
-    background-image: url("img/section_bottom.png");
+    background-image: url("img/section_bottom1280.png");
 }
 
 .table_left tr td {
@@ -657,7 +651,7 @@ hr {
 }
 
 .table_download tr:first-child {
-    background-color: #abd5cd;
+    background-color: #bcaaf5;
     border-top: 1px solid darkgrey;
     border-bottom: 1px solid darkgrey;
 }
@@ -753,6 +747,8 @@ hr {
 #cssmenu {
     text-align: center;
     background-color: #dddddd;
+    padding-top: 10px;
+    padding-bottom: 5px;
 }
 
 #cssmenu > ul,
@@ -810,7 +806,7 @@ hr {
 /* Theme Styles */
 #cssmenu > ul {
     font-family: Calibri, Tahoma, Arial, sans-serif;
-    font-size: 14px;
+    font-size: 18px;
     background: #dddddd;
     width: auto;
     zoom: 1;
@@ -852,7 +848,7 @@ hr {
 #cssmenu > ul li li {
     background-color: #ffffff;
     border-bottom: 1px solid #ebebeb;
-    font-size: 12px;
+    font-size: 16px;
     text-align: left;
 }
 #cssmenu > ul li.hover,
@@ -877,4 +873,77 @@ hr {
 #cssmenu > ul ul {
     border: 1px solid #CCC \9;
     width: 250px;
+}
+
+/* Responsive frame */
+.frame {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1196px;
+  margin: auto;
+}
+
+.top-row, .middle-row, .bottom-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+}
+
+.topleft {
+  background: url("img/sec_topleft.png") no-repeat center / contain;
+  width: 192px;
+  height: 50px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 12px 0 0 20px;
+  box-sizing: border-box;
+}
+
+.topmiddle {
+  background: url("img/sec_topmiddle.png") repeat-x top / auto 100%;
+  height: 50px;
+}
+
+.topright {
+  background: url("img/sec_topright.png") no-repeat center / contain;
+  width: 16px;
+  height: 50px;
+}
+
+.left {
+  background: url("img/sec_left.png") repeat-y left / 100% auto;
+  width: 16px;
+}
+
+.content {
+  background: #f4f6f5;
+  padding: 20px;
+}
+
+.right {
+  background: url("img/sec_right.png") repeat-y right / 100% auto;
+  width: 16px;
+}
+
+.bottomleft {
+  background: url("img/sec_bottomleft.png") no-repeat center / contain;
+  width: 192px;
+  height: 10px;
+}
+
+.bottommiddle {
+  background: url("img/sec_bottommiddle.png") repeat-x bottom / auto 100%;
+  height: 10px;
+}
+
+.bottomright {
+  background: url("img/sec_bottomright.png") no-repeat center / contain;
+  width: 16px;
+  height: 10px;
+}
+
+.frame-title {
+  font-size: 20px;
+  color: #708090;
 }

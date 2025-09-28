@@ -858,7 +858,7 @@ reference : skip "${2=}"
 "## Matrix-valued functions:"\n\
 "A `MN`-dimensional vector may be seen as a `M` x `N` matrix and used in those particular functions/operators: "\
 "'*' (matrix-vector multiplication), 'det(A)' (determinant), 'diag(V)' (diagonal matrix from a vector), "\
-"'eigen(A)' (eigenvalues/eigenvectors), 'eye(n)' (n x n identity matrix), 'invert(A,_nb_colsA,_use_LU,_lambda)' "\
+"'eig(A)' (eigenvalues/eigenvectors), 'eye(n)' (n x n identity matrix), 'invert(A,_nb_colsA,_use_LU,_lambda)' "\
 "(matrix inverse), 'mul(A,B,_nb_colsB)' (matrix-matrix multiplication), "\
 "'rot(u,v,w,angle)' (3D rotation matrix), 'rot(angle)' (2D rotation matrix), "\
 "'solve(A,B,_nb_colsB,_use_LU)' (solver of linear system A.X = B), 'svd(A,_nb_colsA)' (singular value decomposition), "\
@@ -2091,7 +2091,8 @@ _display : skip ${1=},${3=}
                                     cut(int(0$_display_3d_motion_rendering_mode),-1,5):\
                                     narg($_moded3d)?cut(int(0$_moded3d),-1,5):3
   setting_3d_motion_time_limit:=narg($_display_3d_motion_time_limit)?max(0$_display_3d_motion_time_limit,0):300
-  setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):0
+  setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):\
+                        narg($_double3d)?$_double3d:1
   setting_3d_is_zbuffer:=narg($_display_3d_is_zbuffer)?cut(int(0$_display_3d_is_zbuffer),0,1):1
   setting_3d_focale:=narg($_display_3d_focale)?0$_display_3d_focale:1.5
   setting_3d_is_axes:=narg($_display_3d_is_axes)?cut(int(0$_display_3d_is_axes),0,1):1
@@ -4674,7 +4675,7 @@ _display_tensors : check "${1=16}>0 && ${2=1.5}>=0 && isint(${3=2},0,2) && ${4=2
       "${-math_lib}"
       X = ([ x,y ]+=0.5)*$1;
       T = [ R, G, G, B ];
-      E = eigen(T);
+      E = eig(T);
       r1 = E[0];
       r2 = E[1];
       ang = atan2(E[3],E[2])*180/pi;
@@ -6468,7 +6469,7 @@ parse_cli_html :
       if ['$category']!=['$p_category']
         strvar $category category_id=${}
         if $is_tr
-          if $n%5" && "$row>1 html.="        <td colspan=\""{5-$n%5}"\"></td>"\n fi
+          if $n%7" && "$row>1 html.="        <td colspan=\""{7-$n%7}"\"></td>"\n fi
           html.="      </tr>"\n is_tr=0
         fi
         if $is_table html.="    </table><br/>"\n is_table=0 fi
@@ -6482,7 +6483,7 @@ parse_cli_html :
       fi
       if !${parse_cli_is_eqto.}
         is_builtin:="find(#-1,'(+)')>=0"
-        if !($n%5)
+        if !($n%7)
           if $is_tr html.="      </tr>"\n fi
           html.="      <tr>"\n
           is_tr=1 row+=1
@@ -6499,7 +6500,7 @@ parse_cli_html :
     }
   }
   if $is_tr
-    if $n%5" && "$row>1 html.="        <td colspan=\""{5-$n%5}"\"></td>"\n fi
+    if $n%7" && "$row>1 html.="        <td colspan=\""{7-$n%7}"\"></td>"\n fi
     html.="      </tr>"\n
   fi
   if $is_table html.="    </table>"\n fi
@@ -12710,7 +12711,7 @@ upload_filters :
     um parse_gui_trigger_update
 
     if inrange(date(4),7,21) url=http://bit.ly/2uaBRMB
-    else url=https://ko-fi.com/gmic_eu
+    else url=https://bit.ly/kofi_gmic
     fi
     replace_str "<i>David Tschumperlé</i>","<i><a href=\""$url"\">David Tschumperlé</a></i>"
     is_nonnative_preview_removed=0
@@ -15814,8 +15815,8 @@ _match_pca :
          cov = [ "${"covariance_vectors[0] _avg"}" ];
          avg_ref = [ "$_avg_ref" ];
          avg = [ "$_avg" ];
-         eig_ref = eigen(cov_ref);
-         eig = eigen(cov);
+         eig_ref = eig(cov_ref);
+         eig = eig(cov);
          lambda_ref = sqrt(eig_ref[0,s]);
          lambda = 1/sqrt(1e-6 + eig[0,s]);
          repeat (s,k, # Align eigenvectors
@@ -18966,7 +18967,7 @@ denoise_patchpca : check "${1=1.8} && $1>=0 && isint(${2=7},1) && isint(${3=11},
         )
       );
       M/="$M2";
-      eig = eigen(M);
+      eig = eig(M);
       lambda = sqrt(abs(eig[0,"$N2"]));
 
       # Determine number of lambdas to keep and project neighboring patches.
@@ -19175,7 +19176,7 @@ g :
 #@cli : Compute the gradient components (first derivatives) of selected images, along specified axes.
 #@cli : (eq. to 'g').\n
 #@cli : 'scheme' can be { -1:Backward | 0:Centered | 1:Forward | 2:Sobel | 3:Rotation-invariant (default) | \
-# 4:Deriche | 5:Vanvliet }.
+# 4:Deriche | 5:Vanvliet | 6:FB-Maxabs }.
 #@cli : 'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }.
 #@cli : (no arg) compute all significant components.
 #@cli : Default values: 'scheme=0' and 'boundary_conditions=1'.
@@ -19196,8 +19197,7 @@ _gradient_get_args : skip "${1=},${2=},${3=}"
       if !$is_axes axes,scheme,boundary=,0,1 is_noarg=1 # Invalid 1st arg
       elif ['$2']==0 axes,scheme,boundary=$1,0,1 # No 2nd arg
       else
-        is_scheme:="isint($2,-1,5)"
-        if !$is_scheme axes,scheme,boundary=,0,1 is_noarg=1 # Invalid 2nd arg
+        if !isint($2,-1,6) axes,scheme,boundary=,0,1 is_noarg=1 # Invalid 2nd arg
         elif ['$3']==0 axes,scheme,boundary=$1,$2,1 # No 3rd arg
         else
           is_boundary:="isint($3,0,3)"
@@ -19211,7 +19211,7 @@ _gradient_get_args : skip "${1=},${2=},${3=}"
   }
   if ['$axes']!=0 s_axes=" along axes '"$axes"'" fi
   e[0--4] "Compute gradient of image"$_gmic_s$s_axes", with "\
-   ${"arg0 $scheme+1,backward,centered,forward,sobel,rotation-invariant,deriche,vanvliet"}" scheme and "\
+   ${"arg0 $scheme+1,backward,centered,forward,sobel,rotation-invariant,deriche,vanvliet,fb-maxabs"}" scheme and "\
    ${"arg0 $boundary,dirichlet,neumann,periodic,mirror"}" boundary conditions."
   u $axes,$scheme,$boundary,$is_noarg
 
@@ -19243,13 +19243,18 @@ _gradient : skip "${1=}"
         else (-0.5${s}0${s}0.5)
         fi
         +correlate[0] .,$3 rm..
+      elif $2==6 # FB-Maxabs
+        (-1${s}1${s}0) +correlate[0] .,$3 rm..
+        (0${s}-1${s}1) +correlate[0] .,$3 rm..
+        maxabs[-2,-1]
       else # Deriche/Vanvliet
         s4,s5=deriche,vanvliet com=${s$2}
-        if $3<2 +$com[0] 0,1,$a,$3
+        sigma=0.5
+        if $3<2 +$com[0] $sigma,1,$a,$3
         else
-          if _'$a'==_'x' +r[0] {0,[w+2,h,d,s]},0,$3,0.5 $com. 0,1,$a shrink. x,1
-          elif _'$a'==_'y' +r[0] {0,[w,h+2,d,s]},0,$3,0,0.5 $com. 0,1,$a shrink. y,1
-          elif _'$a'==_'z' +r[0] {0,[w,h,d+2,s]},0,$3,0,0,0.5 $com. 0,1,$a shrink. z,1
+          if _'$a'==_'x' +r[0] {0,[w+2,h,d,s]},0,$3,0.5 $com. $sigma,1,$a shrink. x,1
+          elif _'$a'==_'y' +r[0] {0,[w,h+2,d,s]},0,$3,0,0.5 $com. $sigma,1,$a shrink. y,1
+          elif _'$a'==_'z' +r[0] {0,[w,h,d+2,s]},0,$3,0,0,0.5 $com. $sigma,1,$a shrink. z,1
           fi
         fi
       fi
@@ -19258,13 +19263,30 @@ _gradient : skip "${1=}"
     rm[0,1] =>[^] $nm
   }
 
-#@cli gradient_norm
-#@cli : Compute gradient norm of selected images.
+#@cli gradient_norm : _scheme,_boundary_conditions : (no arg)
+#@cli : Compute the gradient norm of selected images.
+#@cli : 'scheme' can be { -1:Backward | 0:Centered | 1:Forward | 2:Sobel | 3:Rotation-invariant (default) | \
+# 4:Deriche | 5:Vanvliet | 6:FB-Maxabs }.
+#@cli : 'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }.
+#@cli : Default values: 'scheme=0' and 'boundary_conditions=1'.
 #@cli : $ image.jpg gradient_norm equalize
 #@cli : $$ https://gmic.eu/oldtutorial/_gradient_norm
-gradient_norm :
-  e[^-1] "Compute gradient norm of image$?."
-  foreach { g sqr s c + sqrt }
+gradient_norm : skip "${1=},${2=}"
+  scheme,boundary=0,1
+  l[] {
+    if "!isint($1,-1,6)" scheme,boundary=0,1 noarg
+    else scheme=$1 if "isint($2,0,3)" boundary=$2 elif "narg($2)" scheme,boundary=0,1 noarg fi
+    fi
+    onfail scheme,boundary=0,1 noarg
+  }
+  e[^-1] "Compute gradient norm of image$?, with "\
+   ${"arg0 $scheme+1,backward,centered,forward,sobel,rotation-invariant,deriche,vanvliet,fb-maxabs"}" scheme and "\
+   ${"arg0 $boundary,dirichlet,neumann,periodic,mirror"}" boundary conditions."
+  foreach {
+    axes={`"a = [ 0,0,0 ]; k = 0; w>1?(a[k++] = _'x'); h>1?(a[k++] = _'y'); d>1?(a[k] = _'z'); a"`}
+    g $axes,$scheme,$boundary
+    sqr s c + sqrt
+  }
 
 #@cli gradient_orientation : _dimension={ 1 | 2 | 3 }
 #@cli : Compute N-d gradient orientation of selected images.
@@ -24573,7 +24595,7 @@ meigen : check "isint($1,1)"
   foreach {
     nm={n}
     if w!=h" || "d!=1" || "s!=1 v 1 error[0--5] "Command 'meigen': Image '"$nm"' is not a square matrix." fi
-    eval ${-math_lib}" store('val',meigen(crop(),$1,h),1,min($1,h))" $val k. => $nm
+    eval ${-math_lib}" store('val',meig(crop(),$1,h),1,min($1,h))" $val k. => $nm
   }
 
 #@cli mproj : [dictionary],_method,_max_iter={ 0:Auto | >0 },_max_residual>=0 : (+)
@@ -25312,7 +25334,7 @@ db3d :
 #@cli double3d : _is_double_sided={ 0:No | 1:Yes }
 #@cli : Enable/disable double-sided mode for 3D rendering.
 #@cli : (eq. to 'db3d').
-#@cli : Default value: 'is_double_sided=0'.
+#@cli : Default value: 'is_double_sided=1'.
 #@cli : $ mode3d 1 repeat 2 { torus3d 100,30 rotate3d[-1] 1,1,0,60 double3d $> snapshot3d[-1] 400 }
 double3d :
   l[] { check "isbool(${1=1})" mode=$1 onfail noarg mode=0 }
@@ -27249,7 +27271,7 @@ tensors3d : check "${1=1}>=0 && isint(${2=2},0) && ${3=0.05}>=0"
     100%,100%,100%,12,"
       T = I(#0);
       M = [ T[0], T[1], T[2], T[1], T[3], T[4], T[2], T[4], T[5] ];
-      eig = eigen(M);
+      eig = eig(M);
       if (det(eig[3,9])<0, eig[3]*=-1; eig[4]*=-1; eig[5]*=-1);
       eig[0] = max(0,eig[0]);
       eig[1] = max(0,eig[1]);
@@ -34138,7 +34160,7 @@ animate : skip ${1=30},${2=0},${3=""},${4=10},${5=1},"${6=}"
     is_same_size={"res = 1; s = [ w#0,h#0 ]; for (k = 1, k<l && res, ++k, res = (s==[ w#k,h#k ]))"}
 
     if $is_volumetric +slices[0] 0 else sh[0] fi
-    w. ${fitscreen[]\ {[w,h]}},1,0,{b}.{x}
+    if {*} w. -1,-1,1,0,{b}.{x} else w. ${fitscreen[]\ {[w,h]},30%},1,0,{b}.{x} fi
     rm.
     nb_frames:=$is_volumetric?d:$!
 
@@ -35686,7 +35708,7 @@ math_lib :
   # Return the 'm' largest eigenvalues of a (large) square matrix A,
   # using the Arnoldi iteration method (https://en.wikipedia.org/wiki/Arnoldi_iteration).
   # A larger 'm' goes with better numerical precision.
-  meigen(A,m,n) = (
+  meig(A,m,n) = (
     unref(meig_m,meig_n);
     const meig_n = n;
     const meig_m = min(m,meig_n);
@@ -35711,7 +35733,7 @@ math_lib :
       meig_nvj<1e-12?break();
       meig_vj/=meig_nvj;
     );
-    eigen(meig_H)[0,m];
+    eig(meig_H)[0,m];
   );
 
   # Dichotomic search : Find x in [xmin,xmax] s.a f(x) = target, with a epsilon-precision
@@ -39809,7 +39831,7 @@ x_metaballs3d : check_display $0
   mix_channels. (0.7,0,0;0,0.9,0;0,0,1.2) c. 0,255 l3d
   0
   24,24,24,1,'X=x-w/2;Y=y-h/2;Z=z-d/2;exp(-(X*X+Y*Y+Z*Z)/100)'
-  72,72,72 M=8 mode=3
+  72,72,72 M=12 mode=3
   s0,s1,s2,s3,s4,s5=Dots,Wireframe,Flat,Flat-shaded,Gouraud-shaded,Phong-shaded
   repeat $M { fx$>,fy$>,fz$>:=2*[g,g,g] }
   w[0] ${"fitscreen [0],40%,70%"},0,"[G'MIC] 3D Metaballs"
@@ -44917,14 +44939,14 @@ fx_doodle : skip "$*"
         repeat (2,dir,
           P = P0;
           oiP = iP = round(P);
-          C = I(#0,P); E = eigen([ C[0], C[1], C[1], C[2] ]); oV = V = (dir?1:-1)*E[4,2];
+          C = I(#0,P); E = eig([ C[0], C[1], C[1], C[2] ]); oV = V = (dir?1:-1)*E[4,2];
 
           while (E[0]>$4^2 && (i(iP)>$5 || oiP==iP),
             i(iP) = 0;
             oiP = iP;
             P+=dt*V;
             iP = round(P);
-            C = I(#0,P,1); E = eigen([ C[0], C[1], C[1], C[2] ]); V = E[4,2];
+            C = I(#0,P,1); E = eig([ C[0], C[1], C[1], C[2] ]); V = E[4,2];
             dot(oV,V)<0?(V*=-1);
             oV = V;
             iP!=oiP?++length;
@@ -45267,7 +45289,7 @@ fx_paint_with_brush :
       if $twist_angle>=0
         f. "begin(Id = eye(2));
             T = [ i0,i1,i1,i2 ];
-            eig = eigen(T);
+            eig = eig(T);
             const ang = $twist_angle°;
             U = lerp(eig[2,2],[ cos(ang),sin(ang) ],$twist_strength%);
             U/=max(1e-8,norm(U));
@@ -45278,7 +45300,7 @@ fx_paint_with_brush :
         100%,100%,1,2 rand. -1,1 b. $coherence orientation.
         f.. "begin(Id = eye(2));
              T = [ i0,i1,i1,i2 ];
-             eig = eigen(T);
+             eig = eig(T);
              U = lerp(eig[2,2],I(#-1),$twist_strength%);
              UUt = mul(U,U,2);
              T = eig[0]*UUt + eig[1]*(Id - UUt);
@@ -45378,7 +45400,7 @@ fx_paint_with_brush :
             for (l = 0, l<stroke_length, l+=spatial_step,
               C = I(#1,X,1);
               T = [ C[0],C[1],C[1],C[2] ];
-              eig = eigen(T);
+              eig = eig(T);
               U = T*U;
               ellipse(#-1,X[0],X[1],brush_size,brush_size*(1 - eig[0] + eig[1]),atan2(U[1],U[0]),1,color);
               X+=spatial_step*U;
@@ -45647,7 +45669,7 @@ fx_quadtree :
         col1 = [ P[6,3],255 ];
         col2 = [ P[6,3],64 ];
         T = [ P[9],P[10],P[10],P[11] ];
-        eig = eigen(T);
+        eig = eig(T);
         angle = atan2(eig[5],eig[4])*180/pi;
         if ((angle>=0 && angle<90) || angle<-90,
           polygon(#0,3,Xpp,Xnp,Xnn,1,col1);
@@ -45670,7 +45692,7 @@ fx_quadtree :
         r = "$radius2"*R;
         R*="$radius1";
         T = [ P[9],P[10],P[10],P[11] ];
-        eig = eigen(T);
+        eig = eig(T);
         anisotropy = (1 + eig[1])/(1 + eig[0]);
         r*=anisotropy^"$anisotropy";
         angle = atan2(eig[5],eig[4])*180/pi;
@@ -49382,7 +49404,7 @@ fx_mix_pca :
 
     # Find value ranges for gamma correction.
     if "$4 || $8 || $12" +l {
-      f "begin(avg = ["$_avg"]; eig = eigen(["$C"]); Pt = eig[3,9]); Pt*(I-avg)"
+      f "begin(avg = ["$_avg"]; eig = eig(["$C"]); Pt = eig[3,9]); Pt*(I-avg)"
       s c repeat $! { vmax$>={$>,1.1*max(abs(im),abs(iM))} }
       rm
     } else vmax0,vmax1,vmax2=1 fi
@@ -49399,7 +49421,7 @@ fx_mix_pca :
          const vmax2 = "$vmax2";
 
          avg = ["$_avg"];
-         eig = eigen(["$C"]);
+         eig = eig(["$C"]);
          for (k = 3, k<12, k+=3, eig[k]<0?copy(eig[k],eig[k,3]*=-1,3));
          Pt = eig[3,9];
          P = transpose(Pt,3);
@@ -62186,6 +62208,8 @@ fx_solve_maze_preview :
 #@cli : $ https://gmic.eu/samples/rotozoom.gmic go _fps=15 _label="Rotozoom"
 #@cli : $ https://gmic.eu/samples/french_flag.gmic go _fps=20 _label="French~Flag"
 #@cli : $ https://gmic.eu/samples/snow.gmic go _fps=20 _label="Snow"
+#@cli : $ https://gmic.eu/samples/fire.gmic go _fps=15 _label="Fire"
+#@cli : $ https://gmic.eu/samples/cube3d.gmic go _fps=20 _label="3D Cube"
 
 # Local Variables:
 # mode: sh
