@@ -1671,14 +1671,6 @@ CImg<T> get_gmic_eval(const char *const expression, CImgList<T> &images) const {
   return (+*this).gmic_eval(expression,images);
 }
 
-CImg<T>& gmic_fill(const char *const expression, CImgList<T> &images) {
-  return _fill(expression,true,3,&images,"eval",0,0);
-}
-
-CImg<T> get_gmic_fill(const char *const expression, CImgList<T> &images) const {
-  return (+*this).gmic_fill(expression,images);
-}
-
 CImg<T>& rol(const char *const expression, CImgList<T> &images) {
   return rol((+*this)._fill(expression,true,3,&images,"rol",this,0));
 }
@@ -2090,7 +2082,8 @@ const CImg<void*> gmic::current_run(const char *const func_name, void *const p_l
     }
     else return CImg<void*>::empty(); // Empty instance can be returned, only when called from 'gmic_current_is_abort()'
   }
-  return grl[p].get_shared(); // Return shared image
+  grl.back().swap(grl[p]); // Make same search faster next time
+  return grl.back().get_shared();
 }
 
 // Return 'is_abort' value related to current G'MIC instance.
@@ -2858,7 +2851,7 @@ bool gmic::init_rc(const char *const custom_path) {
       DeleteFileW(wpath);
       return (bool)CreateDirectoryW(wpath,0);
     }
-#else
+#elif cimg_OS==1
     std::remove(dirname); // In case 'dirname' is already a file
     return !(bool)mkdir(dirname,0777);
 #endif
@@ -3666,7 +3659,7 @@ gmic& gmic::add_commands(const char *const data_commands, const char *const comm
   }
 
   if (hash!=~0U && pos!=~0U && ptr_body) { // Freeze body of latest processed command
-    if (true || commands[hash][pos].end() - ptr_body>256)
+    if (commands[hash][pos].end() - ptr_body>256)
       commands[hash][pos].resize(ptr_body - commands[hash][pos].data() + 1,1,1,1,0);
     else
       commands[hash][pos]._width = ptr_body - commands[hash][pos].data() + 1;
@@ -7570,7 +7563,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             name.assign(argument,(unsigned int)std::strlen(argument) + 1);
             cimg::strpare(name,'\'',true,false);
             strreplace_fw(name);
-            cimg_forY(selection,l) gmic_apply(gmic_fill(name.data(),images),false);
+            cimg_forY(selection,l) gmic_apply(fill(name.data(),true,true,&images),false);
           }
           is_change = true;
           ++position;
