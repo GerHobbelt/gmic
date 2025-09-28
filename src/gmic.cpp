@@ -1452,7 +1452,7 @@ CImg<T>& operator_diveq(const char *const expression, CImgList<T> &images) {
 template<typename t>
 CImg<T>& operator_eq(const t value) {
   if (is_empty()) return *this;
-  cimg_openmp_for(*this,*ptr == (T)value,131072);
+  cimg_openmp_for(*this,*ptr == (T)value,131072,T);
   return *this;
 }
 
@@ -1478,7 +1478,7 @@ CImg<T>& operator_eq(const CImg<t>& img) {
 template<typename t>
 CImg<T>& operator_ge(const t value) {
   if (is_empty()) return *this;
-  cimg_openmp_for(*this,*ptr >= (T)value,131072);
+  cimg_openmp_for(*this,*ptr >= (T)value,131072,T);
   return *this;
 }
 
@@ -1504,7 +1504,7 @@ CImg<T>& operator_ge(const CImg<t>& img) {
 template<typename t>
 CImg<T>& operator_gt(const t value) {
   if (is_empty()) return *this;
-  cimg_openmp_for(*this,*ptr > (T)value,131072);
+  cimg_openmp_for(*this,*ptr > (T)value,131072,T);
   return *this;
 }
 
@@ -1530,7 +1530,7 @@ CImg<T>& operator_gt(const CImg<t>& img) {
 template<typename t>
 CImg<T>& operator_le(const t value) {
   if (is_empty()) return *this;
-  cimg_openmp_for(*this,*ptr <= (T)value,131072);
+  cimg_openmp_for(*this,*ptr <= (T)value,131072,T);
   return *this;
 }
 
@@ -1556,7 +1556,7 @@ CImg<T>& operator_le(const CImg<t>& img) {
 template<typename t>
 CImg<T>& operator_lt(const t value) {
   if (is_empty()) return *this;
-  cimg_openmp_for(*this,*ptr < (T)value,131072);
+  cimg_openmp_for(*this,*ptr < (T)value,131072,T);
   return *this;
 }
 
@@ -1615,7 +1615,7 @@ CImg<T> operator_muleq(const CImg<t>& img) {
 template<typename t>
 CImg<T>& operator_neq(const t value) {
   if (is_empty()) return *this;
-  cimg_openmp_for(*this,*ptr != (T)value,131072);
+  cimg_openmp_for(*this,*ptr != (T)value,131072,T);
   return *this;
 }
 
@@ -2100,7 +2100,7 @@ bool* gmic::current_is_abort() {
 // G'MIC-related functions for the mathematical expression evaluator.
 double gmic::mp_dollar(const char *const str, void *const p_list) {
   if (!(cimg::is_varname(str) ||
-        ((*str=='>' || *str=='<' || *str=='!' || *str=='^' || *str=='|') && !str[1]) ||
+        ((*str=='>' || *str=='<' || *str=='%' || *str=='!' || *str=='^' || *str=='|') && !str[1]) ||
         (*str=='{' && str[1]=='}' && !str[2])))
     throw CImgArgumentException("[" cimg_appname "_math_parser] CImg<>: Operator '$': "
                                 "Invalid variable name '%s'.",
@@ -2113,7 +2113,7 @@ double gmic::mp_dollar(const char *const str, void *const p_list) {
   double res = cimg::type<double>::nan();
 
   switch (*str) {
-    case '>' : case '<' :
+    case '>' : case '<' : case '%' :
       if (gmic_instance.nb_repeatdones || gmic_instance.nb_dowhiles || gmic_instance.nb_fordones ||
           gmic_instance.nb_foreachdones) {
         unsigned int loop_type = 0; // 0=repeatdones, 1=dowhiles, 2=fordones, 3=foreachdones
@@ -2128,7 +2128,7 @@ double gmic::mp_dollar(const char *const str, void *const p_list) {
         switch (loop_type) {
         case 0 : { // repeat...done
           const unsigned int *const rd = gmic_instance.repeatdones.data(0,gmic_instance.nb_repeatdones - 1);
-          res = (double)(*str=='>'?rd[1]:rd[2] - 1);
+          res = *str=='>'?(double)rd[1]:*str=='<'?rd[2] - 1.0:rd[1]/(rd[1] + rd[2] - 1.0);
         } break;
         case 1 : { // do...while
           const unsigned int *const dw = gmic_instance.dowhiles.data(0,gmic_instance.nb_dowhiles - 1);
@@ -2140,7 +2140,7 @@ double gmic::mp_dollar(const char *const str, void *const p_list) {
         } break;
         case 3 : { // foreach...done
           const unsigned int *const fed = gmic_instance.foreachdones.data(0,gmic_instance.nb_foreachdones - 1);
-          res = (double)(*str=='>'?fed[0]:fed[1] - 1);
+          res = *str=='>'?(double)fed[0]:*str=='<'?fed[1] - 1.0:fed[0]/(fed[0] + fed[1] - 1.0);
         } break;
         }
       }
@@ -5073,10 +5073,17 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
   try {
 
     // Init interpreter environment.
-    if (images.size()<image_names.size())
-      image_names.remove(images.size(),image_names.size() - 1);
-    else if (images.size()>image_names.size())
-      image_names.insert(images.size() - image_names.size(),CImg<char>::string("[unnamed]"));
+    const unsigned int
+      is = images.size(),
+      ins = image_names.size();
+    if (is<ins) image_names.remove(is,ins - 1);
+    else if (is>ins) {
+      image_names.insert(is - ins);
+      for (unsigned int k = ins; k<is; ++k) {
+        cimg_snprintf(s_selection,_s_selection.width(),"unnamed_%u",k);
+        CImg<char>::string(s_selection).move_to(image_names[k]);
+      }
+    }
 
     if (is_debug) {
       if (is_start) {
@@ -6005,7 +6012,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             else print(0,"Insert %g image%s from camera #%g, with %g frames skipping.",
                        cam_index,nb_frames,nb_frames>1?"s":"",skip_frames);
             gmic_use_title;
-            cimg_snprintf(title,_title.width(),"[Camera #%g]",cam_index);
+            cimg_snprintf(title,_title.width(),"camera_%g",cam_index);
             CImg<char>::string(title).move_to(name);
             if (nb_frames>1) {
               cimg::mutex(29);
@@ -6838,7 +6845,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
         if (id_builtin_command==id_displacement) {
           gmic_substitute_args(true);
           double nb_scales = 0, nb_iterations = 1000;
-          float smoothness = 0.1f, precision = 5.f;
+          float smoothness = 0.1f, precision = 7.f;
           unsigned int is_forward = 0;
           sep = *argx = 0;
           ind0.assign();
