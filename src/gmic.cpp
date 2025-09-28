@@ -4108,9 +4108,6 @@ gmic& gmic::_gmic(const char *const command_line,
 #endif // #ifdef gmic_prerelease
 
   const char *const s_flags =
-#ifdef cimg_use_board
-    ",board"
-#endif
 #ifdef cimg_use_curl
     ",curl"
 #endif
@@ -4699,8 +4696,8 @@ CImg<char> gmic::substitute_item(const char *const source,
         }
         nsource+=2;
 
-        // Substitute '$>' and '$<' -> Forward/backward index of current loop.
-      } else if (nsource[1]=='>' || nsource[1]=='<') {
+        // Substitute '$>', '$<' and '$%' -> Forward/backward index and fractional part of current loop.
+      } else if (nsource[1]=='>' || nsource[1]=='<' || nsource[1]=='%') {
         if (!nb_repeatdones && !nb_dowhiles && !nb_fordones && !nb_foreachdones)
           std::strcpy(substr,"nan");
         else {
@@ -4713,26 +4710,40 @@ CImg<char> gmic::substitute_item(const char *const source,
               else if (s[1]=='f') { loop_type = s[4]!='e'?2:3; break; }
             }
           }
-          switch (loop_type) {
+
+          unsigned int fwd = 0, bwd = 0;
+          switch (loop_type) { // Retrieve forward and backward loop indices
           case 0 : { // repeat...done
             const unsigned int *const rd = repeatdones.data(0,nb_repeatdones - 1);
-            if (rd[2]==~0U && nsource[1]=='<') cimg_snprintf(substr,substr.width(),"inf");
-            else cimg_snprintf(substr,substr.width(),"%u",nsource[1]=='>'?rd[1]:rd[2] - 1);
+            fwd = rd[1];
+            bwd = rd[2]==~0U?~0U:rd[2] - 1;
           } break;
           case 1 : { // do...while
             const unsigned int *const dw = dowhiles.data(0,nb_dowhiles - 1);
-            if (nsource[1]=='>') cimg_snprintf(substr,substr.width(),"%d",dw[1]);
-            else std::strcpy(substr,"nan");
+            fwd = dw[1];
+            bwd = ~0U;
           } break;
           case 2 : { // for...done
             const unsigned int *const fd = fordones.data(0,nb_fordones - 1);
-            if (nsource[1]=='>') cimg_snprintf(substr,substr.width(),"%d",fd[1]);
-            else std::strcpy(substr,"nan");
+            fwd = fd[1];
+            bwd = ~0U;
           } break;
           case 3 : { // foreach...done
             const unsigned int *const fed = foreachdones.data(0,nb_foreachdones - 1);
-            cimg_snprintf(substr,substr.width(),"%d",nsource[1]=='>'?fed[0]:fed[1] - 1);
+            fwd = fed[0];
+            bwd = fed[1] - 1;
           } break;
+          }
+
+          if (nsource[1]=='>') cimg_snprintf(substr,substr.width(),"%u",fwd);
+          else if (nsource[1]=='<') {
+            if (loop_type==1 || loop_type==2) std::strcpy(substr,"nan");
+            else if (bwd==~0U) std::strcpy(substr,"inf");
+            else cimg_snprintf(substr,substr.width(),"%u",bwd);
+          } else if (nsource[1]=='%') {
+            if (loop_type==1 || loop_type==2) std::strcpy(substr,"nan");
+            else if (bwd==~0U || !fwd) std::strcpy(substr,"0");
+            else cimg_snprintf(substr,substr.width(),"%.17g",(double)fwd/(fwd + bwd));
           }
         }
         CImg<char>::string(substr,false,true).append_string_to(substituted_items,ptr_sub);
@@ -4924,7 +4935,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
     *color = &_c0,
     *const command = _command.data(1),
     *s_selection = _s_selection.data();
-  const char *it = 0;
+  const char *it = 0, *csb = 0;
   *_command = '+';
 
 // Macros below allows to allocate memory for string variables only when necessary.
@@ -4947,7 +4958,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                     (!std::strncmp("foreach",it,7) && (!it[7] || it[7]=='.' || it[7]=='[')))))
 
 #define gmic_elif_flr \
-  else if (!_is_get && ((*it=='}' && !it[1]) || !std::strcmp("done",it)))
+  else if (!_is_get && ((*it=='}' && !it[1] && std::strcmp("*do",csb)) || !std::strcmp("done",it)))
 
   unsigned int next_debug_line = ~0U, next_debug_filename = ~0U, is_high_connectivity, uind = 0,
     boundary = 0, pattern = 0, wind = 0, interpolation = 0, hash = 0;
@@ -6485,6 +6496,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
         // Done.
         if (!is_get && !std::strcmp("done",item)) {
           const CImg<char> &s = callstack.back();
+          if (s[0]=='*' && s[1]=='d') continue;
           if (s[0]!='*' || (s[1]!='f' && s[1]!='l' && s[1]!='r'))
             error(true,0,0,
                   "Command 'done': Not associated to a 'for', 'foreach', 'local' or 'repeat' command "
@@ -6536,6 +6548,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           dw[0] = position_item;
           dw[1] = 0;
           dw[2] = debug_line;
+          is_lbrace_command = true;
           continue;
         }
 
@@ -7370,6 +7383,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
 
           if (!is_cond) {
             int nb_levels = 0;
+            csb = callstack.back();
             for (nb_levels = 1; nb_levels && position<command_line.size(); ++position) {
               it = command_line[position];
               if (*it==1)
@@ -7406,6 +7420,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           if (!selection) {
             if (is_very_verbose) print(0,"Skip 'foreach...done' block.");
             int nb_levels = 0;
+            csb = callstack.back();
             for (nb_levels = 1; nb_levels && position<command_line.size(); ++position) {
               it = command_line[position];
               if (*it==1)
@@ -7446,21 +7461,23 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                 g_list_c.assign(image_names[uind]);
               } else {
                 cimg::mutex(27);
-                if (images[uind].is_shared()) g_list.assign(images[uind]);
-                else
-                  if ((images[uind].width() || images[uind].height()) && !images[uind]._spectrum) {
-                    selection2string(selection,image_names,1,name);
-                    error(true,0,0,
-                          "Command 'foreach': Invalid selection%s "
-                          "(image [%u] is already used in another thread).",
-                          name.data() + (*name=='s'?1:0),uind);
-                  }
-                images[uind].move_to(g_list);
+                if ((images[uind].width() || images[uind].height()) && !images[uind]._spectrum) {
+                  selection2string(selection,image_names,1,name);
+                  cimg::mutex(27,0);
+                  error(true,0,0,
+                        "Command 'foreach': Invalid selection%s "
+                        "(image [%u] is already used in another thread).",
+                        name.data() + (*name=='s'?1:0),uind);
+                }
                 g_list_c.assign(image_names[uind]);
 
-                // Small hack to be able to track images of the selection passed to the new environment.
-                std::memcpy(&images[uind]._width,&g_list[0]._data,sizeof(void*));
-                images[uind]._spectrum = 0;
+                if (images[uind].is_shared()) g_list.assign(images[uind]);
+                else {
+                  images[uind].move_to(g_list);
+                  // Small hack to be able to track images of the selection passed to the new environment.
+                  std::memcpy(&images[uind]._width,&g_list[0]._data,sizeof(void*));
+                  images[uind]._spectrum = 0;
+                }
                 cimg::mutex(27,0);
               }
 
@@ -7474,6 +7491,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               } catch (gmic_exception &e) {
                 check_elif = false;
                 int nb_levels = 0;
+                csb = callstack.back();
                 for (nb_levels = 1; nb_levels && position<command_line.size(); ++position) {
                   it = command_line[position];
                   if (*it==1)
@@ -8312,22 +8330,22 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             cimg::mutex(27);
             cimg_forY(selection,l) {
               uind = selection[l];
-              if (images[uind].is_shared())
-                g_list[l].assign(images[uind],false);
+              if ((images[uind].width() || images[uind].height()) && !images[uind]._spectrum) {
+                selection2string(selection,image_names,1,name);
+                cimg::mutex(27,0);
+                error(true,0,0,
+                      "Command 'local': Invalid selection%s "
+                      "(image [%u] is already used in another thread).",
+                      name.data() + (*name=='s'?1:0),uind);
+              }
+              g_list_c[l] = image_names[uind]; // Make a copy to be still able to recognize 'pass[label]'
+              if (images[uind].is_shared()) g_list[l].assign(images[uind],false);
               else {
-                if ((images[uind].width() || images[uind].height()) && !images[uind]._spectrum) {
-                  selection2string(selection,image_names,1,name);
-                  error(true,0,0,
-                        "Command 'local': Invalid selection%s "
-                        "(image [%u] is already used in another thread).",
-                        name.data() + (*name=='s'?1:0),uind);
-                }
                 g_list[l].swap(images[uind]);
                 // Small hack to be able to track images of the selection passed to the new environment.
                 std::memcpy(&images[uind]._width,&g_list[l]._data,sizeof(void*));
                 images[uind]._spectrum = 0;
               }
-              g_list_c[l] = image_names[uind]; // Make a copy to be still able to recognize 'pass[label]'
             }
             cimg::mutex(27,0);
           }
@@ -8343,6 +8361,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           } catch (gmic_exception &e) {
             check_elif = false;
             int nb_levels = 1 + nb_remaining_fr;
+            csb = callstack.back();
             for (; nb_levels && position<command_line.size(); ++position) {
               it = command_line[position];
               if (*it==1)
@@ -9200,8 +9219,8 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
 
         // Exception handling in local environments.
         if (!is_get && !std::strcmp("onfail",item)) {
-          const CImg<char> &s = callstack.back();
-          if (s[0]!='*' || s[1]!='l')
+          csb = callstack.back();
+          if (csb[0]!='*' || csb[1]!='l')
             error(true,0,0,
                   "Command 'onfail': Not associated to a 'local' command within the same scope.");
           for (int nb_levels = 1; nb_levels && position<command_line.size(); ++position) {
@@ -9281,6 +9300,8 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               (_double3d==~0U || _double3d<=1)) {
 
             // Get default rendering options.
+            if (!*argx) { x = 50; sepx = '%'; }
+            if (!*argy) { y = 50; sepy = '%'; }
             if (_render3d==~0U) { // Rendering mode
               _render3d = 4;
               const CImg<char> s_mode3d = get_variable("_mode3d",variable_sizes,0,0);
@@ -9577,14 +9598,26 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             const char *const _options = options.data() + (stype!=argx?0:l_stype + (end==','?1:0));
             float _is_multipage = 0;
             *argy = 0; opacity = 1;
-            if (cimg_sscanf(_options,"%255[a-z],%f,%f",gmic_use_argy,&_is_multipage,&opacity)<1)
+            if (cimg_sscanf(_options,"%255[a-zA-Z0-9],%f,%f",gmic_use_argy,&_is_multipage,&opacity)<1)
               cimg_sscanf(_options,"%f,%f",&_is_multipage,&opacity);
             const unsigned int compression_type =
-              !cimg::strcasecmp(argy,"jpeg") ||
-              !cimg::strcasecmp(argy,"jpg")?2:
-              !cimg::strcasecmp(argy,"lzw")?1U:0U;
-            const bool is_multipage = (bool)cimg::round(_is_multipage);
-            const bool use_bigtiff = (bool)cimg::round(opacity);
+              !cimg::strcasecmp(argy,"jbig")?1U:
+              !cimg::strcasecmp(argy,"jpeg") || !cimg::strcasecmp(argy,"jpg")?2U:
+              !cimg::strcasecmp(argy,"lzma")?3U:
+              !cimg::strcasecmp(argy,"lzw")?4U:
+              !cimg::strcasecmp(argy,"webp")?5U:
+              !cimg::strcasecmp(argy,"zstd")?6U:0U;
+            const char *const s_compression_type =
+              compression_type==1?"JBIG":
+              compression_type==2?"JPEG":
+              compression_type==3?"LZMA":
+              compression_type==4?"LZW":
+              compression_type==5?"WEBP":
+              compression_type==6?"ZSTD":
+              "no";
+            const bool
+              is_multipage = (bool)cimg::round(_is_multipage),
+              use_bigtiff = (bool)cimg::round(opacity);
 
             g_list.assign(selection.height());
             cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
@@ -9601,7 +9634,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                     "and %sbigtiff support (1 image %dx%dx%dx%d).",
                     gmic_selection.data(),
                     uext.data(),_filename.data(),stype,
-                    compression_type==2?"JPEG":compression_type==1?"LZW":"no",
+                    s_compression_type,
                     use_bigtiff?"":"no ",
                     g_list[0].width(),g_list[0].height(),
                     g_list[0].depth(),g_list[0].spectrum());
@@ -9609,7 +9642,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                        "%s compression, %s-page mode and %sbigtiff support.",
                        gmic_selection.data(),
                        uext.data(),_filename.data(),stype,
-                       compression_type==2?"JPEG":compression_type==1?"LZW":"no",
+                       s_compression_type,
                        is_multipage?"multi":"single",
                        use_bigtiff?"":"no ");
             if (!g_list)
@@ -10490,6 +10523,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           if (!nb) {
             if (is_very_verbose) print(0,"Skip 'repeat...done' block (0 iterations).");
             int nb_levels = 0;
+            csb = callstack.back();
             for (nb_levels = 1; nb_levels && position<command_line.size(); ++position) {
               it = command_line[position];
               if (*it==1)
@@ -12315,6 +12349,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             position = dw[0] + 1;
             next_debug_line = dw[2];
             next_debug_filename = debug_filename;
+            is_lbrace_command = true;
             continue;
           } else {
             if (is_very_verbose) print(0,"End 'do...while' block.");
@@ -12798,6 +12833,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             const char *stb = 0, *ste = 0;
             unsigned int callstack_ind = 0;
             int nb_levels = 0;
+            csb = callstack.back();
             if (callstack_repeat) {
               print(0,"%s %scurrent 'repeat...done' block.",
                     Com,is_continue?"to next iteration of ":"");
@@ -13369,20 +13405,20 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                 uind = selection[l];
                 if ((images[uind].width() || images[uind].height()) && !images[uind].spectrum()) {
                   selection2string(selection,image_names,1,name);
+                  cimg::mutex(27,0);
                   error(true,0,0,
                         "Command '%s': Invalid selection%s "
                         "(image [%u] is already used in another thread).",
                         command_name,name.data() + (*name=='s'?1:0),uind);
                 }
-                if (images[uind].is_shared())
-                  g_list[l].assign(images[uind],false);
+                g_list_c[l] = image_names[uind]; // Make a copy to be still able to recognize 'pass[label]'
+                if (images[uind].is_shared()) g_list[l].assign(images[uind],false);
                 else {
                   g_list[l].swap(images[uind]);
                   // Small hack to be able to track images of the selection passed to the new environment.
                   std::memcpy(&images[uind]._width,&g_list[l]._data,sizeof(void*));
                   images[uind]._spectrum = 0;
                 }
-                g_list_c[l] = image_names[uind]; // Make a copy to be still able to recognize 'pass[label]'
               }
               cimg::mutex(27,0);
 

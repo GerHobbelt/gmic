@@ -540,7 +540,7 @@ reference : skip "${2=}"
 "Output expression 'filename.tiff,_datatype,_compression,_force_multipage,_use_bigtiff' can be used "\
 "to specify the output pixel type, as well as the compression method. "\
 "'datatype' can be the same as for `.cimg[z]` files. 'compression' can be "\
-" { none (default) | lzw | jpeg }. 'force_multipage' can be { 0:No (default) | 1:Yes }. "\
+" { none (default) | jbig | jpeg | lzma | lzw | webp | zstd }. 'force_multipage' can be { 0:No (default) | 1:Yes }. "\
 "'use_bigtiff' can be { 0:No | 1:Yes (default) }."\n\
 "  - `.pdf` __files:__ When loading a file, the rendering resolution can be specified using the input expression "\
 "'filename.pdf,resolution', where 'resolution' is an unsigned integer value."\n\
@@ -577,9 +577,12 @@ reference : skip "${2=}"
 "with same name (it may be thus an empty string if it is not defined). "\n\
 "* The following reserved variables are predefined by the G'MIC interpreter: "\n\
 "  - '$!': The current number of images in the list."\n\
-"  - '$>' and '$<': The increasing/decreasing index of the latest (currently running) "\
-"'repeat...done' loop. '$>' goes from `0` (first loop iteration) to `nb_iterations - 1` (last iteration). "\
-"'$<' does the opposite. "\n\
+"  - '$>' and '$<': The increasing/decreasing index of the latest (currently running) loop."\
+"'$>' goes from `0` (first loop iteration) to `nb_iterations - 1` (last iteration). "\
+"'$<' does the opposite (except for 'for' and 'while' loops, where `$<` is `nan` as the number of iterations "\
+"is unknown). "\n\
+"  - '$%': A value that linearly goes from '0' (first iteration) to '1' (last iteration) in a running loop "\
+"(equivalent to '$>/($>+$<)')."\n\
 "  - '$/': The current call stack. Stack items are separated by slashes '/'."\n\
 "  - '$|': The current value (expressed in seconds) of a millisecond precision timer."\n\
 "  - '$^': The current verbosity level."\n\
@@ -10449,9 +10452,11 @@ _select :
 #@cli : $ shape_menger 4 surfels3d , color3d 200 m3d 3
 +shape_menger : l[] { check "isint(${1=3},0)" nbi=$1 onfail noarg nbi=3 }
   e[^-1] "Input a "$nbi"-iterated Menger sponge, as a 3D binary image."
-  3,3,3,1,"norm([x,y,z]-1)>1" (1)
-  repeat $nbi { r. {3*[w,h,d]},1,0,2 +ri[0] . *[-2,-1] }
-  k. => "[3D Menger Sponge]"
+  l[] {
+    3,3,3,1,"norm([x,y,z]-1)>1" (1)
+    repeat $nbi { r. {3*[w,h,d]},1,0,2 +ri[0] . *[-2,-1] }
+    k.
+  } => "[3D Menger Sponge]"
 
 #@cli shape_mosely : _nb_iterations>=0
 #@cli : Input a 3D voxelized representation of the Mosely snowflake.
@@ -10459,9 +10464,11 @@ _select :
 #@cli : $ shape_mosely 4 surfels3d , color3d 200 m3d 3
 +shape_mosely : l[] { check "isint(${1=3},0)" nbi=$1 onfail noarg nbi=3 }
   e[^-1] "Input a "$nbi"-iterated Mosely snowflake, as a 3D binary image."
-  3,3,3,1,"norm1([x,y,z]-1)<=2" =. 0,1,1,1 (1)
-  repeat $nbi { r. {3*[w,h,d]},1,0,2 +ri[0] . *[-2,-1] }
-  k. => "[3D Mosely Snowflake]"
+  l[] {
+    3,3,3,1,"norm1([x,y,z]-1)<=2" =. 0,1,1,1 (1)
+    repeat $nbi { r. {3*[w,h,d]},1,0,2 +ri[0] . *[-2,-1] }
+    k.
+  } => "[3D Mosely Snowflake]"
 
 #@cli shape_polygon : _size>=0,_nb_vertices>=3,_angle
 #@cli : Input a 2D polygonal binary shape with specified geometry.
@@ -17478,13 +17485,6 @@ columns : check "isint(${3=0},0,3)" skip ${2=$1}
 #@cli : $ image.jpg +crop -230,-230,280,280,1 crop[0] -230,-230,280,280,0
 #@cli : $ image.jpg crop 25%,25%,75%,75%
 
-#@cli diagonal
-#@cli : Transform selected vectors as diagonal matrices.
-#@cli : $ 1,10,1,1,'y' +diagonal
-diagonal :
-  e[^-1] "Transform vector$? as diagonal matrix."
-  y foreach { r {h+1},100%,1,1,0 r {h},100%,1,1,-1 }
-
 # downsize_aliased : 100<=factor<=0
 # Downsize selected images with a specific algorithm to better render anti-aliased rendering
 # over transparent background (from aliased transparent images, manage transparent border pixels with more care).
@@ -18081,7 +18081,7 @@ scale3x :
 #@cli : Double XY-size of selected images, using a directional cubic convolution interpolation,
 #@cli : as described in <https://en.wikipedia.org/wiki/Directional_Cubic_Convolution_Interpolation>.
 #@cli : Default values: 'edge_threshold=1.15', 'exponent=5' and 'extend_1px=0'.
-#@cli : $ image.jpg +scale_dcci2x ,
+#@cli : $ image.jpg rescale2d 128 +scale_dcci2x ,
 scale_dcci2x : check "${1=1.15}>=0 && ${2=5}>=0" skip ${3=0}
   e[^-1] "Double XY-size of image$?, using DCCI2x algorithm."
   foreach {
@@ -18506,7 +18506,7 @@ blur_selective : check "${1=5}>=0 && ${2=0.5}>=0 && isint(${3=5},1)"
 
 #@cli bump2normal
 #@cli : Convert selected bumpmaps to normalmaps.
-#@cli : $ 300,300 circle 50%,50%,128,1,1 blur 5% bump2normal
+#@cli : $ 300,300 circle 50%,50%,128,1,255 blur 2% +bump2normal
 bump2normal :
   e[^-1] "Convert bumpmap$? to normalmap."
   foreach {
@@ -18582,13 +18582,6 @@ closing_circ : check "$1>=0 && isbool(${2=0})"
   e[^-1] "Apply morphologicel closing of image$? by circular kernel of size $1, in "${r$2}" mode."
   if $1<2 return fi
   shape_circle $1 closing[^-1] .,$2 rm.
-
-#@cli compose_freq
-#@cli : Compose selected low and high frequency parts into new images.
-#@cli : $ image.jpg split_freq 2% mirror[-1] x compose_freq
-compose_freq :
-  e[^-1] "Compose low and high frequency part$? into new images."
-  repeat int($!/2) { +[$>,{$>+1}] }
 
 #@cli convolve : [mask],_boundary_conditions,_is_normalized={ 0:No | 1:Yes },_channel_mode,\
 # _xcenter,_ycenter,_zcenter,_xstride>0,_ystride>0,_zstride>0,_xdilation,_ydilation,_zdilation,\
@@ -19026,14 +19019,6 @@ diffusiontensors : check "${1=0.7}>=0 && ${2=0.3}>=0 && $2<=1" skip ${3=0.6},${4
     fi
     eigen2tensor
   }
-
-#@cli edges : _threshold[%]>=0
-#@cli : Estimate contours of selected images.
-#@cli : Default value: 'edges=15%'
-#@cli : $ image.jpg +edges 15%
-edges : skip ${1=15%}
-  e[^-1] "Estimate image contours of image$?, with threshold $1."
-  gradient_norm b 0.5 >= $1 distance 0 equalize negate c 30%,70% n 0,1
 
 #@cli erode : size[%]>=0 : size_x[%]>=0,size_y[%]>=0,_size_z[%]>=0 : \
 # [kernel],_boundary_conditions,_is_real={ 0:Binary-mode | 1:Real-mode } : (+)
@@ -21225,6 +21210,14 @@ edgels : check "isint(${1=-1}) && $1>=(${2=-1}>=0?0:-1) && isint($2) && $2>=($1>
     fi
   }
 
+#@cli edges : _threshold[%]>=0
+#@cli : Estimate contours of selected images.
+#@cli : Default value: 'edges=15%'
+#@cli : $ image.jpg +edges 15%
+edges : skip ${1=15%}
+  e[^-1] "Estimate image contours of image$?, with threshold $1."
+  gradient_norm b 0.5 >= $1 distance 0 equalize negate c 30%,70% n 0,1
+
 #@cli fftpolar
 #@cli : Compute fourier transform of selected images, as centered magnitude/phase images.
 #@cli : $ image.jpg fftpolar ellipse 50%,50%,10,10,0,1,0 ifftpolar
@@ -22550,7 +22543,7 @@ _axes :
   do N:=1+round(($M-$m)/$s,1,1) s:=2*$s while $N>$n
   u $m,{$s/2}
 
-#@cli ball : _size>0, _R,_G,_B,_ambient>=0,_diffuse>=0,_specular>=0,_shininess>=0,\
+#@cli ball : _size>0,_R,_G,_B,_ambient>=0,_diffuse>=0,_specular>=0,_shininess>=0,\
 # _light_x,_light_y,_light_z
 #@cli : Input a 2D RGBA colored ball sprite, rendered using the Phong illumination model.
 #@cli : Default values: 'size=64', 'R=200', 'G=R', 'B=R', 'ambient=0.25', 'diffuse=1', 'specular=1', 'shininess=20', \
@@ -23815,130 +23808,119 @@ newton_fractal : check "isin(${6=1},0,1,2) && ${7=200}>=0 && ${8=0.01}>0"
 #@cli : Draw specified 3D object on selected images.
 #@cli : (eq. to 'j3d').\n
 #@cli : 'rendering_mode' can be { 0:Dots | 1:Wireframe | 2:Flat | 3:Flat-shaded | 4:Gouraud-shaded | 5:Phong-shaded }.
-#@cli : Default values: 'x=y=z=0', 'opacity=1' and 'is_zbuffer=1'. All other arguments take their default values
+#@cli : Default values: 'x=y=50%', 'z=0', 'opacity=1' and 'is_zbuffer=1'. All other arguments take their default values
 #@cli : from the 3D environment variables.
 #@cli : $ image.jpg torus3d 100,10 cone3d 30,-120 add3d[-2,-1] rotate3d. 1,1,0,60 object3d[0] [-1],50%,50% keep[0]
 
-#@cli pack_sprites : _nb_scales>=0,0<=_min_scale<=100,_allow_rotation={ 0:0 deg. | 1:180 deg. | 2:90 deg. | 3:any },\
-# _spacing,_precision>=0,max_iterations>=0
+#@cli pack_sprites : [sprite_set],_nb_scales>=1,0<_min_scale<=100,\
+# _allow_rotation={ 0:None | 1:180 deg. | 2:90 deg. | 3:Any },_spacing,_max_attempts>0
 #@cli : Try to randomly pack as many sprites as possible onto the 'empty' areas of an image.
 #@cli : Sprites can be eventually rotated and scaled during the packing process.
-#@cli : First selected image is the canvas that will be filled with the sprites.
-#@cli : Its last channel must be a binary mask whose zero values represent potential locations for drawing the sprites.
-#@cli : All other selected images represent the sprites considered for packing.
-#@cli : Their last channel must be a binary mask that represents the sprite shape (i.e. a 8-connected component).
-#@cli : The order of sprite packing follows the order of specified sprites in the image list.
+#@cli : Selected image is the canvas that will be filled with the sprites.
+#@cli : The zero values of its alpha channel defines the potential locations for drawing the sprites.
+#@cli : '[sprite_set]' defines the set of sprites considered for filling the canvas.
+#@cli : The zero values of their alpha channels defines the sprite shape.
 #@cli : Sprite packing is done on random locations and iteratively with decreasing scales.
 #@cli : 'nb_scales' sets the number of decreasing scales considered for all specified sprites to be packed.
 #@cli : 'min_scale' (in %) sets the minimal size considered for packing (specified as a percentage of the
 #@cli : original sprite size).
 #@cli : 'spacing' can be positive or negative.
-#@cli : 'precision' tells about the desired number of failed trials before ending the filling process.
-#@cli : Default values: 'nb_scales=5', 'min_scale=25', 'allow_rotation=3', 'spacing=1', 'precision=7' \
-# and 'max_iterations=256'.
-#@cli : $ 512,512,1,3,"min(255,y*c/2)" 100%,100% circle 50%,50%,100,1,255 append c image.jpg rescale2d[-1] ,24 \
-# to_rgba pack_sprites 3,25
-pack_sprites : check "isint(${1=5},0) && ${2=25}>=0 && $2<=100 && isint(${3=3},0,3) &&
-                      isint(${4=1}) && isint(${5=7},0) && isint(${6=256},0)"
-  e[^-1] "Randomly pack image$? with $1 scales, minimum scale $2%, "${arg0\ $3,no,180\"\ \"deg.,90\"\ \"deg.,any}\
-         " rotation, spacing $4, precision $5 and $6 maximum iterations."
-  N:=$!-1 is_first_time=1
-  foreach { r 100%,100%,1,{max(2,s)} } # Ensure all images have a binary shape mask
+#@cli : 'max_attempts' defines the maximum number of attempts to pack a sprite for each scale.
+#@cli : Default values: 'nb_scales=1', 'min_scale=25', 'allow_rotation=0', 'spacing=1' and 'max_attempts=512'.
+#@cli : $ shape_heart 512 negate normalize 0,255 channels -3,0 repeat 2 { ball 48,${-RGB} } +pack_sprites[0] [^0],5,15
+pack_sprites : check "isint(${2=1},1) && inrange(${3=25},0,100,0,1) && isint(${4=0},0,3) && isint(${5=1}) && "\
+                     "isint(${6=512},1)"
+  e[^-1] "Randomly pack sprite$? with $2 scales, minimum scale $3%, "${"arg0 $4,no,\"180 deg.\",\"90 deg.\",any"}" "\
+         "rotation, spacing $5, and $6 maximum attempts for each scale."
+  nb_scales,min_scale,allow_rotation,spacing,max_attempts=${2--1}
+  nb_imgs=$! pass$1 nb_sprites:=$!-$nb_imgs
 
-  # Start iterations over scales.
-  repeat $1 {
-    rprogress {$>*100/$1}
-    nb_attempts=0
+  foreach[^$nb_imgs--1] {
+    pass[$nb_imgs--1] 0
+    s0={0,s} foreach[1--1] { # Ensure the number of sprite channels matches that of the canvas
+      if s==1 r 100%,100%,1,$s0
+      elif s!=$s0 s c,-{s-1} if $s0>1 r[0] 100%,100%,1,{$s0-1} a c else k. fi fi
+    }
+    +channels[0] 100% !=. 0 mv. 1 # [1]: Binary mask of canvas
+    1,1,1,2 eval[1] "!i?da_push([x,y])" da_freeze. mv. 2 # [2]: Admissible locations
+    0 mv. 3 # [3]: Will contain a set of locations to check just before ending each scale iteration
 
-    # Generate all sprites for current scale.
-    ratio={$1>1?$2+(100-$2)*$</($1-1):100}%
-    repeat $N { +l[{1+$>}] {
-      w,h:=[w,h]*$ratio
-      if $w<1||$h<1 rm
-      else r $w,$h,1,100%,2 sh. 100% !=. 0 area{1+$>}:=is rm.
-      fi
-    } }
+    # Perform packing iterations for each scale.
+    repeat $nb_scales {
+      rprogress {100*$>/max(1,$>+$<)}
 
-    # Pack rescaled sprites together.
-    l[0,{$N+1}--1] { repeat $6 {
+      # Compute scaled versions of sprites and corresponding binary masks.
+      fact:=lerp(100,$min_scale,$>/max(1,$>+$<))
+      if $fact<100 +r[4-{3+$nb_sprites}] $fact%,$fact%,1,100%,2 fi
+      repeat $nb_sprites { +channels[-$nb_sprites] 100% !=. 0 } # Compute binary mask of sprites
 
-      # Compute reference sprite.
-      ind:=1+($>%$N) area=${area$ind}
-      if !$3 [$ind]
-      elif $3==1 +rotate[$ind] {v()*180}
-      elif $3==2 +rotate[$ind] {v(3)*90}
-      else +rotate[$ind] {u*360} sh. 100% !=. 0 area:=is rm.
-      fi
-
-      # Get binary map of possible locations.
-      +channels[0] 100% ==. 0
-      if $4>1 erode. {2*$4-1}
-      elif $4<1 dilate. {-2*$4+3}
-      fi
-
-      # Generate random skeleton-oriented point cloud.
-      +rectangle. 0,0,100%,100%,1,0xFFFFFFFF,0
-      if $is_first_time noise. 0.1,2 ==. 1 fi
-      distance. 0 noise. 1,1
-      max_patch. {$ind,round(1.5*max(w,h))}
-      *. .. pointcloud3d.
-
-      # Subdivide point cloud if multiple sprites.
-      if $N>1 l. {
-        s3d /[1] $N round[1] max[1] 1 n={1,@0}
-        r[2] 3,{{2,h}/3},1,1,-1
-        i[2] 1,{2,h} rand[2] 0,1 a[2,3] x sort[2] +,y z[2] 1,3 r[2] 3,$n,1,1 y[2]
-        r[3] 1,{2*$n},1,1,0 r[4] 1,{3*$n},1,1,0 r[5] 1,$n,1,1,0 a y
-      } fi
-
-      # Create 3D cloud of sprites.
-      n={@7}
-      if $n
-        s3d. rm[-2,-1]
-        if !$3 # No rotation allowed
-          [-6] i.. (-128;{w};{h};{s})
-          if $n>1 4,{$n-1},1,1,-128,0,0,0 fi
-          +channels.. 100% i.. (-128;{w};{h};{s})
-          if $n>1 ... fi
-        elif $3==1 # 180 deg. rotation allowed
-          +rotate[-6] {v()*180} i.. (-128;{w};{h};{s})
-          if $n>1 +rotate. 180 i.. (-128;{w};{h};{s}) fi
-          if $n>2 4,{$n-2},1,1,-128,0,0,0 1,100% rand. 0,1 round. 1 j.. .,1 rm. fi
-          +channels[-4] 100% i.. (-128;{w};{h};{s})
-          if $n>1 +channels[-4] 100% i.. (-128;{w};{h};{s}) fi
-          if $n>2 [-5] fi
-        else # 90 deg. rotation (or more) allowed
-          +rotate[-6] {v(3)*90} i.. (-128;{w};{h};{s})
-          if $n>1 +rotate. 90 i.. (-128;{w};{h};{s}) fi
-          if $n>2 +rotate. 90 i.. (-128;{w};{h};{s}) fi
-          if $n>3 +rotate. 90 i.. (-128;{w};{h};{s}) fi
-          if $n>4 4,{$n-4},1,1,-128,0,0,0 1,100% rand. 0,3 round. 1 j.. .,1 rm. fi
-          +channels[-8] 100% i.. (-128;{w};{h};{s})
-          if $n>1 +channels[-8] 100% i.. (-128;{w};{h};{s}) fi
-          if $n>2 +channels[-8] 100% i.. (-128;{w};{h};{s}) fi
-          if $n>3 +channels[-8] 100% i.. (-128;{w};{h};{s}) fi
-          if $n>4 [-9] fi
-        fi
-        y[{$N+3}--1] a[{$N+3}--1] y
-      fi
-      rm... # Delete reference sprite
-
-      # Draw cloud and detect non-intersecting sprites.
-      [0] sh. 100% f. 1 -. [-4]
-      j3d.. ...,0,0,0,1,2,0,0 rm[-3,-1]
-      sh. 100% area_fg. 0,1 ==. $area
-      *. ... rm... sh.. 0,{-2,s-2} *. .. rm.
-
-      # Draw selected sprites on rendering image.
-      if iM j[0] ..,0,0,0,0,1,. rm[-2,-1]
+      # Compute eroded/dilated versions of binary masks.
+      if $spacing>0
+        foreach[-{2*$nb_sprites}--1] { r {[w,h]+2*$spacing},1,100%,0,0,0.5,0.5 }
+        +dilate[-$nb_sprites--1] {2*$spacing+1}
+      elif $spacing<0
+        +l[-$nb_sprites--1] { r {[w,h]+2},1,100%,0,0,0.5,0.5 erode {-2*$spacing+1} r {[w,h]-2},1,100%,0,0,0.5,0.5 }
       else
-        rm[-2,-1]
-        nb_attempts+=1
-        if $nb_attempts>$5 break else continue fi
+        sh[-$nb_sprites--1]
       fi
 
-    } k[0] }
-  } k[0]
+      # Perform packing iterations.
+      # Here : [0]: Canvas, [1]: Canvas binary mask, [2]: Admissible locations, [3]: Last locations to check.
+      # Followed by: All sprites, All sprite masks (for drawing), All sprite masks (for collision testing).
+      nb_attempts,step=0
+      do
+
+        # Pick one random sprite and rotate it.
+        if !0$sprite
+          ind:=v(1,$nb_sprites)
+          sel={-$ind-$nb_sprites*[2,1,0]}
+          if $allow_rotation==3 +rotate[$sel] {u(360)},1,0 round[-2,-1] !=[-2,-1] 0
+          elif inrange($allow_rotation,1,2) +rotate[$sel] {$allow_rotation==1?180*v:90*v(3)},0
+          else sh[$sel]
+          fi
+          => sprite,mask_draw,mask_test
+        fi
+
+        # Pick location in one of the admissible locations.
+        x,y:="found = 0;
+          const ind = $step?3:2; # All locations (step=0) or restricted locations (step=1)
+          repeat (ceil(h#ind/4),
+            p = v(h#ind - 1); P = I[#ind,p];
+            $step?(P[0]-=int(w/2); P[1]-=int(h/2));
+            inrange(P[0],0,w#0 - w) && inrange(P[1],0,h#0 - h) && !i(#1,P)?(found = 1; break());
+          );
+          found?(I[#ind,p] = -1; P):[-1,-1]"
+
+        nb_attempts+=1
+        if $x>=0
+          +z[1] $x,$y,{[$x+w-1,$y+h-1]} *. .. # Mask intersection
+          if is # Non empty intersection -> failed
+            if !($nb_attempts%10) rm[sprite,mask_draw,mask_test] fi
+          else # Empty intersection -> success
+            j[0] [sprite],$x,$y,0,0,1,[mask_draw]
+            j[1] [mask_draw],$x,$y,0,0,1,[mask_draw]
+            rm[sprite,mask_draw,mask_test]
+            nb_attempts=0
+          fi
+          rm.
+        fi
+
+        # Determine a set of locations that are last checked before ending the scale iteration.
+        if $nb_attempts==$max_attempts" && "!$step
+          l[3] { rm 0 }
+          +distance[1] 1 +dilate. 3 ==[-2,-1] -. [1]
+          eval. "i==1?da_push(#3,[x,y])" da_freeze[3] rm.
+          nb_attempts,step=0,1
+        fi
+
+      while $nb_attempts<$max_attempts
+      if 0$sprite rm[sprite,mask_draw,mask_test] fi
+      if $fact<100 rm[-{3*$nb_sprites}--1] fi
+    }
+
+    k[0]
+  }
+  rm[$nb_imgs--1]
 
 #@cli piechart : label_height>=0,label_R,label_G,label_B,"label1",value1,R1,G1,B1,...,"labelN",valueN,RN,GN,BN
 #@cli : Draw pie chart on selected (RGB) images.
@@ -24373,6 +24355,13 @@ yinyang :
 #@cli :: Matrix Computation
 #
 #---------------------------------
+
+#@cli diagonal
+#@cli : Transform selected vectors as diagonal matrices.
+#@cli : $ 1,10,1,1,'y' +diagonal
+diagonal :
+  e[^-1] "Transform vector$? as diagonal matrix."
+  y foreach { r {h+1},100%,1,1,0 r {h},100%,1,1,-1 }
 
 #@cli dijkstra : starting_vertex>=0,_ending_vertex={ -1:None | >=0 }
 #@cli : Compute minimal distances/paths in selected graphs, from specified 'starting_vertex' to all other vertices \
@@ -25855,6 +25844,86 @@ _normalize3d :
       factor:=v=max({2,iM-im},{3,iM-im},{4,iM-im});v?v:1
       a[2-4] x /[2] $factor y[2] a y
     fi
+  }
+
+#@cli normals3d : output_mode={ 0:vertices | 1:primitives | 2:vertices+primitives }.
+#@cli : Estimate normals of selected 3D meshes, for vertices, primitives, or both.
+#@cli : This command returns one of two images, having 6 channels : [ x,y,z,u,v,w ], \
+# where (x,y,z) is the origin of the normal vector, and (u,v,z) is the unit normal vector.
+#@cli : Default value: 'mode=2'.
+normals3d : check "isint(${1=2},0,2)"
+  s0,s1,s2=vertices,primitives,vertices+primitives
+  e[^-1] "Estimate 3D normals to "$s$1" of 3D mesh$?."
+  foreach {
+    nm={n} check3d 0 p3d 2 s3d nbv,nbp={1,^} k[2,3]
+    l[0] { r 3,$nbv,1,1,-1 permute zycx }
+
+    # Compute centers and normals of primitives.
+    1,$nbp,1,6
+    eval "
+      p = 0;
+      repeat ($nbp,q,
+        n = i[#1,p++];
+        n==4?( # Quadrangle
+          P0 = I[#0,i[#1,p++]];
+          P1 = I[#0,i[#1,p++]];
+          P2 = I[#0,i[#1,p++]];
+          P3 = I[#0,i[#1,p++]];
+          I[q] = [ (P0 + P1 + P2 + P3)/4,
+                   unitnorm(
+                     unitnorm(cross(P1 - P0,P2 - P0)) +
+                     unitnorm(cross(P2 - P0,P3 - P0))
+                   ) ];
+        ):n==3?( # Triangle
+          P0 = I[#0,i[#1,p++]];
+          P1 = I[#0,i[#1,p++]];
+          P2 = I[#0,i[#1,p++]];
+          I[q] = [ (P0 + P1 + P2)/3, unitnorm(cross(P1 - P0,P2 - P0)) ];
+        ):n==2?( # Segment
+          P0 = I[#0,i[#1,p++]];
+          P1 = I[#0,i[#1,p++]];
+          I[q] = [ (P0 + P1)/2, 0,0,0 ];
+        ):( # Point or other types of primitives
+          P0 = I[#0,i[#1,p]];
+          p+=n;
+          I[q] = [ P0, 0,0,0 ];
+        );
+      )"
+
+    # Compute vertex normals.
+    if isin($1,0,2)
+      1,$nbv,1,3
+      eval "
+        p = 0;
+        repeat ($nbp,q,
+          U = I[#2,q][3,3]; # Normal to primitive
+          n = i[#1,p++];
+          n==4?( # Quadrangle
+            i0 = i[#1,p++];
+            i1 = i[#1,p++];
+            i2 = i[#1,p++];
+            i3 = i[#1,p++];
+            I[#3,i0]+=U;
+            I[#3,i1]+=U;
+            I[#3,i2]+=U;
+            I[#3,i3]+=U;
+            0
+          ):n==3?( # Triangle
+            i0 = i[#1,p++];
+            i1 = i[#1,p++];
+            i2 = i[#1,p++];
+            I[#3,i0]+=U;
+            I[#3,i1]+=U;
+            I[#3,i2]+=U;
+            0
+          ):( # Other types of primitive
+            p+=n;
+          );
+        )"
+      orientation. channels. -3,2 j. [0] mv. -2
+      if !$1 rm. fi
+    fi
+    rm[0,1] =>[^] $nm
   }
 
 #@cli o3d : eq. to 'opacity3d'.
@@ -31190,7 +31259,7 @@ frame_round : check "${1=5%}>=0 && ${2=$1}>=0 && ${3=30%}>=0 && ${4=0}>=0" skip 
 # 'synthesis_scale=16' and '_output_ascii_filename=[undefined]'.
 #@cli : $ image.jpg img2ascii ,
 img2ascii : check "${2=16}>0 && ${3=20%}>=0 && ${4=16}>0"
-            skip "${1= !\042#$%&\047()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\133\\\135^_\140abcdefghijk"\
+            skip "${1= !\042#%$&\047()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\133\\\135^_\140abcdefghijk"\
                  "lmnopqrstuvwxyz\173|\174~}","${5=}"
   e[^-1] "Render image$? as binary ascii art, with charset '$1', analysis scale $2, analysis smoothness $3,
           synthesis scale $4 and output ascii filename '$5'."
@@ -38943,6 +39012,25 @@ x_hough : check_display $0
   n 0,255
 
   foreach {
+    r. ${fitscreen\ {[w,h]}},1,100%,3  # Resize to fit screen if necessary.
+    if !narg($first_time)
+      parallel 0,"+l[0] { rs ,128 frame xy,1,0 \
+        alert \"[G"{`39`}"MIC Hough Transform]\",\
+           \"The G\47MIC Hough transform demo illustrates the application\n\
+           of the Hough transform to detect lines in an image. Use your\n\
+           mouse buttons to explore the transform image and see how\n\
+           lines in images are represented by points in the transform.\",\
+           \"OK\" \
+        rm }"
+      first_time=0
+    fi
+
+    rhomax:=sqrt(w^2+h^2)/2
+    +b. 1.5 hough. 512,400 b. 0.5 +. 1 log. n. 0,255
+    w.. -1,-1,0,"[G"{`39`}"MIC] Image" w1. -1,-1,0,"[G"{`39`}"MIC] Hough Transform"
+
+    do
+      wait
 
       if {*,b} # When clicking on the image
         x0:={*,x}-{*,w}/2
@@ -43396,7 +43484,7 @@ fx_asciiart : skip "${10=},${11=},${12=}"
     elif $1==4
       dict=" ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     elif $1==5
-      dict=" !\042#$%&\047()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\133\\\135^_\140abcdefghijklmnopqrstu"\
+      dict=" !\042#%$&\047()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\133\\\135^_\140abcdefghijklmnopqrstu"\
            "vwxyz\173|\174~"
     elif $1==6
       dict=" \16\17\20\21"
@@ -45315,7 +45403,7 @@ fx_rodilius :
   ac "rodilius ${1-5,7} repeat $6 { smooth 10,0,1,1,1,0.8,45 sharpen 30 } c 0,255",$8,$9
 
 #@gui Shapeism : fx_shapeism, fx_shapeism_preview(0)+
-#@gui : Shape = choice(2,"Squares","Triangles","Circles","Diamond","Hexagon","Octagon","Stars","Custom")
+#@gui : Shape = choice(2,"Squares","Triangles","Circles","Diamond","Hexagon","Octagon","Star","Heart","Custom")
 #@gui : Branches = int(7,3,16)
 #@gui : Thickness = float(0.38,0,1)
 #@gui : Angle = float(0,0,360)
@@ -45336,7 +45424,7 @@ fx_rodilius :
 #@gui : url = link("Click here for a detailed description of this filter.",\
 # "http://gimpchat.com/viewtopic.php?f=28&t=7500&sid=5b483979826903b8f8fc8fdaf1767dae")
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2013/06/11</i>.</small>")
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2025/06/06</i>.</small>")
 fx_shapeism :
   foreach {
     to_rgb
@@ -45358,9 +45446,8 @@ fx_shapeism :
       . a[-3--1] c
 
       # Pack sprites for given scale
-      rprogress "pack_sprites[-2,-1] 1,100,$9,$10,$11",{$>*100/$6},{($>+1)*100/$6}
+      rprogress "pack_sprites.. .,1,100,$9,$10,{2^(5+$11)}",{$>*100/$6},{($>+1)*100/$6} rm.
       channels. 0,1
-
     }
 
     rprogress 97
@@ -45397,7 +45484,10 @@ _fx_shapeism5 : # Octogon
 _fx_shapeism6 : # Star
   star3d 5 *3d. {0,min(w,h)/2} j3d[0] .,50%,50%,0,1,2,0 k[0] skip $*
 
-_fx_shapeism7 : # Custom
+_fx_shapeism7 : # Heart
+  shape_heart {min(w,h)} j.. .,0.5~,0.5~ rm.. skip $*
+
+_fx_shapeism8 : # Custom
   star3d $1,$2 *3d. {0,min(w,h)/2} r3d. 0,0,1,$3 j3d[0] .,50%,50%,0,1,2,0 k[0]
 
 #@gui Sharp Abstract : fx_sharp_abstract, fx_sharp_abstract(0)
@@ -56104,12 +56194,12 @@ fx_pack_ellipses :
 fx_pack_ellipses_preview :
   gui_split_preview "fx_pack_ellipses ${1-12},1,0"
 
-#@gui Pack Sprites : fx_pack_sprites, gui_no_preview
+#@gui Pack Sprites : fx_pack_sprites, fx_pack_sprites_preview : *
 #@gui : Number of Scales = int(5,1,16)
 #@gui : Minimal Scale (%) = float(25,1,100)
 #@gui : Allow Angle = choice(3,"0 deg.","180 deg.","90 deg.","Any")
 #@gui : Spacing = int(1,-16,16)
-#@gui : Precision = int(7,1,32)
+#@gui : Precision = int(5,1,10)
 #@gui : sep = separator()
 #@gui : Masking = choice("No Masking","Mask as Bottom Layer")
 #@gui : Width = int(512,32,2048)
@@ -56119,19 +56209,23 @@ fx_pack_ellipses_preview :
 #@gui : - Set different sprites on different layers to pack multiple sprites at the same time.</small>")
 #@gui : url = link("Click here for a video tutorial","http://www.youtube.com/watch?v=bpg7CGH7vCM")
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2013/06/24</i>.</small>")
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2025/06/06</i>.</small>")
 fx_pack_sprites :
   if $6 # With mask
     if $!<2 error[] "Command '$0': Masking requires at least two input layers !
                      (please check that 'Input Layers' is correctly set)." fi
-    foreach[^-1] { to_rgba split_opacity +!=[1] 0 *[0] . a c autocrop 0 }
-    remove_empty[0--2] +channels. 100% channels. -4,0 mv. 0
-    pack_sprites[0--2] ${1-5}
+    foreach[^-1] { to_rgba split_opacity autocrop_seq 0 a c }
+    remove_empty[^-1] to_a.
   else # No masking
-    foreach { to_rgba split_opacity +!=[1] 0 *[0] . a c autocrop 0 }
-    remove_empty i[0] $7,$8,1,5 pack_sprites ${1-5}
+    foreach { to_rgba split_opacity autocrop_seq 0 a c }
+    remove_empty $7,$8,1,4
   fi
-  channels[0] 0,{0,s-2}
+  pack_sprites. [^-1],${1-4},{2^(5+$5)}
+
+fx_pack_sprites_preview :
+  gui_no_preview ,
+  v:=$6?1:2
+  u "{$1}{$2}{$3}{$4}{$5}{$6}{$7}"_$v"{$8}"_$v
 
 #@gui Paper Texture : fx_paper, fx_paper(0)
 #@gui : Channel(s) = choice("All","RGBA [All]","RGB [All]","RGB [Red]","RGB [Green]","RGB [Blue]","RGBA [Alpha]",
