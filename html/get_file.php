@@ -1,131 +1,124 @@
 <?php
-// Directory where your files are stored
-$filesDirectory = 'files/'; // Ensure this folder exists and contains the files to download
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-// Generate filenames for logs
-$currentMonthYear = date('Y_m'); // Format: YYYY-MM
-$currentMonthFile = "downloads_$currentMonthYear";
-$allTimeFile = "downloads_all";
+// Debug mode via URL: ?debug=1
+$debugMode = isset($_GET['debug']) && $_GET['debug'] == '1';
+if ($debugMode) {
+    ob_start();
+}
 
-// Backup files (to recover in case of reset)
-$currentMonthBackup = "$currentMonthFile.bak";
-$allTimeBackup = "$allTimeFile.bak";
+function debug_print($message) {
+    echo '<p>' . htmlspecialchars($message) . '</p>';
+}
 
-// Get the requested file from the query parameter
-$requestedFile = isset($_GET['file']) ? $_GET['file'] : null;
+// --- Step 1: Get the requested file path ---
+$relativePath = $_GET['file'] ?? '';
+if ($debugMode) debug_print("Requested file: " . $relativePath);
 
-if (!$requestedFile) {
-    echo "Error: No file specified.";
+$baseDir = realpath(__DIR__ . '/files');
+$targetPath = realpath($baseDir . '/' . $relativePath);
+if ($debugMode) {
+    debug_print("Base dir: " . $baseDir);
+    debug_print("Resolved target path: " . ($targetPath ?: 'NULL'));
+}
+
+// --- Step 2: Validate file path (safe even without str_starts_with) ---
+if (
+    !$targetPath ||
+    substr($targetPath, 0, strlen($baseDir)) !== $baseDir ||
+    !is_file($targetPath)
+) {
+    http_response_code(404);
+    if ($debugMode) {
+        debug_print("Invalid or unauthorized file path.");
+        ob_end_flush();
+    }
     exit;
 }
 
-// Full path of the requested file
-$filePath = $filesDirectory . $requestedFile;
+// --- Step 3: Prepare stats file path and key ---
+$statsFile = __DIR__ . '/downloads.json';
+$key = ltrim($relativePath, '/'); // e.g., "windows/myfile.exe"
+$today = date('Y-m-d');
+$todayTimestamp = strtotime($today);
 
-// Validate that the file exists in the specified directory
-if (!file_exists($filePath)) {
-    echo "Error: File not found.";
+// --- Step 4: Open and lock stats file ---
+$fp = fopen($statsFile, 'c+');
+if (!$fp) {
+    if ($debugMode) debug_print("Failed to open stats file.");
+    http_response_code(500);
+    if ($debugMode) ob_end_flush();
+    exit;
+}
+if (!flock($fp, LOCK_EX)) {
+    if ($debugMode) debug_print("Failed to acquire file lock.");
+    http_response_code(500);
+    fclose($fp);
+    if ($debugMode) ob_end_flush();
+    exit;
+}
+if ($debugMode) debug_print("Stats file locked.");
+
+// --- Step 5: Read and decode JSON safely ---
+rewind($fp);
+$statsContent = stream_get_contents($fp);
+$stats = $statsContent ? json_decode($statsContent, true) : [];
+
+if (!is_array($stats)) {
+    $stats = [];
+    if ($debugMode) debug_print("Invalid or empty JSON, starting fresh.");
+}
+
+// --- Step 6: Update stats for this file ---
+if (!isset($stats[$key])) {
+    $stats[$key] = [
+        'total_downloads' => 0,
+        'start_date' => $today,
+        'daily_average' => 0.0
+    ];
+    if ($debugMode) debug_print("New entry created for $key");
+}
+
+$stats[$key]['total_downloads'] += 1;
+$startDate = $stats[$key]['start_date'];
+$daysElapsed = max(1, floor(($todayTimestamp - strtotime($startDate)) / 86400) + 1);
+$stats[$key]['daily_average'] = round($stats[$key]['total_downloads'] / $daysElapsed, 2);
+
+if ($debugMode) {
+    debug_print("Updated stats:");
+    debug_print("- total_downloads: " . $stats[$key]['total_downloads']);
+    debug_print("- start_date: " . $startDate);
+    debug_print("- days_elapsed: " . $daysElapsed);
+    debug_print("- daily_average: " . $stats[$key]['daily_average']);
+}
+
+// --- Step 7: Write back JSON atomically ---
+rewind($fp);
+ftruncate($fp, 0);
+$written = fwrite($fp, json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+fflush($fp);
+flock($fp, LOCK_UN);
+fclose($fp);
+
+if ($written === false && $debugMode) {
+    debug_print("Failed to write stats.");
+} elseif ($debugMode) {
+    debug_print("Stats successfully written.");
+}
+
+// --- Step 8: Either show debug output or download the file ---
+if ($debugMode) {
+    debug_print("Debug mode: file not downloaded.");
+    ob_end_flush();
     exit;
 }
 
-// Ensure the log files exist or restore from backup
-function ensureLogFile($logFile, $backupFile) {
-    if (!file_exists($logFile)) {
-        if (file_exists($backupFile)) {
-            copy($backupFile, $logFile); // Restore from backup
-        } else {
-            file_put_contents($logFile, json_encode([])); // Initialize
-        }
-    }
-}
-
-// Ensure both logs exist
-ensureLogFile($currentMonthFile, $currentMonthBackup);
-ensureLogFile($allTimeFile, $allTimeBackup);
-
-// Function to calculate average downloads per day
-function calculateDownloadsPerDay($firstDownloadDate, $totalDownloads) {
-    $firstDownloadTimestamp = strtotime($firstDownloadDate);
-    $currentTimestamp = time();
-
-    $daysSinceFirstDownload = max(1, ($currentTimestamp - $firstDownloadTimestamp) / 86400); // Avoid division by zero
-
-    return round($totalDownloads / $daysSinceFirstDownload, 2); // Keep 2 decimal places
-}
-
-// Function to update the log file safely with backup and track download stats
-function updateLogFile($logFile, $backupFile, $requestedFile) {
-    $tempFile = "$logFile.tmp"; // Temporary file for atomic writing
-
-    $handle = fopen($logFile, 'r+');
-    if (!$handle) {
-        echo "Error: Unable to open the log file.";
-        exit;
-    }
-
-    // Lock the file
-    if (flock($handle, LOCK_EX)) {
-        // Read the current counts
-        $contents = stream_get_contents($handle);
-        $counts = json_decode($contents, true);
-        if (!is_array($counts)) {
-            $counts = [];
-        }
-
-        // Get the current date
-        $currentDate = date('Y-m-d');
-
-        // Initialize file tracking if it doesn't exist
-        if (!isset($counts[$requestedFile])) {
-            $counts[$requestedFile] = [
-                "count" => 0,
-                "first_download" => $currentDate,
-                "average_downloads_per_day" => 0
-            ];
-        }
-
-        // Increment the count for the requested file
-        $counts[$requestedFile]["count"]++;
-
-        // Recalculate average downloads per day
-        $counts[$requestedFile]["average_downloads_per_day"] = calculateDownloadsPerDay(
-            $counts[$requestedFile]["first_download"],
-            $counts[$requestedFile]["count"]
-        );
-
-        // Write to a temporary file first (atomic write)
-        file_put_contents($tempFile, json_encode($counts, JSON_PRETTY_PRINT));
-
-        // Backup the previous file before replacing it
-        copy($logFile, $backupFile);
-
-        // Replace the original file with the new one
-        rename($tempFile, $logFile);
-
-        // Unlock the file
-        flock($handle, LOCK_UN);
-    } else {
-        echo "Error: Unable to lock the log file.";
-        fclose($handle);
-        exit;
-    }
-
-    fclose($handle);
-}
-
-// Update both the current month log and the all-time log
-updateLogFile($currentMonthFile, $currentMonthBackup, $requestedFile);
-updateLogFile($allTimeFile, $allTimeBackup, $requestedFile);
-
-// Serve the file for download
+// --- Step 9: Send file to browser ---
 header('Content-Description: File Transfer');
 header('Content-Type: application/octet-stream');
-header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
-header('Content-Transfer-Encoding: binary');
-header('Expires: 0');
-header('Cache-Control: must-revalidate');
-header('Pragma: public');
-header('Content-Length: ' . filesize($filePath));
-readfile($filePath);
+header('Content-Disposition: attachment; filename="' . basename($targetPath) . '"');
+header('Content-Length: ' . filesize($targetPath));
+readfile($targetPath);
 exit;
-?>

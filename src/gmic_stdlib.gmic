@@ -540,8 +540,11 @@ reference : skip "${2=}"
 "Output expression 'filename.tiff,_datatype,_compression,_force_multipage,_use_bigtiff' can be used "\
 "to specify the output pixel type, as well as the compression method. "\
 "'datatype' can be the same as for `.cimg[z]` files. 'compression' can be "\
-" { none (default) | jbig | jpeg | lzma | lzw | webp | zstd }. 'force_multipage' can be { 0:No (default) | 1:Yes }. "\
-"'use_bigtiff' can be { 0:No | 1:Yes (default) }."\n\
+" { none | adobe_deflate | ccitt_t4 | ccitt_t6 | ccittfax3 | ccittfax4 | ccittrle | ccittrlew | dcs | "\
+"deflate | it8bl | it8ctpad | it8lw | it8mp | jbig | jp2000 | jpeg | jpg | jxl | lerc | lzma | lzw | "\
+"next | ojpeg | packbits | pixarfilm | pixarlog | sgilog | sgilog24 | t43 | t85 | thunderscan | "\
+"webp | zip | zstd }. "\
+"'force_multipage' can be { 0:No (default) | 1:Yes }. 'use_bigtiff' can be { 0:No | 1:Yes (default) }."\n\
 "  - `.pdf` __files:__ When loading a file, the rendering resolution can be specified using the input expression "\
 "'filename.pdf,resolution', where 'resolution' is an unsigned integer value."\n\
 "  - `.gif` __files:__ Animated gif files can be saved, using the input expression "\
@@ -1195,7 +1198,7 @@ reference : skip "${2=}"
 "elevation3d[-1] \"'X=(x-64)/6;Y=(y-64)/6;100*exp(-(X^2+Y^2)/30)*abs(cos(X)*sin(Y))'\"\n~~~"\n\n\
 "===\n![3D Elevation](../img/example_elevation3d.png)\n==="\n\n\
 "### Plot the isosurface of a 3D volume: "\n\
-"\n~~~\n$ gmic mode3d 5 moded3d 5 double3d 0 isosurface3d \"'x^2+y^2+abs(z)^abs(4*cos(x*y*z*3))'\",3\n~~~"\n\
+"\n~~~\n$ gmic mode3d 5 moded3d 5 isosurface3d \"'x^2+y^2+abs(z)^abs(4*cos(x*y*z*3))'\",3\n~~~"\n\
 "===\n![3D Isosurface](../img/example_isosurface3d.png)\n==="\n\n\
 "### Render a G'MIC 3D logo: "\n\
 "\n~~~\n$ gmic 0 text G\\\47MIC,0,0,53,1,1,1,1 expand xy,10 blur 1 normalize 0,100 +plasma 0.4 add blur 1 "\
@@ -1203,7 +1206,7 @@ reference : skip "${2=}"
 "===\n![3D G'MIC Logo](../img/example_logo.png)\n==="\n\n\
 "### Generate a 3D ring of torii: "\n\
 "\n~~~\n$ gmic repeat 20 torus3d 15,2 color3d[-1] \"{u(60,255)},{u(60,255)},{u(60,255)}\" *3d[-1] 0.5,1 if \"{$>%2}\" "\
-"rotate3d[-1] 0,1,0,90 fi add3d[-1] 70 add3d rotate3d 0,0,1,18 done moded3d 3 mode3d 5 double3d 0\n~~~"\n\
+"rotate3d[-1] 0,1,0,90 fi add3d[-1] 70 add3d rotate3d 0,0,1,18 done moded3d 3 mode3d 5\n~~~"\n\
 "===\n![3D Ring](../img/example_torii.png)\n==="\n\n\
 "### Create a vase from a 3D isosurface: "\n\
 "\n~~~\n$ gmic moded3d 4 isosurface3d \"'x^2+2*abs(y/2)*sin(2*y)^2+z^2-3',0\" sphere3d 1.5 sub3d[-1] 0,5 "\
@@ -2057,13 +2060,13 @@ _display : skip ${1=},${3=}
   setting_3d_is_rendered:=narg($_display_3d_is_rendered)?cut(int(0$_display_3d_is_rendered),0,1):1
   setting_3d_rendering_mode:=narg($_display_3d_rendering_mode)?\
                              cut(int(0$_display_3d_rendering_mode),0,5):\
-                             narg($_mode3d)?cut(int(0$_mode3d),0,5):4
+                             narg($_mode3d)?cut(int(0$_mode3d),0,5):3
   setting_3d_outline_mode:=narg($_display_3d_outline_mode)?cut(int(0$_display_3d_outline_mode),0,6):0
   setting_3d_motion_rendering_mode:=narg($_display_3d_motion_rendering_mode)?\
                                     cut(int(0$_display_3d_motion_rendering_mode),-1,5):\
                                     narg($_moded3d)?cut(int(0$_moded3d),-1,5):3
   setting_3d_motion_time_limit:=narg($_display_3d_motion_time_limit)?max(0$_display_3d_motion_time_limit,0):300
-  setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):1
+  setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):0
   setting_3d_is_zbuffer:=narg($_display_3d_is_zbuffer)?cut(int(0$_display_3d_is_zbuffer),0,1):1
   setting_3d_focale:=narg($_display_3d_focale)?0$_display_3d_focale:1.5
   setting_3d_is_axes:=narg($_display_3d_is_axes)?cut(int(0$_display_3d_is_axes),0,1):1
@@ -2071,8 +2074,11 @@ _display : skip ${1=},${3=}
   setting_3d_background:=narg($_display_3d_background)?cut(int(0$_display_3d_background),0,12):11
   setting_3d_animation:=narg($_display_3d_animation)?cut(int(0$_display_3d_animation),0,1):0
   setting_3d_animation_mode:=narg($_display_3d_animation_mode)?cut(int(0$_display_3d_animation_mode),0,15):4
+  setting_3d_light:=narg($_display_3d_light)?[0$_display_3d_light]:[0,0,-1e5]
   if !narg($_display_3d_pose) _display_3d_pose=1,0,0,0,0,1,0,0,0,0,1,0 fi
   if !narg($_display_3d_zoom) _display_3d_zoom=0.65 fi
+  if !narg($_specl3d) specl3d fi
+  if !narg($_specs3d) specs3d fi
 
   thumb_height_factor=0.15
   thumb_min_ratio=0.45
@@ -2098,7 +2104,7 @@ _display : skip ${1=},${3=}
     l_ind:=arg0($>,$sel)
     g_ind={image_indices,i[$l_ind]}
     if "s = u = lowercase(["{'${image_name$l_ind}'}"]);
-        fill(u,k,c = u[k]; inrange(c,_'a',_'z') || inrange(c,_'0',_'9') || isin(c,_'/',_'\\',_'_',_'-'));
+        fill(u,k,c = u[k]; inrange(c,_'a',_'z') || inrange(c,_'0',_'9') || isin(c,_'/',_'\\',_'_',_'-',_'.'));
         s!=0 && min(u)"
       basename {``${image_name$l_ind}}
       if ['{/${}}']!=0 ({'{/${}}'}) else ('{``${image_name$l_ind}}') fi
@@ -2126,6 +2132,7 @@ _display : skip ${1=},${3=}
     if $setting_normalization<0 setting_normalization=4 fi
     w[] $window_width,$window_height,0,$window_title
   fi
+
   window_nonfullscreen_width,window_nonfullscreen_height={*,w,h}
   is_fullscreen,mouse_x,mouse_y={*,f,x,y}
   mouse_area,is_area1,is_area2,is_area3,is_area4,is_area5,is_area234=0
@@ -2629,7 +2636,7 @@ _display : skip ${1=},${3=}
       if $setting_3d_outline_mode" && "!0$area_3d_mesh_notexture
         +l[area_3d_mesh] {
           p3d 2 nbp:=f2ui(i[7])
-          if $nbp 1,$nbp,1,1,y j.. .,0,{-2,h-4*$nbp} j.. .,0,{-2,h-3*$nbp} j.. .,0,{-2,h-2*$nbp} rm. fi
+          if $nbp 1,$nbp,1,1,y r. 3,100% y. j.. .,0,{-2,h-4*$nbp} rm. fi
         }
         => area_3d_mesh_notexture
       fi
@@ -2688,14 +2695,15 @@ _display : skip ${1=},${3=}
             {$is_volumetric?[2,1,1,1.5*$fact]:[$area_3d_is_motion?min($setting_3d_motion_rendering_mode,\
                                                                       $setting_3d_rendering_mode):\
                                                                       $setting_3d_rendering_mode,\
-                                                                      $setting_3d_side_mode==1,\
-                                                                      $setting_3d_is_zbuffer,\
-                                                                      $setting_3d_focale*$fact]}
+                                               $setting_3d_side_mode==1,\
+                                               $setting_3d_is_zbuffer,\
+                                               $setting_3d_focale*$fact]},\
+            $setting_3d_light,$_specl3d,$_specs3d,$area_3d_is_motion
           if $setting_3d_outline_mode" && "!$is_volumetric" && "$setting_3d_rendering_mode>1 # Draw primitive outlines
             +z. 0,8,0,{7+3*$nbv} j[area_3d_mesh_notexture] .,0,8 rm.
             [area_3d_view],[area_3d_view],1,1,-1
-            j3d. [area_3d_mesh_notexture],50%,50%,0,1,2,{$setting_3d_side_mode==1},$setting_3d_is_zbuffer,\
-                 {$setting_3d_focale*$fact}
+            j3d. [area_3d_mesh_notexture],50%,50%,0,1,2,{$setting_3d_side_mode==1},1,\
+                 {$setting_3d_focale*$fact},$setting_3d_light,$_specl3d,$_specs3d,$area_3d_is_motion
             g. xy,1 !=[-2,-1] 0 or[-2,-1]
             100%,100%,1,3
             fc. ${"arg "$setting_3d_outline_mode,\
@@ -2751,7 +2759,7 @@ _display : skip ${1=},${3=}
     if !0$canvas_label_info
       0
       if "s = u = lowercase(["{'${image_name$selected}'}"]);
-        fill(u,k,c = u[k]; inrange(c,_'a',_'z') || inrange(c,_'0',_'9') || isin(c,_'/',_'\\',_'_',_'-'));
+        fill(u,k,c = u[k]; inrange(c,_'a',_'z') || inrange(c,_'0',_'9') || isin(c,_'/',_'\\',_'_',_'-',_'.'));
         s!=0 && min(u)"
         basename {``${image_name$selected}}
         if ['{/${}}']!=0 ({'{/${}}'}) else ('{``${image_name$selected}}') fi
@@ -4197,7 +4205,7 @@ _display_camera :
   wc,hc:=w,h
 
   # Open interactive window.
-  w ${"fitscreen "$wc,$hc},0,"G'MIC Camera Stream Viewer"
+  w ${"fitscreen[] "$wc,$hc},0,"G'MIC Camera Stream Viewer"
   wnfs,hnfs={*,w,h}
   angle,fullscreen,brightness,contrast=0
   do
@@ -9418,7 +9426,7 @@ _plot : skip ${8=},${10=}
     rm.
 
     basename ${image_name$>} title="[G'MIC] "${} => img
-    w_width,w_height=${"fitscreen 1024,600"}
+    w_width,w_height=${"fitscreen[] 1024,600"}
     if !{*} w[] $w_width,$w_height,0,$title fi
 
     if $3==$4 xmin0,xmax0={0,[0,w-1]} else xmin0,xmax0:=min(${3,4}),max(${3,4}) fi
@@ -10802,7 +10810,7 @@ update_deprecate : check "isint($1,1,999)"
 
 # update_download_html.
 # Update file versions on G'MIC download page, with specified version number.
-# $1 = version number (e.g. '3.5.6').
+# $1 = version number (e.g. '3.6.0').
 update_download_html : check "
     is_digit(c)=(c>=_'0' && c<=_'9');
     ver = ['${1=undefined}'];
@@ -12608,7 +12616,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=354,355,356,$_version
+  versions=360,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -18266,18 +18274,23 @@ slices : check "isint(${3=0},0,3)" skip ${2=$1}
 
 #@cli s : eq. to 'split'. : (+)
 
-#@cli split : { x | y | z | c }...{ x | y | z | c },_split_mode : \
+#@cli split : { x | y | z | c }...{ x | y | z | c },_split_mode[%],_max_parts>0 : \
 # keep_splitting_values={ +:Increasing | -:Decreasing },\
 # _{ x | y | z | c }...{ x | y | z | c },value1,_value2,... : (no arg) : (+)
 #@cli : Split selected images along specified axes, or regarding to a sequence of scalar values
-#@cli : (optionally along specified axes too).
+#@cli : (optionally along specified axes).
 #@cli : (eq. to 's').\n
-#@cli : 'split_mode' can be { 0:Split according to constant values | >0:Split in N parts | \
-# <0:split in parts of size -N }.
-#@cli : Default value: 'split_mode=-1'.
+#@cli : Argument 'split_mode' determines how the split is done. It can be :
+#@cli : - '0': Split image according to consecutive constant values;
+#@cli : - 'N' (where 'N' is a positive integer): Split image into 'N' homogeneous parts;
+#@cli : - '-N[%]' (where 'N' is a positive integer): Split image as blocks of size 'N'\
+# (opt. specified as a percentage of the image dimension).
+#@cli : When specified, 'max_parts' defines a limit in the number of resulting images.
+#@cli : Default value: 'N=-1'.
 #@cli : $ image.jpg split c
 #@cli : $ image.jpg split y,3
 #@cli : $ image.jpg split x,-128
+#@cli : $ image.jpg split x,-30%,2
 #@cli : $ 1,20,1,1,"1,2,3,4" +split -,2,3 append[1--1] y
 #@cli : $ (1,2,2,3,3,3,4,4,4,4) +split x,0 append[1--1] y
 
@@ -20458,7 +20471,7 @@ sharpen_alpha : check "${1=1}>=0 && isint(${2=5},1) && inrange(${3=0},0,1) && in
   foreach {
     split_opacity l[0] {
       split_alpha $2,0,$3,$4
-      foreach[^0] { sh 100% *. {$<?lerp(1,1+$1,$>/($>+$<)):(1+$1)} c. 0,255 rm. }
+      foreach[^0] { sh 100% *. {$<?lerp(1,1+$1,$%):(1+$1)} c. 0,255 rm. }
       merge_alpha
     } a c
   }
@@ -20579,7 +20592,7 @@ split_details : check "(isint(${1=0}) || ispercentage($1)) && ${2=0}>=0 && ${3=0
       ss:=max(0.25,ispercentage($3)?$3*max(w,h):$3)
       se:=max(0.25,ispercentage($2)?$2*max(w,h):$2)
       repeat $nb_scales-1 {
-        +b. {lerp($ss,$se,$>/($>+$<))}
+        +b. {lerp($ss,$se,$%)}
         -.. .
       }
     fi
@@ -21121,7 +21134,7 @@ detect_skin : check "${1=0.5}>=0 && $1<=1" skip ${2=-1},${3=-1},${4=-1}
     }
   fi
 
-#@cli displacement : [source_image],_smoothness,_precision>=0,_nb_scales>=0,_iteration_max>=0,\
+#@cli displacement : [source_image],_smoothness>=0,_precision>=0,_nb_scales>=0,_iteration_max>=0,\
 # is_backward={ 0:No | 1:Yes },_[guide] : (+)
 #@cli : Estimate displacement field between specified source and selected target images.
 #@cli : If 'smoothness>=0', regularization type is set to isotropic, else to anisotropic.
@@ -23469,7 +23482,7 @@ spline : skip ${9=1},${10=0}
 #@cli thickcircle : x[%],y[%],R[%],_thickness>=0,_opacity,_color1,...
 #@cli : Draw specified colored thick outlined circle on selected images.
 #@cli : Default values: 'thickness=3', 'opacity=1' and 'color1=0'.
-#@cli : $ 400,400 repeat 15 { R:=lerp(10,190,$>/($>+$<)) thickcircle 200,200,$R,2,1,$R } n 0,255 map 7
+#@cli : $ 400,400 repeat 15 { R:=lerp(10,190,$%) thickcircle 200,200,$R,2,1,$R } n 0,255 map 7
 thickcircle : check "${4=3}>=0 && isnum(${5=1}) && isnum(${6=0})"
   e[0--3] "Draw thick outlined circle at ($1,$2) with radius $3 on image$?, with thickness $4, opacity $5 "\
     "and color (${6--1})."
@@ -23804,7 +23817,8 @@ newton_fractal : check "isin(${6=1},0,1,2) && ${7=200}>=0 && ${8=0.01}>0"
 #@cli j3d : eq. to 'object3d'. : (+)
 
 #@cli object3d : [object3d],_x[%],_y[%],_z,_opacity,_rendering_mode,_is_double_sided={ 0:No | 1:Yes },\
-# _is_zbuffer={ 0:No | 1:Yes },_focale,_light_x,_light_y,_light_z,_specular_lightness,_specular_shininess : (+)
+# _is_zbuffer={ 0:No | 1:Yes },_focale,_light_x,_light_y,_light_z,_specular_lightness,_specular_shininess,\
+# _is_multithreaded_rendering={ 0:No | 1:Yes } : (+)
 #@cli : Draw specified 3D object on selected images.
 #@cli : (eq. to 'j3d').\n
 #@cli : 'rendering_mode' can be { 0:Dots | 1:Wireframe | 2:Flat | 3:Flat-shaded | 4:Gouraud-shaded | 5:Phong-shaded }.
@@ -24651,7 +24665,7 @@ trisolve : check ${"is_image_arg $1"}
 #@cli : Default values: 'ty=tz=0'.
 #@cli : $ sphere3d 10 repeat 5 { +add3d[-1] 10,{u(-10,10)},0 color3d[-1] ${-rgb} } add3d
 #@cli : $ repeat 20 { torus3d 15,2 color3d[-1] ${-rgb} mul3d[-1] 0.5,1 if $>%2 rotate3d[-1] 0,1,0,90 fi add3d[-1] 70 \
-# add3d rotate3d[-1] 0,0,1,18 } double3d 0
+# add3d rotate3d[-1] 0,0,1,18 }
 
 #@cli animate3d : nb_frames>0,_step_angle_x,_step_angle_y,_step_angle_z,_zoom_factor,0<=_fake_shadow_level<=100,\
 # _[background]
@@ -24706,7 +24720,7 @@ _cross3d :
 
 #@cli apply_matrix3d : a11,a12,a13,...,a31,a32,a33
 #@cli : Apply specified 3D rotation matrix to selected 3D objects.
-#@cli : $ torus3d 10,1 +apply_matrix3d {mul(rot(1,0,1,-15°),[1,0,0,0,2,0,0,0,8],3)} double3d 0
+#@cli : $ torus3d 10,1 +apply_matrix3d {mul(rot(1,0,1,-15°),[1,0,0,0,2,0,0,0,8],3)}
 apply_matrix3d :
   e[^-1] "Apply 3x3 matrix (${1-3};${4-6};${7-9}) to 3D object$?."
   foreach { nbp:=i[6] sh 8,{8+3*$nbp-1},0,0 r. 3,$nbp,1,1,-1 3,3,1,1,$* transpose. m*[-2,-1] rm. }
@@ -24922,7 +24936,7 @@ col3d :
 #@cli : Set color (and optionally opacity) of selected 3D objects.
 #@cli : (eq. to 'col3d').
 #@cli : Default value: 'B=G=R' and 'opacity=(undefined)'.
-#@cli : $ torus3d 100,10 double3d 0 repeat 7 { +rotate3d[-1] 1,0,0,20 color3d[-1] ${-rgb} } add3d
+#@cli : $ torus3d 100,10 repeat 7 { +rotate3d[-1] 1,0,0,20 color3d[-1] ${-rgb} } add3d
 color3d :
   _gmic_s="$?" v + _$0 $*
 
@@ -25230,16 +25244,16 @@ distribution3d :
 
 #@cli db3d : eq. to 'double3d'.
 db3d :
-  l[] { check "isbool(${1=1})" mode=$1 onfail noarg mode=1 }
+  l[] { check "isbool(${1=1})" mode=$1 onfail noarg mode=0 }
   v + _double3d $mode
 
 #@cli double3d : _is_double_sided={ 0:No | 1:Yes }
 #@cli : Enable/disable double-sided mode for 3D rendering.
 #@cli : (eq. to 'db3d').
-#@cli : Default value: 'is_double_sided=1'.
+#@cli : Default value: 'is_double_sided=0'.
 #@cli : $ mode3d 1 repeat 2 { torus3d 100,30 rotate3d[-1] 1,1,0,60 double3d $> snapshot3d[-1] 400 }
 double3d :
-  l[] { check "isbool(${1=1})" mode=$1 onfail noarg mode=1 }
+  l[] { check "isbool(${1=1})" mode=$1 onfail noarg mode=0 }
   v + _$0 $mode
 
 _double3d :
@@ -25735,7 +25749,7 @@ lathe3d : check "${1=128}>0 && ${2=0.5%}>=0 && ${3=361}>=0"
 #@cli : Set the light coordinates or the light texture for 3D rendering.
 #@cli : (eq. to 'l3d').\n
 #@cli : (no arg) resets the 3D light to default.
-#@cli : $ torus3d 100,30 double3d 0 specs3d 1.2 repeat 5 { light3d {$>*100},0,-300 +snapshot3d[0] 400 } remove[0]
+#@cli : $ torus3d 100,30 specs3d 1.2 repeat 5 { light3d {$>*100},0,-300 +snapshot3d[0] 400 } remove[0]
 
 #@cli line3d : x0,y0,z0,x1,y1,z1
 #@cli : Input 3D line at specified coordinates.
@@ -25781,10 +25795,10 @@ m3d :
 # 5:Phong-shaded }.
 #@cli : Bounding-box mode ('mode==-1') is active only for the interactive 3D viewer.
 #@cli : Default value: 'mode=4'.
-#@cli : $ (0,1,2,3,4,5) double3d 0 repeat w { torus3d 100,30 rotate3d[-1] 1,1,0,60 mode3d {0,@$>} \
+#@cli : $ (0,1,2,3,4,5) repeat w { torus3d 100,30 rotate3d[-1] 1,1,0,60 mode3d {0,@$>} \
 # snapshot3d[-1] 300 } remove[0]
 mode3d :
-  l[] { check "isint(${1=4},-1,5)" mode=$1 onfail noarg mode=4 }
+  l[] { check "isint(${1=3},-1,5)" mode=$1 onfail noarg mode=3 }
   v + _$0 $mode
 
 _mode3d :
@@ -25823,6 +25837,26 @@ _moded3d :
 #@cli : (eq. to '*3d').
 #@cli : Default value: 'factor_z=1'.
 #@cli : $ torus3d 5,2 repeat 5 { +add3d[-1] 10,0,0 mul3d[-1] 1.2 color3d[-1] ${-rgb} } add3d
+
+#@cli mt3d : eq. to 'multithreaded3d'.
+mt3d :
+  l[] { check "isbool(${1=0})" mode=$1 onfail noarg mode=0 }
+  v + _multithreaded3d $mode
+
+#@cli multithreaded3d : _is_multi_threaded_rendering={ 0:No | 1:Yes }
+#@cli : Enable/disable multi-threaded 3D rendering.
+#@cli : (eq. to 'mt3d').
+#@cli : Default value: 'is_multithreaded_rendering=0'.
+multithreaded3d :
+  l[] { check "isbool(${1=0})" mode=$1 onfail noarg mode=0 }
+  v + _$0 $mode
+
+_multithreaded3d :
+  if $^>=0
+    s0,s1=Disable,Enable
+    e[0--4] ${s$1}" multi-threaded 3D rendering."
+  fi
+  _multithreaded3d=$1
 
 #@cli n3d : eq. to 'normalize3d'.
 n3d :
@@ -25933,7 +25967,7 @@ o3d :
 #@cli opacity3d : opacity
 #@cli : Set opacity of selected 3D objects.
 #@cli : (eq. to 'o3d').
-#@cli : $ torus3d 100,10 double3d 0 repeat 7 { +rotate3d[-1] 1,0,0,20 opacity3d[-1] {u} } add3d
+#@cli : $ torus3d 100,10 repeat 7 { +rotate3d[-1] 1,0,0,20 opacity3d[-1] {u} } add3d
 opacity3d :
   _gmic_s="$?" v + _$0 $*
 
@@ -26392,7 +26426,7 @@ rv3d :
 #@cli reverse3d
 #@cli : Reverse primitive orientations of selected 3D objects.
 #@cli : (eq. to 'rv3d').
-#@cli : $ torus3d 100,40 double3d 0 +reverse3d
+#@cli : $ torus3d 100,40 +reverse3d
 reverse3d :
   _gmic_s="$?" v + _$0
 
@@ -26416,7 +26450,7 @@ _reverse3d :
 #@cli rotate3d : u,v,w,angle : (+)
 #@cli : Rotate selected 3D objects around specified axis with specified angle (in deg.).
 #@cli : (eq. to 'r3d').
-#@cli : $ torus3d 100,10 double3d 0 repeat 7 { +rotate3d[-1] 1,0,0,20 } add3d
+#@cli : $ torus3d 100,10 repeat 7 { +rotate3d[-1] 1,0,0,20 } add3d
 
 #@cli rotation3d : u,v,w,angle
 #@cli : Input 3x3 rotation matrix with specified axis and angle (in deg).
@@ -26585,17 +26619,17 @@ snapshot3d : check "("${"is_image_arg $1"}" || isint(${1=1024},1)) && ${2=1}>=0 
 
 #@cli sl3d : eq. to 'specl3d'.
 sl3d :
-  l[] { check "${1=0.15}>=0" value=$1 onfail noarg value=0.15 }
+  l[] { check "${1=0.25}>=0" value=$1 onfail noarg value=0.25 }
   v + _specl3d $value
 
 #@cli specl3d : value>=0
 #@cli : Set lightness of 3D specular light.
 #@cli : (eq. to 'sl3d').
-#@cli : Default value: 'value=0.15'.
+#@cli : Default value: 'value=0.25'.
 #@cli : $ (0,0.3,0.6,0.9,1.2) repeat w { torus3d 100,30 rotate3d[-1] 1,1,0,60 color3d[-1] 255,0,0 specl3d {0,@$>} \
 # snapshot3d[-1] 400 } remove[0]
 specl3d :
-  l[] { check "${1=0.15}>=0" value=$1 onfail noarg value=0.15 }
+  l[] { check "${1=0.25}>=0" value=$1 onfail noarg value=0.25 }
   v + _$0 $value
 
 _specl3d :
@@ -26604,17 +26638,17 @@ _specl3d :
 
 #@cli ss3d : eq. to 'specs3d'.
 ss3d :
-  l[] { check "${1=0.8}>=0" value=$1 onfail noarg value=0.8 }
+  l[] { check "${1=0.1}>=0" value=$1 onfail noarg value=0.1 }
   v + _specs3d $value
 
 #@cli specs3d : value>=0
 #@cli : Set shininess of 3D specular light.
 #@cli : (eq. to 'ss3d').
-#@cli : Default value: 'value=0.8'.
+#@cli : Default value: 'value=0.1'.
 #@cli : $ (0,0.3,0.6,0.9,1.2) repeat w { torus3d 100,30 rotate3d[-1] 1,1,0,60 color3d[-1] 255,0,0 specs3d {0,@$>} \
 # snapshot3d[-1] 400 } remove[0]
 specs3d :
-  l[] { check "${1=0.8}>=0" value=$1 onfail noarg value=0.8 }
+  l[] { check "${1=0.1}>=0" value=$1 onfail noarg value=0.1 }
   v + _$0 $value
 
 _specs3d :
@@ -29995,7 +30029,7 @@ nn_fc : check "isvarname('$1') && isint($3,1) && isint(${4=3},0,3) && ${5=0}>=0 
   _${nout}_properties="learning_mode="$learning_mode", regularization="$regularization
   if !isint(${$nout})
     {prod(${_${nin}_size})+1},$nb_channels
-    if $initialization==1
+    if $initialization==1 # Identity
       f. "x==w-1?0:(x%h)==(y%(w-1))"
     elif $initialization==2 # Lecun-initialization
       f. "x==w-1?0:g*sqrt(1/(w-1))"
@@ -32680,7 +32714,7 @@ stylize :
   repeat $!-1 { l[$>,-1] {
     to_colormode.. {s}
     nb_scales:=1+round(log(min(w#0,h#0,w#1,h#1)/$init_resolution)/log($scale_factor),1,-1)
-    if {*} wsiz=${"fitscreen "{0,[w,h]}} w[0] $wsiz,0,"[G'MIC Stylize]" fi
+    if {*} wsiz=${"fitscreen[] "{0,[w,h]}} w[0] $wsiz,0,"[G'MIC Stylize]" fi
 
     repeat $nb_scales { scale=$>
       size_factor:=100/($scale_factor^$<)
@@ -34290,7 +34324,7 @@ _fade_stream : skip "${6=}"
   l { $1 onfail go_on=0 } # Load first image
   if !$go_on return fi
   w,h,s={w},{h},{s}
-  if {*} w. ${fitscreen\ $w,$h},0,"[G'MIC]" fi
+  if {*} w. ${fitscreen[]\ $w,$h},0,"[G'MIC]" fi
   pframe=$frame frame+=$5
   do
     l[] { $1 onfail go_on=0 }
@@ -34607,7 +34641,7 @@ _morph_stream : skip "${8=}"
   l { $1 onfail go_on=0 } # Load first image
   if !$go_on return fi
   w,h,s={w},{h},{s}
-  if {*} w. ${fitscreen\ $w,$h},0,"[G'MIC]" fi
+  if {*} w. ${fitscreen[]\ $w,$h},0,"[G'MIC]" fi
   pframe=$frame frame+=$7
   do
     l[] { $1 onfail go_on=0 }
@@ -36945,10 +36979,7 @@ demos : check "isint(${1=2},0,2)" check_display $0
     *.. 100 +[1,-2]
     *[2,3] .
     rm.
-    frame xy,4,0
-    a c s z
-    append_tiles 3 s c
-    to_rgb[1] a[3-5] c
+    frame xy,4,0 a c s z append_tiles 3 s c to_rgb[1] a[3-5] c
 
     0 t. "G\'MIC demos",2,2,32,1,1,1,1
     if $_prerelease 0 t. "Version:\n"$strver,40,1,18,1,1,1,1 rows. 2,100%
@@ -36996,7 +37027,8 @@ demos : check "isint(${1=2},0,2)" check_display $0
   (0.1;0.3^0.1;0.2^0.5;0.3) ri. ..,3 *[-2,-1]
   (0;1) r. ..,..,1,1,3 ^. 1.5 n. 0.2,1.15 *[-2,-1] n. 0,128
   => background
-  w. -1,-1,0,"[G'MIC - "$strver"]" cursor 0 w[] -1,-1,0,0,{([{*,u,v}]-[{*,w,h}])/2}
+  w. ${"fitscreen[] "{1.25*[w,h]}},0,"[G'MIC - "$strver"]"
+  cursor 0 w[] -1,-1,0,0,{([{*,u,v}]-[{*,w,h}])/2}
 
   # Enter event loop.
   omb,ind_clicked,cfx,cfy,cfz,alpha=0
@@ -37031,7 +37063,7 @@ demos : check "isint(${1=2},0,2)" check_display $0
     fi
 
     w. -1,-1,0
-    if {*,CTRLLEFT}" && "{*,D} w. 150%,150% elif {*,CTRLLEFT}" && "{*,C} w. 100%,100% fi
+    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
     rm.
 
     # Manage user selection.
@@ -37574,7 +37606,7 @@ x_blobs : check_display $0
 
   # Create background image [0].
   (0;0^0;128^0;255) r. 450,450,1,3,3 flower. 30,8,0,0,50%,50%,1 water. 20
-  w {f=h<0.5*{*,v}?1.5:1;[w,h]*=f},0,0,"[G"{`39`}"MIC] Blobs Editor"
+  w. ${"fitscreen[] "{1.5*[w,h]}},0,0,"[G"{`39`}"MIC] Blobs Editor"
 
   # Start event loop.
   moving=-1
@@ -37598,9 +37630,6 @@ x_blobs : check_display $0
       +norm. +>=. 50 <=.. 40 *[-3,-1]
       +*[0,-1] rm.. rv[-2,-1] *. 1.6 c. 0,255 +[-2,-1]
       if $fps>0 to. $fps" fps",5,{h-29},24,2,0.2 fi
-      w.
-      if {*,CTRLLEFT}" && "{*,D} w[] {2*[w,h]} elif {*,CTRLLEFT}" && "{*,C} w[] {[w,h]} fi
-      rm.
     else
       +to[0] "G\47MIC Blobs Editor",75,100,35,3,1,200,128,255
       to. "* Left mouse button : Create and move blobs.\n\n\
@@ -37609,10 +37638,9 @@ x_blobs : check_display $0
            * Key 'ESC' or 'Q' : Quit.\n\n\
            * Colors and sizes of appearing blobs are\n   chosen randomly",\
            50,180,18,1,1,255
-      w.
-      if {*,CTRLLEFT}" && "{*,D} w[] {1.5*[w,h]} elif {*,CTRLLEFT}" && "{*,C} w[] {[w,h]} fi
-      rm.
     fi
+    w. rm.
+    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
     wait 20
 
     # Manage blob insertion, removal or move.
@@ -37656,7 +37684,7 @@ x_bouncing : check_display $0
     t$>:=u(200) x$>:=u(10,w#0-10) h$>:=u(150,300) vx$>:=(u<0.5?1:-1)*u(1,8)
   }
   mv[0] $!
-  w. {f=w<0.5*{*,u}?1.5:1;[w,h]*=f},0,"[G"{`39`}"MIC] Bouncing Balls"
+  w. ${"fitscreen[] "{2.25*[w,h]}},0,0,"[G"{`39`}"MIC] Bouncing Balls"
   (0;0.7;1) r. {-2,w},70,1,1,3
 
   do
@@ -37683,7 +37711,7 @@ x_bouncing : check_display $0
     +rows. {h-2*70},{h-1-70} mirror. y *. [{$N+1}]
     j.. .,0,{-2,h-71},0,0,0.5 rm.
     fps=${-fps} if $fps>0 to. $fps" fps",5,{h-29},24,2,0.2 fi
-    if {*,CTRLLEFT}" && "{*,D} w[] {1.5*w},{1.5*h} elif {*,CTRLLEFT}" && "{*,C} w[] {w},{h} fi
+    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
     w. rm. wait 20
   while {*}" && "!{*,ESC}" && "!{*,Q}
   w 0 rm }
@@ -38265,7 +38293,8 @@ x_connect4 : check_display $0
         }
       }
       +r[cache,cachem] {board,[w,h]*$R},1,100%,0,2 a[-2,-1] c blend[-2,-1] alpha
-      => visu w[visu] 100%,100%,0,"[G'MIC] Connect Four"
+      => visu
+      w[visu] ${"fitscreen[] "{visu,1.25*[w,h]}},0,"[G'MIC] Connect Four"
       turn=0 is_falling=0 x=-1 yv=0 dyv=0 winner=
       autoplayer0=0 autoplayer1=0
     fi
@@ -38294,7 +38323,7 @@ x_connect4 : check_display $0
           x+=$c!=2 y+=$c==1?0:$c==4?-1:1
         }
       fi
-      w[tmpvisu] 100%,100% rm[tmpvisu] wait 20
+      w[tmpvisu] rm[tmpvisu] wait 20
 
       if {*,-SPACE}" || "{*,-RETURN} # Restart new game
         rm[visu,ymax] f[board] 0 winner=
@@ -38303,13 +38332,13 @@ x_connect4 : check_display $0
     elif !$is_falling # Manage column selection
 
       if !${autoplayer$turn}
-        x={visu,X={*,x};X<0?X:int(X*w#$board/w)}
+        x={visu,X={*,x};X<0?X:int(X*w#$board/{*,w})}
         yM:=i("#"$ymax,$x)
-        if {board,$x<0" || "$x>=w} w[visu] 100%,100%
+        if {board,$x<0" || "$x>=w} w[visu]
         else
           [visu] $R,100%,1,3,($yM>=0)*($turn?[255,255,0]:[255,0,0])
           j.. .,{$x*$R},0,0,0,{$yM>=0?0.15:0.3} rm.
-          w. 100%,100% rm.
+          w. rm.
         fi
         wait
       fi
@@ -38356,7 +38385,7 @@ x_connect4 : check_display $0
       j. [token$turn],0,$yv,0,0,1,[tokenm],255
       j. [cache],0,0,0,0,1,[cachem],255
       [visu] => tmpvisu
-      j[tmpvisu] ..,{$R*$x},0,0,0 rm.. w[tmpvisu] 100%,100%
+      j[tmpvisu] ..,{$R*$x},0,0,0 rm.. w[tmpvisu]
       if $yv>=$yM*$R
         j[visu] [tmpvisu] is_falling=0
         =[board] {$turn+1},$x,$yM
@@ -38396,7 +38425,7 @@ x_crop :
 _x_crop :
   e[0--3] "Crop image"$_gmic_s" interactively."
   if $!<1 return fi
-  w[0] ${"fitscreen "{0,[w,h,d]}},1,"[G'MIC] "{n}" - Interactive crop"
+  w[0] ${"fitscreen[] "{0,[w,h,d]}},1,"[G'MIC] "{n}" - Interactive crop"
   +select[0] 2,{0,round([w,h,d]/2)},0,1 coords={^} rm.
   z $coords
   u $coords
@@ -39587,7 +39616,7 @@ x_mask_color : check "${2=5}>=0 && ${3=5}>=0" skip ${1=all} check_display $0
       if {*,r} is_resized=1
       elif $is_ctrl" && "{*,-D} w[] {1,1.25*[w,h]} is_resized=1
       elif $is_ctrl" && "{*,-C} w[] {1,0.8*[w,h]} is_resized=1
-      elif $is_ctrl" && "{*,R} w[] ${fitscreen\ {0,[w,h,1]},128,1024} is_resized=1
+      elif $is_ctrl" && "{*,R} w[] ${fitscreen[]\ {0,[w,h,1]},128,1024} is_resized=1
       fi
       if $is_resized rm[1,2] +r {*,d},{*,e},1,3,2 +_ac_forward. channels. $_s refresh=1 fi
 
@@ -39692,7 +39721,7 @@ x_metaballs3d : check_display $0
   72,72,72 M=8 mode=3
   s0,s1,s2,s3,s4,s5=Dots,Wireframe,Flat,Flat-shaded,Gouraud-shaded,Phong-shaded
   repeat $M { fx$>,fy$>,fz$>:=2*[g,g,g] }
-  w[0] -1,-1,0,"[G"{`39`}"MIC] 3D Metaballs"
+  w[0] ${"fitscreen[] "{0,1.5*[w,h]}},0,"[G"{`39`}"MIC] 3D Metaballs"
   do
     repeat $M {
       x$>:=w/2+0.5*(w-{2,w}-4)*cos(${fx$>}*$|)
@@ -39709,10 +39738,10 @@ x_metaballs3d : check_display $0
       0 t. ${s$mode},5,5,$font,0.5,255,255,255 r. {w+5},100%,1,3,0 b. 0.7 n. 0,255
       +dilate. 3 +j[0] ..,5,3,0,0,1,.,255 mv. 1 rm[2,-2,-1]
     fi
-    +j3d[1] ..,50%,50%,0,1,{!$mode?3:$mode},0,0,300,0,0,-500,0.1,1.5
+    +j3d[1] ..,50%,50%,0,1,{!$mode?3:$mode},0,0,300,0,0,-500,1,0.1
     fps=${-fps} if $fps>0 to. $fps" fps",5,{h-22},16,2,0.2 fi
     w.
-    if {*,CTRLLEFT}" && "{*,D} w[] {2*w},{2*h} elif {*,CTRLLEFT}" && "{*,C} w[] {w},{h} fi
+    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
     rm[-3--1] wait 20
     if {*,b}" || "{*,SPACE} mode:=($mode+({*,b}&2?-1:1))%6 wait -1 rm[1] i[1] 0 fi
   while {*}" && "!{*,ESC}" && "!{*,Q}
@@ -39935,8 +39964,8 @@ x_morph : check "isint(${1=16}) && isint(${2=3},0,4)" check_display $0
 
       # Generate base images.
       if !narg($imgb0)" || "!narg($imgb1)
-        if {*} wdims=${"fitscreen "{*,d},{img0,{*,d}*h/w}}
-        else wdims=${"fitscreen "{img0,[w,h,1]},128,50%}
+        if {*} wdims=${"fitscreen[] "{*,d},{img0,{*,d}*h/w}}
+        else wdims=${"fitscreen[] "{img0,[w,h,1]},128,50%}
         fi
         w[] $wdims,0,"[G'MIC] Interactive Morph"
         repeat 2 { +to_color[img$>] r. $wdims,1,100%,2 n. 0,255 => imgb$> }
@@ -40752,7 +40781,7 @@ x_reflection3d : check_display $0
 
   # Start animation loop.
   xb,xl,anim=0
-  w[] ${"fitscreen 400,400,1,35%"},0,"[G"{`39`}"MIC] 3D Reflection"
+  w[] ${"fitscreen[] 400,400,1,35%"},0,"[G"{`39`}"MIC] 3D Reflection"
   do
 
     tic=$|
@@ -40807,7 +40836,7 @@ x_rubber3d : check_display $0
   400,400,64,3
   {w},{h},1,3,'!c?x:c==1?y:y*{1,d}/h'
   {w},{h},1,3
-  w[] ${"fitscreen .,35%"},0,"[G"{`39`}"MIC] 3D Rubber Object"
+  w[] ${"fitscreen[] .,35%"},0,"[G"{`39`}"MIC] 3D Rubber Object"
   frame=0
   do
     fps=${-fps}
@@ -41442,7 +41471,7 @@ x_shadebobs : check_display $0
 ---- Keys '"${c}"ESC"$n"' or '"${c}"Q"$n"' to exit.\n
 ----\n
 -------------------------------------------------"
-  rm t=100 w ${"fitscreen 512,512,1,35%"},0,"[G"{`39`}"MIC] Shade Bobs"
+  rm t=100 w ${"fitscreen[] 512,512,1,35%"},0,"[G"{`39`}"MIC] Shade Bobs"
 
   # Start animation loop.
   do
@@ -41618,7 +41647,7 @@ x_starfield3d : check_display $0
     0 t. "Version "${-strver},0,0,48,1,1 rs. ,18 +f. 255 to_rgb.
     random3d 2500 col3d. 255 *3d. 320,200,1000 -3d. 160,100
     l3d 0,0,-600
-    w[] ${"fitscreen 640,400,1,35%"},0,"[G"{`39`}"MIC] 3D Starfield"
+    w[] ${"fitscreen[] 640,400,1,35%"},0,"[G"{`39`}"MIC] 3D Starfield"
     t0=0 t=0
 
     do
@@ -42004,7 +42033,7 @@ x_tixy : skip "${1=sin(t-sqrt((x-8)^2+(y-8)^2))}" check_display $0
 ---- Keys '"${c}"CTRL+R"$n"' reset window size.\n
 ---- Keys '"${c}"ESC"$n"', '"${c}"Q"$n"' or '"${c}"RETURN"$n"' close the current window.\n
 ------------------------------------------------------------------------------------------------"
-  w[] ${"fitscreen 800,800"},0,"[G'MIC] tixy: "$expr
+  w[] ${"fitscreen[] 800,800"},0,"[G'MIC] tixy: "$expr
   t0=$| is_recording=0 is_antialias=1 is_screenshot=0 is_formula=0 nb_frames=0
   360,1,1,3,[x,abs(cos(x/w*pi))^0.5,1] hsv2rgb. shift. -180,0,0,0,2 => cmap
   strvar $expr basename=${}
@@ -42099,8 +42128,8 @@ x_warp : check "isint(${1=2},2) && isint(${2=$1},2) && isint(${3=0},0) && isint(
 
       # Generate base image.
       if !narg($imgb)
-        if {*} wdims=${"fitscreen "{*,d},{img,{*,d}*h/w}}
-        else wdims=${"fitscreen "{img,[w,h,1]},128,60%}
+        if {*} wdims=${"fitscreen[] "{*,d},{img,{*,d}*h/w}}
+        else wdims=${"fitscreen[] "{img,[w,h,1]},128,60%}
         fi
         w[] $wdims,0,"[G'MIC] Interactive Warp"
         +to_color[img] r. $wdims,1,100%,2 n. 0,255 => imgb
@@ -42340,7 +42369,7 @@ x_whirl : check "${1=0.2}>=0" check_display $0
 ----\n
 --------------------------------------------------"
 
-  5,5,1,3 256,256,1,3 [-1] w. ${"fitscreen 384,384,1,35%"},0,"[G"{`39`}"MIC] Fractal Whirls"
+  5,5,1,3 256,256,1,3 [-1] w. ${"fitscreen[] 384,384,1,35%"},0,"[G"{`39`}"MIC] Fractal Whirls"
   tangle=0 tzoom=0 xc,yc:=(w-{-3,w})/2,(h-{-3,h})/2
   do
     rand... 0,255 j.. [-3],$xc,$yc,0,0
@@ -42578,7 +42607,7 @@ gui_print_preview : skip "${1=},${3=}" check "${2=32}>=0 && ${4=20}>=0"
   drgba
   siz:=0$_preview_area_width?[0$_preview_area_width,0$_preview_area_height]:\
        0$_preview_width?[0$_preview_width,0$_preview_height]:\
-       [${fitscreen\ {[max(w,1),max(h,1),1]},400,800}]
+       [${fitscreen[]\ {[max(w,1),max(h,1),1]},400,800}]
   sizw:=arg(1,$siz)-8
   if $! rs $siz,3,1 drgba else $siz,1,3,128 fi
   (1;0.5^1;0.5^0;1)
@@ -43024,7 +43053,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.0 - Linux 64 bits - 3.5.6</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.0 - Linux 64 bits - 3.6.0</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -43055,7 +43084,7 @@ fx_gmicky_preview :
 #@gui : - <b>2024/06/14</b> : version <i>3.4.0</i>.\n
 #@gui : - <b>2024/12/31</b> : version <i>3.5.0</i>.\n
 #@gui : - <span foreground="#EE5500"><b>2025/05/20</b> : version <i>3.5.5</i> (Current stable).</span>\n
-#@gui : - <b>2025/06/29</b> : version <i>3.5.6_pre</i> (Current pre-release).\n
+#@gui : - <b>2025/06/29</b> : version <i>3.6.0_pre</i> (Current pre-release).\n
 #@gui : "}
 #@gui : sep = separator()
 #@gui : url = link{"View changelog for next major version (3.6)","https://discuss.pixls.us/t/on-the-road-to-3-6"}
@@ -44841,7 +44870,7 @@ fx_kuwahara :
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2017/11/21</i>.</small>")
 fx_linify :
   foreach {
-    if $7 _debug=1 w ${-fitscreen\ {[w,h]}},0,"[Preview] G'MIC: Linify" fi
+    if $7 _debug=1 w ${-fitscreen[]\ {[w,h]}},0,"[Preview] G'MIC: Linify" fi
     linify $1,$2,$3%,$4,$5,$6
   }
 
@@ -45731,7 +45760,7 @@ fx_stylize :
     elif $3==2 +l. { r {u=max(w,h);[u,u]},1,100%,0,3,0.5,0.5 repeat 3 { +rotate[0] {90*$>},1,3,50%,50% } a z }
     elif $3==3 +l. { r {u=max(w,h);[u,u]},1,100%,0,3,0.5,0.5 repeat 7 { +rotate[0] {45*$>},1,3,50%,50% } a z }
     fi
-    if $4 wsiz=${"fitscreen "{0,[w,h]}} w[0] $wsiz is_window={*} fi
+    if $4 wsiz=${"fitscreen[] "{0,[w,h]}} w[0] $wsiz is_window={*} fi
     stylize[0] .,${5-9},$15,$init_resolution,${17-22},$patch_penalization,${24-26},$match_colors
     k[0,1] =>[0] $nm
     if $is_window" && "!{*} break fi
@@ -53753,7 +53782,7 @@ fx_split_details_alpha :
     nb_scales_max:=int(log2(min(w,h)))
     nb_scales:=$1?$1:$nb_scales_max
     repeat $nb_scales-1 {
-      sigma:=$2?lerp($4,$3,$>/($>+$<)):0.25+2^$>
+      sigma:=$2?lerp($4,$3,$%):0.25+2^$>
       +_fx_split_details_alpha_blur. $sigma
       sub_alpha.. .
     }
@@ -55153,8 +55182,8 @@ fx_illuminate_shape2d_preview_interactive :
     to_rgba
     +__fx_illuminate_shape2d[0] $1,2,${3-6},0,1,""$9,0,${11-15},""${16-29},""0,0
     if $!>2 rm[0] elif $input_type>=2 sh[0] 0,2 f. 128 rm. fi
-    siz=${fitscreen\ {[w,h,1]},256,640}
-    wsiz0=${fitscreen\ $siz,1,30%,100%}
+    siz=${fitscreen[]\ {[w,h,1]},256,640}
+    wsiz0=${fitscreen[]\ $siz,1,30%,100%}
     wsiz=$wsiz0
     r $siz,1,100%,3
     s. c,-3 !=. 0 l.. { - 128 / 127 s c,-2 / } a[-2,-1] c # Gradient map
@@ -61663,7 +61692,7 @@ fx_solve_maze_preview :
 # _label="3D~text~pointcloud"
 #@cli : $ sphere3d 10 repeat 5 { +add3d[-1] 10,{u(-10,10)},0 color3d[-1] ${-rgb} } add3d _fps=10 _label="3D~Spheres"
 #@cli : $ repeat 20 { torus3d 15,2 color3d[-1] ${-rgb} mul3d[-1] 0.5,1 if $>%2 rotate3d[-1] 0,1,0,90 fi add3d[-1] 70 \
-# add3d rotate3d[-1] 0,0,1,18 } double3d 0 _fps=10 _label="3D~Ring"
+# add3d rotate3d[-1] 0,0,1,18 } _fps=10 _label="3D~Ring"
 #@cli : $ image.jpg distribution3d circles3d 5 o3d 0.5 colorcube3d primitives3d[-1] 1 add3d _fps=10 \
 # _label="RGB~Color~Distribution"
 #@cli : $ image.jpg blur 5 elevation3d. 0.75 _fps=10 _label="3D~Elevation"

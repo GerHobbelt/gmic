@@ -315,14 +315,15 @@ template<typename tp, typename tf, typename tc, typename to>
 CImg<T> get_draw_object3d(const float x0, const float y0, const float z0,
                           const CImg<tp>& vertices, const CImgList<tf>& primitives,
                           const CImgList<tc>& colors, const CImgList<to>& opacities,
-                          const unsigned int render_mode, const bool double_sided,
+                          const unsigned int render_mode, const bool is_double_sided,
                           const float focale,
                           const float light_x, const float light_y,const float light_z,
                           const float specular_lightness, const float specular_shininess,
-                          const float g_opacity, CImg<floatT>& zbuffer) const {
+                          const float g_opacity, CImg<floatT>& zbuffer,
+                          const bool is_multithreaded_rendering=false) const {
   return (+*this).draw_object3d(x0,y0,z0,vertices,primitives,colors,opacities,render_mode,
-                                double_sided,focale,light_x,light_y,light_z,specular_lightness,
-                                specular_shininess,g_opacity,zbuffer);
+                                is_double_sided,focale,light_x,light_y,light_z,specular_lightness,
+                                specular_shininess,g_opacity,zbuffer,is_multithreaded_rendering);
 }
 
 CImg<T> get_draw_point(const int x, const int y, const int z, const T *const col,
@@ -4939,7 +4940,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
   *_command = '+';
 
 // Macros below allows to allocate memory for string variables only when necessary.
-#define gmic_use_var(name,siz) (name = (name!=&_c0?name:&(*_##name.assign(siz).data() = 0)))
+#define gmic_use_var(name,siz) (name = name==&_c0?&(_##name.assign(siz).front() = 0):&(_##name.front() = 0))
 #define gmic_use_argument_text gmic_use_var(argument_text,81)
 #define gmic_use_argx gmic_use_var(argx,256)
 #define gmic_use_argy gmic_use_var(argy,256)
@@ -9239,7 +9240,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
         // Draw 3D object.
         if (!std::strcmp("object3d",command)) {
           gmic_substitute_args(true);
-          unsigned int is_zbuffer = 1, _double3d = ~0U, _render3d = ~0U;
+          unsigned int is_zbuffer = 1, _double3d = ~0U, _render3d = ~0U, _multithreaded3d = ~0U;
           float x = 0, y = 0, z = 0,
             _focale3d = cimg::type<float>::nan(),
             _specl3d = cimg::type<float>::nan(),
@@ -9288,7 +9289,12 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                            "%f,%f,%u,%u,%u,%f,%f,%f,%f,%f,%f%c",
                            indices,argx,argy,&z,&opacity,&_render3d,&_double3d,&is_zbuffer,
                            &_focale3d,&_light3d_x,&_light3d_y,&_light3d_z,
-                           &_specl3d,&_specs3d,&end)==14) &&
+                           &_specl3d,&_specs3d,&end)==14 ||
+               cimg_sscanf(argument,"[%255[a-zA-Z0-9_.%+-]],%255[0-9.eE%+-],%255[0-9.eE%+-],"
+                           "%f,%f,%u,%u,%u,%f,%f,%f,%f,%f,%f,%u%c",
+                           indices,argx,argy,&z,&opacity,&_render3d,&_double3d,&is_zbuffer,
+                           &_focale3d,&_light3d_x,&_light3d_y,&_light3d_z,
+                           &_specl3d,&_specs3d,&_multithreaded3d,&end)==15) &&
               (ind=selection2cimg(indices,images.size(),image_names,"object3d")).height()==1 &&
               (!*argx ||
                cimg_sscanf(argx,"%f%c",&x,&end)==1 ||
@@ -9297,13 +9303,14 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                cimg_sscanf(argy,"%f%c",&y,&end)==1 ||
                (cimg_sscanf(argy,"%f%c%c",&y,&sepy,&end)==2 && sepy=='%')) &&
               (_render3d==~0U || _render3d<=5) && is_zbuffer<=1 &&
-              (_double3d==~0U || _double3d<=1)) {
+              (_double3d==~0U || _double3d<=1) &&
+              (_multithreaded3d==~0U || _multithreaded3d<=1)) {
 
             // Get default rendering options.
             if (!*argx) { x = 50; sepx = '%'; }
             if (!*argy) { y = 50; sepy = '%'; }
             if (_render3d==~0U) { // Rendering mode
-              _render3d = 4;
+              _render3d = 3;
               const CImg<char> s_mode3d = get_variable("_mode3d",variable_sizes,0,0);
               if (s_mode3d && *s_mode3d) {
                 if (*s_mode3d>='0' && *s_mode3d<='5' && !s_mode3d[1]) _render3d = (unsigned int)(*s_mode3d - '0');
@@ -9311,7 +9318,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               }
             }
             if (_double3d==~0U) { // Simple/double face property
-              _double3d = 1;
+              _double3d = 0;
               const CImg<char> s_double3d = get_variable("_double3d",variable_sizes,0,0);
               if (s_double3d && *s_double3d>='0' && *s_double3d<='1' && !s_double3d[1])
                 _double3d = (unsigned int)(*s_double3d - '0');
@@ -9324,12 +9331,18 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             if (cimg::type<float>::is_nan(_specl3d)) { // Specular lightness
               const CImg<char> s_specl3d = get_variable("_specl3d",variable_sizes,0,0);
               if (!s_specl3d || cimg_sscanf(s_specl3d,"%f%c",&_specl3d,&end)!=1 || _specl3d<0)
-                _specl3d = 0.15f;
+                _specl3d = 0.25f;
             }
             if (cimg::type<float>::is_nan(_specs3d)) { // Specular shininess
               const CImg<char> s_specs3d = get_variable("_specs3d",variable_sizes,0,0);
               if (!s_specs3d || cimg_sscanf(s_specs3d,"%f%c",&_specs3d,&end)!=1 || _specs3d<0)
-                _specs3d = 0.15f;
+                _specs3d = 0.1f;
+            }
+            if (_multithreaded3d==~0U) { // Parallelized rendering?
+              _multithreaded3d = 0;
+              const CImg<char> s_multithreaded3d = get_variable("_multithreaded3d",variable_sizes,0,0);
+              if (s_multithreaded3d && *s_multithreaded3d>='0' && *s_multithreaded3d<='1' && !s_multithreaded3d[1])
+                _multithreaded3d = (unsigned int)(*s_multithreaded3d - '0');
             }
 
             print(0,"Draw 3D object [%u] at (%g%s,%g%s,%g) on image%s, with opacity %g, "
@@ -9377,14 +9390,14 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                                          _render3d,_double3d,_focale3d,
                                          _light3d_x,_light3d_y,_light3d_z,
                                          _specl3d,_specs3d,
-                                         opacity,zbuffer),true);
+                                         opacity,zbuffer,_multithreaded3d),true);
 
               } else {
                 gmic_apply(draw_object3d(nx,ny,z,vertices,primitives,g_list_uc,opacities,
                                          _render3d,_double3d,_focale3d,
                                          _light3d_x,_light3d_y,_light3d_z,
                                          _specl3d,_specs3d,
-                                         opacity,zbuffer),true);
+                                         opacity,zbuffer,_multithreaded3d),true);
               }
             }
           } else arg_error("object3d");
@@ -9600,21 +9613,34 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             *argy = 0; opacity = 1;
             if (cimg_sscanf(_options,"%255[a-zA-Z0-9],%f,%f",gmic_use_argy,&_is_multipage,&opacity)<1)
               cimg_sscanf(_options,"%f,%f",&_is_multipage,&opacity);
-            const unsigned int compression_type =
-              !cimg::strcasecmp(argy,"jbig")?1U:
-              !cimg::strcasecmp(argy,"jpeg") || !cimg::strcasecmp(argy,"jpg")?2U:
-              !cimg::strcasecmp(argy,"lzma")?3U:
-              !cimg::strcasecmp(argy,"lzw")?4U:
-              !cimg::strcasecmp(argy,"webp")?5U:
-              !cimg::strcasecmp(argy,"zstd")?6U:0U;
-            const char *const s_compression_type =
-              compression_type==1?"JBIG":
-              compression_type==2?"JPEG":
-              compression_type==3?"LZMA":
-              compression_type==4?"LZW":
-              compression_type==5?"WEBP":
-              compression_type==6?"ZSTD":
-              "no";
+
+            const char *compression_codes[] = {
+              "NONE", "ADOBE_DEFLATE", "CCITT_T4", "CCITT_T6", "CCITTFAX3", "CCITTFAX4", "CCITTRLE", "CCITTRLEW", "DCS",
+              "DEFLATE", "IT8BL", "IT8CTPAD", "IT8LW", "IT8MP", "JBIG", "JP2000", "JPEG", "JXL", "LERC", "LZMA", "LZW",
+              "NEXT", "OJPEG", "PACKBITS", "PIXARFILM", "PIXARLOG", "SGILOG", "SGILOG24", "T43", "T85", "THUNDERSCAN",
+              "WEBP", "ZSTD" };
+            const unsigned nb_compression_codes = sizeof(compression_codes)/sizeof(char*);
+            unsigned int compression_type = ~0U;
+            if (!*argy) compression_type = 0;
+            else if (std::sscanf(argy,"%u%c",&compression_type,&end)==1) {
+              if (compression_type>=nb_compression_codes) compression_type = ~0U;
+            } else {
+              for (unsigned int k = 0; k<nb_compression_codes; ++k)
+                if (!cimg::strcasecmp(compression_codes[k],argy)) {
+                  compression_type = k; break;
+                }
+              if (compression_type==~0U && !cimg::strcasecmp(argy,"JPG"))
+                compression_type = 16; // Make 'JPG' equivalent to 'JPEG'
+              if (compression_type==~0U && !cimg::strcasecmp(argy,"ZIP"))
+                compression_type = 1; // Make 'ZIP' equivalent to 'ADOBE_DEFLATE'
+            }
+            if (compression_type==~0U) {
+              warn(0,"Command 'output': Specified TIFF compression type '%s' is invalid. Fallback to 'none'.",
+                   argy);
+              compression_type = 0;
+            }
+            const char *const s_compression_type = compression_type?compression_codes[compression_type]:"no";
+
             const bool
               is_multipage = (bool)cimg::round(_is_multipage),
               use_bigtiff = (bool)cimg::round(opacity);
@@ -11016,37 +11042,40 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
         // Split.
         if (!std::strcmp("split",command)) {
           gmic_substitute_args(false);
+          unsigned int max_parts = ~0U;
+          int imax_parts = -1;
           double nb = -1;
           char pm = 0;
-          *argx = 0;
-          if (cimg_sscanf(argument,"%255[xyzc],%lf%c",gmic_use_argx,&nb,&end)==2 ||
-              (nb = -1,cimg_sscanf(argument,"%255[xyzc]%c",argx,&end))==1) {
+          *argx = *argy = sep = 0;
+          if ((cimg_sscanf(argument,"%255[xyzc]%c",gmic_use_argx,&end)==1 ||
+               cimg_sscanf(argument,"%255[xyzc],%255[0-9.eE%+-]%c",argx,gmic_use_argy,&end)==2 ||
+               (cimg_sscanf(argument,"%255[xyzc],%255[0-9.eE%+-],%d%c",argx,argy,&imax_parts,&end)==3 &&
+                imax_parts>0)) &&
+              (!*argy ||
+               (cimg_sscanf(argy,"%lf%c%c",&nb,&sep,&end)==2 && nb<0 && sep=='%') ||
+               (cimg_sscanf(argy,"%lf%c",&nb,&end)==1 && nb==(int)nb))) {
+            if (imax_parts>0) max_parts = (unsigned int)imax_parts;
 
             // Split along axes.
-            nb = cimg::round(nb);
-            if (nb>0)
-              print(0,"Split image%s along the '%s'-ax%cs, into %g parts.",
+            gmic_use_argz;
+            if (max_parts!=~0U)
+              cimg_snprintf(gmic_use_argz,_argz.width()," (%u part%s max)",max_parts,max_parts!=1?"s":"");
+            if (!*argy || (nb==-1 && sep!='%'))
+              print(0,"Split image%s along the '%s'-ax%cs%s.",
                     gmic_selection.data(),
-                    argx,
-                    std::strlen(argx)>1?'e':'i',
-                    nb);
-            else if (nb<0) {
-              if (nb==-1)
-                print(0,"Split image%s along the '%s'-ax%cs.",
-                      gmic_selection.data(),
-                      argx,
-                      std::strlen(argx)>1?'e':'i');
-              else
-                print(0,"Split image%s along the '%s'-ax%cs, into blocs of %g pixels.",
-                      gmic_selection.data(),
-                      argx,
-                      std::strlen(argx)>1?'e':'i',
-                      -nb);
-            } else
-              print(0,"Split image%s along the '%s'-ax%cs, according to constant values.",
+                    argx,std::strlen(argx)>1?'e':'i',argz);
+            else if (!nb)
+              print(0,"Split image%s along the '%s'-ax%cs, according to consecutive constant values%s.",
                     gmic_selection.data(),
-                    argx,
-                    std::strlen(argx)>1?'e':'i');
+                    argx,std::strlen(argx)>1?'e':'i',argz);
+            else if (nb>0)
+              print(0,"Split image%s along the '%s'-ax%cs, into %g parts%s.",
+                    gmic_selection.data(),
+                    argx,std::strlen(argx)>1?'e':'i',nb,argz);
+            else
+              print(0,"Split image%s along the '%s'-ax%cs, into blocks of %g%s pixels%s.",
+                    gmic_selection.data(),
+                    argx,std::strlen(argx)>1?'e':'i',-nb,sep=='%'?"%":"",argz);
 
             int off = 0;
             cimg_forY(selection,l) {
@@ -11062,8 +11091,13 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                 g_list.assign(img,true);
                 for (const char *p_axis = argx; *p_axis; ++p_axis) {
                   const unsigned int N = g_list.size();
+                  axis = *p_axis;
                   for (unsigned int q = 0; q<N; ++q) {
-                    g_list[0].get_split(*p_axis,(int)nb).move_to(g_list,~0U);
+                    const int inb = sep=='%'?-std::max(1,cimg::uiround(axis=='x'?-nb*img.width()/100:
+                                                                       axis=='y'?-nb*img.height()/100:
+                                                                       axis=='z'?-nb*img.depth()/100:
+                                                                       -nb*img.spectrum()/100)):(int)nb;
+                    g_list[0].get_split(*p_axis,inb,max_parts).move_to(g_list,~0U);
                     g_list.remove(0);
                   }
                 }
