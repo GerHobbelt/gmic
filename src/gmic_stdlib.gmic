@@ -14626,11 +14626,11 @@ _ac_list :
     arg0 round($1),all,rgba,rgb,rgb_r,rgb_g,rgb_b,rgba_a,\
                    lrgb,lrgb_r,lrgb_g,lrgb_b,\
                    ycbcr_y,ycbcr_cbcr,ycbcr_cb,ycbcr_cr,ycbcr_cg,\
-                   lab_l,lab_ab,lab_a,lab_b,\
-                   lch_ch,lch_c,lch_h,\
-                   hsv_h,hsv_s,hsv_v,hsi_i,hsl_l,\
+                   lab8_l,lab8_ab,lab8_a,lab8_b,\
+                   lch8_ch,lch8_c,lch8_h,\
+                   hsv8_h,hsv8_s,hsv8_v,hsi8_i,hsl8_l,\
                    cmyk_c,cmyk_m,cmyk_y,cmyk_k,\
-                   yiq_y,yiq_iq,ryb,ryb_r,ryb_y,ryb_b
+                   yiq8_y,yiq8_iq,ryb,ryb_r,ryb_y,ryb_b
   else u "$1" fi
 
 _ac :
@@ -14671,32 +14671,59 @@ _ac_ycbcr_cb : _p="to_color" _f="rgb2ycbcr" _b="ycbcr2rgb" _s=1
 _ac_ycbcr_cr : _p="to_color" _f="rgb2ycbcr" _b="ycbcr2rgb" _s=2
 _ac_ycbcr_cg : _p="to_color" _f="sh 0,1 mirror. c rm. rgb2ycbcr" _b="ycbcr2rgb sh 0,1 mirror. c rm." _s=2
 
-_ac_lab : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=0,2
-_ac_lab_l : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=0
-_ac_lab_ab : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=1,2
-_ac_lab_a : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=1
-_ac_lab_b : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=2
+_ac_lab : _p="to_color" _f="srgb2lab" _b="lab2srgb" _s=0,2
+_ac_lab_l : _p="to_color" _f="srgb2lab" _b="lab2srgb" _s=0
+_ac_lab_ab : _p="to_color" _f="srgb2lab" _b="lab2srgb" _s=1,2
+_ac_lab_a : _p="to_color" _f="srgb2lab" _b="lab2srgb" _s=1
+_ac_lab_b : _p="to_color" _f="srgb2lab" _b="lab2srgb" _s=2
 
-_ac_lch : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=0,2
+_ac_lab8 : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=0,2
+_ac_lab8_l : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=0
+_ac_lab8_ab : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=1,2
+_ac_lab8_a : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=1
+_ac_lab8_b : _p="to_color" _f="srgb2lab8" _b="lab82srgb" _s=2
+
+_ac_lch : _p="to_color" _f="srgb2rgb rgb2lch" _b="lch2rgb rgb2srgb" _s=0,2
 _ac_lch_l : _ac_lab_l
-_ac_lch_ch : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=1,2
-_ac_lch_c : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=1
-_ac_lch_h : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=2
+_ac_lch_ch : _p="to_color" _f="srgb2rgb rgb2lch" _b="lch2rgb rgb2srgb" _s=1,2
+_ac_lch_c : _p="to_color" _f="srgb2rgb rgb2lch" _b="lch2rgb rgb2srgb" _s=1
+_ac_lch_h : _p="to_color" _f="srgb2rgb rgb2lch" _b="lch2rgb rgb2srgb" _s=2
 
-_ac_hsv : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=0,2
-_ac_hsv_h : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=0
-_ac_hsv_s : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=1
-_ac_hsv_v : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=2
+_ac_lch8 : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=0,2
+_ac_lch8_l : _ac_lab_l
+_ac_lch8_ch : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=1,2
+_ac_lch8_c : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=1
+_ac_lch8_h : _p="to_color" _f="srgb2rgb rgb2lch8" _b="lch82rgb rgb2srgb" _s=2
 
-_ac_hsi : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=0,2
-_ac_hsi_h : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=0
-_ac_hsi_s : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=1
-_ac_hsi_i : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=2
+_ac_hsv : _p="to_color" _f="rgb2hsv" _b="hsv2rgb" _s=0,2
+_ac_hsv_h : _p="to_color" _f="rgb2hsv" _b="hsv2rgb" _s=0
+_ac_hsv_s : _p="to_color" _f="rgb2hsv" _b="hsv2rgb" _s=1
+_ac_hsv_v : _p="to_color" _f="rgb2hsv" _b="hsv2rgb" _s=2
 
-_ac_hsl : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=0,2
-_ac_hsl_h : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=0
-_ac_hsl_s : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=1
-_ac_hsl_l : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=2
+_ac_hsv8 : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=0,2
+_ac_hsv8_h : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=0
+_ac_hsv8_s : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=1
+_ac_hsv8_v : _p="to_color" _f="rgb2hsv8" _b="hsv82rgb" _s=2
+
+_ac_hsi : _p="to_color" _f="rgb2hsi" _b="hsi2rgb" _s=0,2
+_ac_hsi_h : _p="to_color" _f="rgb2hsi" _b="hsi2rgb" _s=0
+_ac_hsi_s : _p="to_color" _f="rgb2hsi" _b="hsi2rgb" _s=1
+_ac_hsi_i : _p="to_color" _f="rgb2hsi" _b="hsi2rgb" _s=2
+
+_ac_hsi8 : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=0,2
+_ac_hsi8_h : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=0
+_ac_hsi8_s : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=1
+_ac_hsi8_i : _p="to_color" _f="rgb2hsi8" _b="hsi82rgb" _s=2
+
+_ac_hsl : _p="to_color" _f="rgb2hsl" _b="hsl2rgb" _s=0,2
+_ac_hsl_h : _p="to_color" _f="rgb2hsl" _b="hsl2rgb" _s=0
+_ac_hsl_s : _p="to_color" _f="rgb2hsl" _b="hsl2rgb" _s=1
+_ac_hsl_l : _p="to_color" _f="rgb2hsl" _b="hsl2rgb" _s=2
+
+_ac_hsl8 : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=0,2
+_ac_hsl8_h : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=0
+_ac_hsl8_s : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=1
+_ac_hsl8_l : _p="to_color" _f="rgb2hsl8" _b="hsl82rgb" _s=2
 
 _ac_cmy : _p="to_color" _f="rgb2cmy" _b="cmy2rgb" _s=0,2
 _ac_cmy_c : _p="to_color" _f="rgb2cmy" _b="cmy2rgb" _s=0
@@ -14709,11 +14736,17 @@ _ac_cmyk_m : _p="to_color" _f="rgb2cmyk" _b="cmyk2rgb" _s=1
 _ac_cmyk_y : _p="to_color" _f="rgb2cmyk" _b="cmyk2rgb" _s=2
 _ac_cmyk_k : _p="to_color" _f="rgb2cmyk" _b="cmyk2rgb" _s=3
 
-_ac_yiq : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=0,2
-_ac_yiq_y : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=0
-_ac_yiq_iq : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=1,2
-_ac_yiq_i : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=1
-_ac_yiq_q : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=2
+_ac_yiq : _p="to_color" _f="rgb2yiq" _b="yiq2rgb" _s=0,2
+_ac_yiq_y : _p="to_color" _f="rgb2yiq" _b="yiq2rgb" _s=0
+_ac_yiq_iq : _p="to_color" _f="rgb2yiq" _b="yiq2rgb" _s=1,2
+_ac_yiq_i : _p="to_color" _f="rgb2yiq" _b="yiq2rgb" _s=1
+_ac_yiq_q : _p="to_color" _f="rgb2yiq" _b="yiq2rgb" _s=2
+
+_ac_yiq8 : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=0,2
+_ac_yiq8_y : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=0
+_ac_yiq8_iq : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=1,2
+_ac_yiq8_i : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=1
+_ac_yiq8_q : _p="to_color" _f="rgb2yiq8" _b="yiq82rgb" _s=2
 
 #@cli autoindex : nb_colors>0,0<=_dithering<=1,_method={ 0:Median-cut | 1:K-means }
 #@cli : Index selected vector-valued images by adapted colormaps.
@@ -15771,9 +15804,9 @@ _match_pca :
        avg_ref + M*(I - avg)"
   rm.
 
-#@cli match_rgb : [target],_gamma>=0,_regularization>=0,_luminosity_constraints>=0,_rgb_resolution>=0,\
+#@cli match_rgb : [reference],_gamma>=0,_regularization>=0,_luminosity_constraints>=0,_rgb_resolution>=0,\
 # _is_constraints={ 0:No | 1:Yes }
-#@cli : Transfer colors from selected source images to selected reference image (given as argument).
+#@cli : Transfer colors from specified reference image (given as argument) to selected image.
 #@cli : 'gamma' determines the importance of color occurrences in the matching process (0:None to 1:Huge).
 #@cli : 'regularization' determines the number of guided filter iterations to remove quantization effects.
 #@cli : 'luminosity_constraints' tells if luminosity constraints must be applied on non-confident matched colors.
@@ -15782,24 +15815,25 @@ _match_pca :
 # 'is_constraints=0'.
 #@cli : $ sample pencils,wall +match_rgb[0] [1],0,0.01
 match_rgb : check "${2=0.3}>=0 && ${3=8}>=0 && ${4=0.15}>=0 && ${5=64}>=0 && isbool(${6=0})"
-  e[^-1] "Transfer colors of image $1 to image$?."
-  sigma=1.5
-  repeat $! { pass$1 0 l[$>,-1] {
-    nm_source={0,b} nm_target={1,b}
-    => source,target
+  e[^-1] "Transfer RGB colors of reference image $1 to image$?."
+  gamma,sigma=$2,1.5
+  pass$1 0
+  foreach[^-1] {
+    pass. 1 nm_img={0,b} nm_reference={1,b}
+    => img,reference
 
-    # Generate matching functions from 3D RGB features.
-    +_match_rgb[source,target] $2,$sigma,$5 => fsource,ftarget
-    n[fsource,ftarget] 0,255
+    # Generate 3D feature functions from 2D images.
+    +_match_rgb[img,reference] $gamma,$sigma,$5 => f_img,f_reference
+    n[f_img,f_reference] 0,255
 
     # Manage color constraints.
     if $6
-      h0:=2*{*,v}/3 ws0={source,max(1,w*$h0/h)} wt0={target,max(1,w*$h0/h)}
-      w1:=2*{*,u}/3 hs1={source,max(1,h*$w1/w)} ht1={target,max(1,h*$w1/w)}
+      h0:=2*{*,v}/3 ws0={img,max(1,w*$h0/h)} wt0={reference,max(1,w*$h0/h)}
+      w1:=2*{*,u}/3 hs1={img,max(1,h*$w1/w)} ht1={reference,max(1,h*$w1/w)}
       if abs($ws0+$wt0-$w1)<abs($hs1+$ht1-$h0) # Append along X
-        +rs[source,target] ,$h0 +b[-2,-1] 0.5% a[-4,-3] x a[-2,-1] x
+        +rs[img,reference] ,$h0 +b[-2,-1] 0.5% a[-4,-3] x a[-2,-1] x
       else # Append along Y
-        +rs[source,target] $w1 +b[-2,-1] 0.5% a[-4,-3] y a[-2,-1] y
+        +rs[img,reference] $w1 +b[-2,-1] 0.5% a[-4,-3] y a[-2,-1] y
       fi
       if w>$w1 rs[-2,-1] $w1 fi
       if h>$h0 rs[-2,-1] ,$h0 fi
@@ -15827,22 +15861,22 @@ match_rgb : check "${2=0.3}>=0 && ${3=8}>=0 && ${4=0.15}>=0 && ${5=64}>=0 && isb
     # Estimate warping field.
     if $constraints
       +pointcloud. 0 r. ...,...,...,3,0 +compose_channels. + a[-2,-1] c
-      displacement[fsource] [ftarget],0.001,5,0,10000,1,. rm[ftarget,constraints,-1]
+      displacement[f_img] [f_reference],0.001,5,0,10000,0,. rm[f_reference,constraints,-1]
     else
-      displacement[fsource] [ftarget],0.005 rm[ftarget]
+      displacement[f_img] [f_reference],0.005,5,0,10000,0 rm[f_reference]
     fi
-    =>[fsource] displacement
+    =>[f_img] displacement
 
     # Generate video of matching.
     # if videos
     #   N=$!
     #   [displacement],[displacement],[displacement],1,x +f. y +f. z a[-3--1] c *. {255/(w-1)} +. 1
-    #   +_match_rgb[source] 0,$sigma,{w} *.. . distance. 1 *. -1 watershed.. . rm.
-    #   +_match_rgb[source] 0,$sigma,{w} a[-2,-1] c
+    #   +_match_rgb[img] 0,$sigma,{w} *.. . distance. 1 *. -1 watershed.. . rm.
+    #   +_match_rgb[img] 0,$sigma,{w} a[-2,-1] c
 
     #   [displacement],[displacement],[displacement],1,x +f. y +f. z a[-3--1] c *. {255/(w-1)} +. 1
-    #   +_match_rgb[target] 0,$sigma,{w} *.. . distance. 1 *. -1 watershed.. . rm.
-    #   +_match_rgb[target] 0,$sigma,{w} a[-2,-1] c
+    #   +_match_rgb[reference] 0,$sigma,{w} *.. . distance. 1 *. -1 watershed.. . rm.
+    #   +_match_rgb[reference] 0,$sigma,{w} a[-2,-1] c
     #   warp. [displacement],1,1,1,48
 
     #   l[$N--1] {
@@ -15852,19 +15886,19 @@ match_rgb : check "${2=0.3}>=0 && ${3=8}>=0 && ${4=0.15}>=0 && ${5=64}>=0 && isb
     #     append[^0] [0],x rm[0]
     #     rs 1024
     #     [-1]x20
-    #     o videos/video_${nm_source}_to_${nm_target}.mp4,10
+    #     o videos/video_${nm_img}_to_${nm_reference}.mp4,10
     #     rm
     #   }
     # fi
 
     # Estimate confidence of the color mapping.
-    +_match_rgb[target] 0,$sigma,{displacement,w}
-    warp. [displacement],1,1,1 c. 0,100% => fconfidence
-    +map_clut[source] . => confidence
+    +_match_rgb[reference] 0,$sigma,{displacement,w}
+    warp. [displacement],1,1,1 c. 0,100% => f_confidence
+    +map_clut[img] . => confidence
 
     # Generate transfer CLUT.
     [displacement],[displacement],[displacement],1,x +f. y +f. z a[-3--1] c *. {255/(w-1)} +. 1
-    +_match_rgb[target] 0,0,{w} *.. .
+    +_match_rgb[reference] 0,0,{w} *.. .
     warp[-2,-1] [displacement],1,0,1
     distance. 1 *. -1 watershed.. . rm. -. 1
     => clut
@@ -15872,21 +15906,21 @@ match_rgb : check "${2=0.3}>=0 && ${3=8}>=0 && ${4=0.15}>=0 && ${5=64}>=0 && isb
 
     # Enforce luminosity constraint for non-confident colors.
     if $4>0
-      ^[fconfidence] {$4/10} *[fconfidence] -1 +[fconfidence] 1
-      +f[fconfidence] x +f. y +f. z a[-3--1] c *. {255/(w-1)}
+      ^[f_confidence] {$4/10} *[f_confidence] -1 +[f_confidence] 1
+      +f[f_confidence] x +f. y +f. z a[-3--1] c *. {255/(w-1)}
       rgb2hsv[clut,-1] channels. 100%
-      j[clut] .,0,0,0,2,1,[fconfidence] rm.
+      j[clut] .,0,0,0,2,1,[f_confidence] rm.
       hsv2rgb[clut]
     fi
 
     # Map CLUT to get result.
-    +map_clut[source] [clut] => res_noregul
+    +map_clut[img] [clut] => res_noregul
 
     # Apply guided smoothing to remove quantization artifacts.
     if !$3
       =>[res_noregul] res
     else
-      l[source,res_noregul] {
+      l[img,res_noregul] {
         rgb2ycbcr # Perform regularization in YCbCr to avoid creation of false colors
         +-[1] [0] repeat $3 { guided. [0],5,5 } +. [0] c. 0,255
         ycbcr2rgb
@@ -15897,7 +15931,8 @@ match_rgb : check "${2=0.3}>=0 && ${3=8}>=0 && ${4=0.15}>=0 && ${5=64}>=0 && isb
     fi
 
     k[res]
-  } }
+  }
+  rm.
 
 # _match_rgb : _gamma>=0,_smoothness>=0,_resolution>0
 # Convert selected images into 3D volumetric scalar function for color matching.
@@ -19656,7 +19691,7 @@ inpaint_matchpatch : check ${is_image_arg\ $1}"&& ${2=0}>=0 && isint(${3=9},1) &
     # Init variables and images.
     => img,mask
     nb_scales:=max(1,round($2?$2:log2(min(w,h)/16),1,1))
-    visu_size=${fitscreen[]" "{0,[w,h,1]},25%,50%}
+    visu_size=${fitscreen[]" "{0,[w,h]},25%,50%}
     slices[img] 0 r[mask] [img],[img],1,1,0 !=[mask] 0
     if !$7 inpaint_pde[img] [mask],75% fi # Quick first estimate
     im={img,im} -[img] $im
@@ -21134,12 +21169,12 @@ detect_skin : check "${1=0.5}>=0 && $1<=1" skip ${2=-1},${3=-1},${4=-1}
     }
   fi
 
-#@cli displacement : [source_image],_smoothness>=0,_precision>=0,_nb_scales>=0,_iteration_max>=0,\
-# is_backward={ 0:No | 1:Yes },_[guide] : (+)
-#@cli : Estimate displacement field between specified source and selected target images.
+#@cli displacement : [reference],_smoothness>=0,_precision>=0,_nb_scales>=0,_iteration_max>=0,\
+# mode={ 0:Backward | 1:Forward },_[guide] : (+)
+#@cli : Estimate displacement field between specified reference image and selected (target) images.
 #@cli : If 'smoothness>=0', regularization type is set to isotropic, else to anisotropic.
 #@cli : If 'nbscales==0', the number of scales used is estimated from the image size.
-#@cli : Default values: 'smoothness=0.1', 'precision=5', 'nb_scales=0', 'iteration_max=10000', 'is_backward=1' \
+#@cli : Default values: 'smoothness=0.1', 'precision=5', 'nb_scales=0', 'iteration_max=1000', 'mode=0' \
 # and '[guide]=(unused)'.
 #@cli : $ image.jpg +rotate 3,1,0,50%,50% +displacement[-1] [-2] quiver[-1] [-1],15,1,1,1,{1.5*iM}
 
@@ -34102,11 +34137,10 @@ animate : skip ${1=30},${2=0},${3=""},${4=10},${5=1},"${6=}"
       fi
       wait $speed
 
-      # Increase window size.
-      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,D} w[] {{*,w}*1.5},{{*,h}*1.5} scale*=1.5 wait -1 fi
-
-      # Decrease window size.
-      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,C} w[] {{*,w}/1.5},{{*,h}/1.5} scale/=1.5 wait -1 fi
+      # Decrease/Increase window size.
+      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+        w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+      fi
 
       # Reset window size.
       if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,R} w[] {0,w},{0,h} scale=1 wait -1 fi
@@ -34535,9 +34569,9 @@ __median_stream :
 
 #@cli morph : nb_inner_frames>=1,_smoothness>=0,_precision>=0
 #@cli : Create morphing sequence between selected images.
-#@cli : Default values: 'smoothness=0.1' and 'precision=4'.
+#@cli : Default values: 'smoothness=0.1' and 'precision=6'.
 #@cli : $ image.jpg +rotate 20,1,1,50%,50% morph 9
-morph : check "$1>=0.5 && ${2=0.1}>=0 && ${3=4}>=0"
+morph : check "$1>=0.5 && ${2=0.1}>=0 && ${3=5}>=0"
   nbf:=round($1)
   e[^-1] "Create morphing sequence between image$?, with "$nbf" inner frames, smoothness $2 and precision $3."
   e ""
@@ -34548,14 +34582,14 @@ morph : check "$1>=0.5 && ${2=0.1}>=0 && ${3=4}>=0"
     l[$<,{$<+1}] {
       e "\r  > Morph image ["$>"] to image ["{$>+1}"].    "
       +equalize[0,1] n[-2,-1] 0,255
-      +displacement[3] [2],$2,$3 +displacement[2] [3],$2,$3 rm[-4,-3]
-      repeat $nbf+2 {
-        if $>&&$<
-          t:=$>/($nbf+1) omt:=1-$t
-          +*[2] $t +warp[0] .,1,1,1 rm.. *. $omt
-          +*[3] {1-$t} +warp[1] .,1,1,1 rm.. *. $t
-          +[-2,-1]
-        fi
+      +displacement[3] [2],$2,$3
+      +displacement[2] [3],$2,$3
+      rm[-4,-3]
+      repeat $nbf {
+        t:=(1+$>)/($nbf+1) omt:=1-$t
+        +*[2] $t +warp[0] .,1,1,1 rm.. *. $omt
+        +*[3] $omt +warp[1] .,1,1,1 rm.. *. $t
+        +[-2,-1]
       }
       rm[2,3] mv[2--1] 1 =>[^] $nm
     }
@@ -34855,7 +34889,7 @@ add_copymark :
 #@cli : Display an alert box and wait for user's choice.
 #@cli : If a single image is in the selection, it is used as an icon for the alert box.
 #@cli : Default values: 'title=[G'MIC Alert]' and 'message=This is an alert box.'.
-alert : skip "${1=[G"{`39`}"MIC Alert]},${2=This is an alert box.},${3=OK}"
+alert : skip "${1=[G'MIC Alert]},${2=This is an alert box.},${3=OK}"
   if $!==1
     e[0--3] "Display alert box, with image$?, title '$1', message '$2' and buttons '${3--1}'."
   else
@@ -35337,29 +35371,30 @@ filename_dated :
 fitratio_wh :
   if $3*$2>$1 u {int($3*$2)},$2 else u $1,{int($1/$3)} fi
 
-#@cli fitscreen : width,height,_depth,_minimal_size[%],_maximal_size[%] : [image],_minimal_size[%],_maximal_size[%]
+#@cli fitscreen : width,height,_minimal_size[%]>0,_maximal_size[%]>0 : [image],_minimal_size[%]>0,_maximal_size[%]>0
 #@cli : Return the 'ideal' size WxH for a window intended to display an image of specified size on screen.
 #@cli : Default values: 'depth=1', 'minimal_size=128' and 'maximal_size=85%'.
-fitscreen : skip "${2=},${3=},${4=},${5=}"
+fitscreen : skip "${1=},${2=}" check "${3=128}>0 && ${4=85%}>0"
   if ${"is_image_arg $1"}
-    l$1 { W,H,D={w},{h},{d} } if narg($2) m=$2 else m=25% fi if narg($3) M=$3 else M=85% fi
+    pass$1 1 w,h:="a = d>1?d:0; [ w + a,h + a ]" rm.
+    n:=narg($*) if $n==1 m,M=${3,4} elif $n==2 m,M=${2,4} else m,M=${2,3} fi
   else
-    W,H=${1-2} if narg($3) D=$3 else D=1 fi if narg($4) m=$4 else m=25% fi if narg($5) M=$5 else M=85% fi
+    w,h,m,M=${1-4}
   fi
-  eval "
-    const u = "{*,u}";
-    const v = "{*,v}";
-    ms = round(ispercentage("$m")?[ u,v ]*"$m":[ "$m,$m" ]);
-    Ms = round(ispercentage("$M")?[ u,v ]*"$M":[ "$M,$M" ]);
-    s = [ "$W,$H" ];
-    "$D">1?(s+="$D");
-    s[0]<ms[0]?(s = [ ms[0],s[1]*ms[0]/s[0] ]);
-    s[1]<ms[1]?(s = [ s[0]*ms[1]/s[1],ms[1] ]);
-    s[0]>Ms[0]?(s = [ Ms[0],s[1]*Ms[0]/s[0] ]);
-    s[1]>Ms[1]?(s = [ s[0]*Ms[1]/s[1],Ms[1] ]);
-    s[0] = max(1,s[0],ms[0]);
-    s[1] = max(1,s[1],ms[1]);
-    round(s)"
+  u {"const dw = "{*,u}";
+      const dh = "{*,v}";
+      const ispm = ispercentage("$m");
+      const ispM = ispercentage("$M");
+      const mw = ispm?dw*"$m":"$m";
+      const mh = ispm?dh*"$m":"$m";
+      const Mw = ispM?dw*"$M":"$M";
+      const Mh = ispM?dh*"$M":"$M";
+      w = $w; h = $h;
+      w<mw?(h*=mw/w; w = mw);
+      h<mh?(w*=mh/h; h = mh);
+      w>Mw?(h*=Mw/w; w = Mw);
+      h>Mh?(w*=Mh/h; h = Mh);
+      round([max(1,w),max(1,h)])"}
 
 #@cli fontchart : display_mode.
 #@cli : Insert G'MIC font chart at the end of the image list.
@@ -37027,7 +37062,7 @@ demos : check "isint(${1=2},0,2)" check_display $0
   (0.1;0.3^0.1;0.2^0.5;0.3) ri. ..,3 *[-2,-1]
   (0;1) r. ..,..,1,1,3 ^. 1.5 n. 0.2,1.15 *[-2,-1] n. 0,128
   => background
-  w. ${"fitscreen[] "{1.25*[w,h]}},0,"[G'MIC - "$strver"]"
+  w. ${"fitscreen .,40%,70%"},0,"[G'MIC - "$strver"]"
   cursor 0 w[] -1,-1,0,0,{([{*,u,v}]-[{*,w,h}])/2}
 
   # Enter event loop.
@@ -37063,7 +37098,9 @@ demos : check "isint(${1=2},0,2)" check_display $0
     fi
 
     w. -1,-1,0
-    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     rm.
 
     # Manage user selection.
@@ -37483,7 +37520,7 @@ x_2048 : check_display $0
   sprite3d[3--1]
 
   # Run game.
-  w[1] 100%,100%,0,"[G"{`39`}"MIC] 2048" insert_new=1
+  w[1] ${"fitscreen [1],40%,60%"},0,"[G'MIC] 2048" insert_new=1
   repeat 2 { _x_2048_setrandom }
   do
 
@@ -37525,7 +37562,10 @@ x_2048 : check_display $0
       m "vshift2048: s3d l[2] { r 3,{h/3},1,1,-1 s x rv[0,1] -[1] 3 *[1] -1  a x y } a y"
       is_shift=1
     fi
-    if {*,r} w[1] 100%,100% fi
+    if {*,r} w[1] {*,w,h} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[1] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
 
     # Manage tile shifts and fusions.
     if $is_shift
@@ -37606,7 +37646,7 @@ x_blobs : check_display $0
 
   # Create background image [0].
   (0;0^0;128^0;255) r. 450,450,1,3,3 flower. 30,8,0,0,50%,50%,1 water. 20
-  w. ${"fitscreen[] "{1.5*[w,h]}},0,0,"[G"{`39`}"MIC] Blobs Editor"
+  w. ${"fitscreen .,40%,70%"},0,0,"[G'MIC] Blobs Editor"
 
   # Start event loop.
   moving=-1
@@ -37640,7 +37680,9 @@ x_blobs : check_display $0
            50,180,18,1,1,255
     fi
     w. rm.
-    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     wait 20
 
     # Manage blob insertion, removal or move.
@@ -37684,7 +37726,7 @@ x_bouncing : check_display $0
     t$>:=u(200) x$>:=u(10,w#0-10) h$>:=u(150,300) vx$>:=(u<0.5?1:-1)*u(1,8)
   }
   mv[0] $!
-  w. ${"fitscreen[] "{2.25*[w,h]}},0,0,"[G"{`39`}"MIC] Bouncing Balls"
+  w. ${"fitscreen .,40%,70%"},0,0,"[G'MIC] Bouncing Balls"
   (0;0.7;1) r. {-2,w},70,1,1,3
 
   do
@@ -37711,7 +37753,9 @@ x_bouncing : check_display $0
     +rows. {h-2*70},{h-1-70} mirror. y *. [{$N+1}]
     j.. .,0,{-2,h-71},0,0,0.5 rm.
     fps=${-fps} if $fps>0 to. $fps" fps",5,{h-29},24,2,0.2 fi
-    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
+    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     w. rm. wait 20
   while {*}" && "!{*,ESC}" && "!{*,Q}
   w 0 rm }
@@ -37749,7 +37793,7 @@ x_color_curves : skip ${1=rgb}
   foreach {
 
     if ['"$1"']!='last' # Open interactive windows to set color curves
-      +r[0] ${fitscreen[]\ {0,[w,h,1]},128,70%},1,100%,3
+      +r[0] ${fitscreen[]\ {0,[w,h]},128,70%},1,100%,3
       +l. { # Compute additional info for each image channel (histogram and color axis)
         xcc_goto s c histogram 256,0,255 xcc_info
       }
@@ -37793,7 +37837,7 @@ x_color_curves : skip ${1=rgb}
 
 _x_color_curves :
   title={0,b} if narg({'{0,x}'}) title=$title.{0,x} fi ('$title') discard. {'~'} title={t} rm.
-  +drgba. w. 100%,100%,0,"[G"{`39`}"MIC] Image: "$title rm.
+  +drgba. w. 100%,100%,0,"[G'MIC] Image: "$title rm.
   xcc_goto. .
 
   oC0= oC1= oC2= oC3= oC4= viewmode=0
@@ -37948,7 +37992,7 @@ x_colorize : skip ${1=0},${3=0},${4=0},${5=0},${6=0} check "!${2=1024} || $2>=12
   is_grabber=${"is_image_arg[] $6"}
   if $is_grabber
     pass$6 1 ('{b}') discard. {'~'} palette_grabber={t} rm.
-    thread_grabber="w[] ${\"fitscreen[] {[w,h,1]},128,50%\"},0,\"Grabber: "$palette_grabber"\"
+    thread_grabber="w[] ${\"fitscreen[] {[w,h]},128,50%\"},0,\"Grabber: "$palette_grabber"\"
                     x_grab_color["{$!-1}"] __color"
   fi
 
@@ -38294,7 +38338,7 @@ x_connect4 : check_display $0
       }
       +r[cache,cachem] {board,[w,h]*$R},1,100%,0,2 a[-2,-1] c blend[-2,-1] alpha
       => visu
-      w[visu] ${"fitscreen[] "{visu,1.25*[w,h]}},0,"[G'MIC] Connect Four"
+      w[visu] ${"fitscreen [visu],40%,70%"},0,"[G'MIC] Connect Four"
       turn=0 is_falling=0 x=-1 yv=0 dyv=0 winner=
       autoplayer0=0 autoplayer1=0
     fi
@@ -38425,7 +38469,7 @@ x_crop :
 _x_crop :
   e[0--3] "Crop image"$_gmic_s" interactively."
   if $!<1 return fi
-  w[0] ${"fitscreen[] "{0,[w,h,d]}},1,"[G'MIC] "{n}" - Interactive crop"
+  w[0] ${"fitscreen[] "{0,a=d>1?d:0;[w+a,h+a]}},1,"[G'MIC] "{n}" - Interactive crop"
   +select[0] 2,{0,round([w,h,d]/2)},0,1 coords={^} rm.
   z $coords
   u $coords
@@ -38495,8 +38539,8 @@ x_fire : skip "${1=}" check_display $0
   if "['$1']==0" label="G\47MIC" is_fps=1 else label="$1" is_fps=0 fi
 
   # Init image data.
-  i[0] 100,32 w[0] {[4.5*w,6.75*h]},0,"[G"{`39`}"MIC] Fire Effect"
-  if {*,w}<0.5*{*,u} w[] {[{*,w},{*,h}]*1.5} fi
+  i[0] 100,32
+  w[0] ${"fitscreen[] "{0,[w,1.5*h]}",40%,60%"},0,"[G'MIC] Fire Effect"
   i[1] (0,255,255,255,255^0,0,255,255,255^0,0,0,128,255) r[1] 256,1,1,3,3
   i[2] (0,0,0;0,0,0;1,1,1;0,1,0) *[2] 0.21
   l[] { font=${"font macondo,50"} onfail font=50 }
@@ -38519,8 +38563,9 @@ x_fire : skip "${1=}" check_display $0
       fps=${-fps} if $fps>0 to. $fps" fps",5,{h-22},16,1,0.2 fi
     fi
     w.
-    if {*,CTRLLEFT}" && "{*,D} w[] {1.5*[w,h]} elif {*,CTRLLEFT}" && "{*,C} w[] {[w,h]} fi
-
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     rm. wait 40
   while {*}" && "!{*,ESC}" && "!{*,Q}
 
@@ -38542,7 +38587,7 @@ x_fireworks : check_display $0
   l[] {
   (16;64^64;32^128;32) r 320,160,1,3,3 # [-2] = Background (color gradient)
   . # [-1] = Rendered image
-  w. ${"fitscreen .,35%"},0,"[G"{`39`}"MIC] Fireworks" # Display window
+  w. ${"fitscreen .,40%,60%"},0,"[G'MIC] Fireworks" # Display window
   time=0
   do # Start animation loop
     time-=1
@@ -38579,7 +38624,9 @@ x_fireworks : check_display $0
     }
     fps=${-fps} if $fps>0 to. $fps" fps",3,{h-20},14,1,0.2 fi
     w. wait 20 # Display rendered frame
-    if {*,CTRLLEFT}" && "{*,D} w[] {3*w},{3*h} elif {*,CTRLLEFT}" && "{*,C} w[] {1.5*w},{1.5*h} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
   while {*}" && "!{*,ESC}" && "!{*,Q}
   rm w 0 }
 
@@ -38606,7 +38653,7 @@ x_fisheye : check_display $0
   torus3d 20,6 col3d. {u(30,255)},{u(30,255)},{u(30,255)} +r3d. 1,0,0,90
   col3d. {u(30,255)},{u(30,255)},{u(30,255)} +3d. 15 +3d[-2,-1] *3d. 4 db3d 0 c3d.
   R=30
-  w.. {1.25*{-2,w}},{1.25*{-2,h}},0,"[G"{`39`}"MIC] Fish-Eye Effect"
+  w.. ${"fitscreen ..,40%,70%"},0,"[G'MIC] Fish-Eye Effect"
   do
     wait 40
     if {*,b}==1 R:=min(80,$R+8) fi
@@ -38615,9 +38662,10 @@ x_fisheye : check_display $0
     if {*,x}>=0
     fisheye. {{*,x}*100/{*,w}},{{*,y}*100/{*,h}},$R
     fi
-    w.
-    if {*,CTRLLEFT}" && "{*,D} w[] {3*w},{3*h} elif {*,CTRLLEFT}" && "{*,C} w[] {1.5*w},{1.5*h} fi
-    rm.
+    w. rm.
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     if !{*}" || "{*,ESC}" || "{*,Q} rm[-2,-1] w 0 return fi
   while 1
 
@@ -38656,11 +38704,12 @@ x_fourier : check_display $0
     => logmag
 
     +rs. ,128 frame. 1,1,0 => thumb
-    w[0,-2] -1,-1,0,"[G"{`39`}"MIC] Fourier Filtering"
+    w[0,-2] -1,-1,0,"[G'MIC] Fourier Filtering"
+    w[0,-2] ${"fitscreen[] "{0,[2*w,h]},50%},0,"[G'MIC] Fourier Filtering"
 
     l {
     if !narg($first_time)
-      parallel 0,"alert[thumb] \"[G"{`39`}"MIC Fourier Filtering]\",\
+      parallel 0,"alert[thumb] \"[G'MIC Fourier Filtering]\",\
             \"The G\47MIC Fourier filtering demo illustrates the effect\n\
             of bandpass frequency filtering on an image. Use your mouse\n\
             buttons to select low and high bounds for the frequencies\n\
@@ -38714,11 +38763,10 @@ x_fourier : check_display $0
 
       if {*,r} need_update=1 fi
 
-      # Increase window size.
-      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,D} w[] {{*,w}*1.5},{{*,h}*1.5} need_update=1 fi
-
-      # Decrease window size.
-      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,C} w[] {{*,w}/1.5},{{*,h}/1.5} need_update=1 fi
+      # Increase/decrease window size.
+      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+        w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} need_update=1
+      fi
 
       # Reset window size.
       if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,R} w[] {2*{0,w}},{0,h} need_update=1 fi
@@ -38739,7 +38787,7 @@ x_grab_color : skip ${1=xgc_variable} check_display $0
   l[0] { nm={n} => img
   e[^-1] "Open "${arg\ {0,s},GRAY,GRAYA,RGB,RGBA}" color grabber widget for image$?, with variable name '$1'."
 
-  if !{*} w[] ${fitscreen[]\ {[w,h,1]},128,50%},0,0,-1,-1,"Grab a color" fi
+  if !{*} w[] ${fitscreen[]\ {[w,h]},128,50%},0,0,-1,-1,"Grab a color" fi
   _x_grab_color +dilate. 3 => icon_mask *.. 255 to_rgb.. =>.. icon_sprite
 
   xc=5 yc=5 o$1=$$1
@@ -38844,7 +38892,7 @@ x_hanoi : check_display $0
     rm[0]
   }
 
-  w[] 640,400,0,"[G"{`39`}"MIC] Tower of Hano\357"
+  w[] ${"fitscreen[] 640,400,40%,70%"},0,"[G'MIC] Tower of Hano\357"
   1,3,1,3,'!y?[32,128,100]:y==1?[64,16,0]:[0,0,0]' r. {*,w},{*,h},1,3,3 => background
   nb_moves,buttons,motion3d_x,motion3d_y=0
   x,rod,rod_source,rod_target,selected=-1
@@ -38862,7 +38910,9 @@ x_hanoi : check_display $0
     if $error (255^0^0) ri. .. j.. .,0,0,0,0,$error error:=max(0,$error-0.2) rm. fi
     if $|-$fading<1  *. {$|-$fading} fi
     w. wait 40
-    if {*,CTRLLEFT}" && "{*,D} w[] {w*1.5},{h*1.5} elif {*,CTRLLEFT}" && "{*,C} w[] {w},{h} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     rm[-2,-1]
 
     # Get index of top disk for each rod.
@@ -38931,8 +38981,8 @@ x_histogram : check_display $0
 ----\n
 -----------------------------------------------------"
 
-  if !$! sp ? to_rgb
-  else k[0] to_rgb rs ,300,2 if w>800 r 800,100%,1,3,2 fi n 0,255
+  if !$! sp ?,{{*,v}/2} to_rgb
+  else k[0] to_rgb rs ,{{*,v}/2},2 if w>800 r 800,100%,1,3,2 fi n 0,255
   fi
 
   # Prepare image layout.
@@ -38992,7 +39042,7 @@ x_histogram : check_display $0
     fi
 
     # Display rendering.
-    w. {w},{h},0,"[G"{`39`}"MIC] Histogram Demo" rm.
+    w. {w},{h},0,"[G'MIC] Histogram Demo" rm.
     wait
 
     # Manage user interactions.
@@ -39041,10 +39091,10 @@ x_hough : check_display $0
   n 0,255
 
   foreach {
-    r. ${fitscreen\ {[w,h]}},1,100%,3  # Resize to fit screen if necessary.
+    r. ${fitscreen\ {[w,h]},50%},1,100%,3  # Resize to fit screen if necessary.
     if !narg($first_time)
       parallel 0,"+l[0] { rs ,128 frame xy,1,0 \
-        alert \"[G"{`39`}"MIC Hough Transform]\",\
+        alert \"[G'MIC Hough Transform]\",\
            \"The G\47MIC Hough transform demo illustrates the application\n\
            of the Hough transform to detect lines in an image. Use your\n\
            mouse buttons to explore the transform image and see how\n\
@@ -39056,7 +39106,7 @@ x_hough : check_display $0
 
     rhomax:=sqrt(w^2+h^2)/2
     +b. 1.5 hough. 512,400 b. 0.5 +. 1 log. n. 0,255
-    w.. -1,-1,0,"[G"{`39`}"MIC] Image" w1. -1,-1,0,"[G"{`39`}"MIC] Hough Transform"
+    w.. -1,-1,0,"[G'MIC] Image" w1. -1,-1,0,"[G'MIC] Hough Transform"
 
     do
       wait
@@ -39139,6 +39189,7 @@ x_jawbreaker : check "${1=12}>0 && $1<20 && ${2=13}>0 && $2<20 && ${3=5}>0 && $3
     sh 0 sh.. 1 sh... 2 /... 4 /.. 8 /. 2 rm[-3--1]
   }
   [back] => visu
+  w. ${"fitscreen .,40%,60%"},0,"[G'MIC] Jawbreaker"
   score=0
   undoscore=0
   render_board=1
@@ -39147,6 +39198,10 @@ x_jawbreaker : check "${1=12}>0 && $1<20 && ${2=13}>0 && $2<20 && ${3=5}>0 && $3
 
   # Enter user-event loop.
   do
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+      render_board=1
+    fi
 
     # Render board graphics.
     if $render_board
@@ -39154,15 +39209,17 @@ x_jawbreaker : check "${1=12}>0 && $1<20 && ${2=13}>0 && $2<20 && ${3=5}>0 && $3
       ri[-3--1] [balls] [balls] *[-2,-1] a[-3--1] c hsv2rgb.
       +compose_channels. + >. 0 dilate. 3
       j[visu] [back] j[visu] ..,0,0,0,0,1,. rm[-2,-1]
-      if !$shapescorey w[visu] {back,w},{back,h},0,"[G"{`39`}"MIC] Jawbreaker (Score : "$score")" fi
+      if !$shapescorey w[visu] -1,-1,0,"[G'MIC] Jawbreaker (Score : "$score")" fi
       render_board=0
     fi
 
     # Add shape score sprite if necessary.
     if $shapescorey
-      +t[visu] "+"$shapescore,{*,x},{{*,y}-64+$shapescorey},32,{($shapescorey-1)/31},255
+      x:=int({*,x}*{visu,w}/{*,w})
+      y:=int({*,y}*{visu,h}/{*,h})
+      +t[visu] "+"$shapescore,$x,{$y-64+$shapescorey},32,{($shapescorey-1)/31},255
       shapescorey:=max(0,$shapescorey-1)
-      w. {back,w},{back,h},0,"[G"{`39`}"MIC] Jawbreaker (Score : "$score")" rm. wait 25
+      w. -1,-1,0,"[G'MIC] Jawbreaker (Score : "$score")" rm. wait 25
     else wait fi
 
     # Check for the end of the game.
@@ -39226,7 +39283,7 @@ x_jawbreaker : check "${1=12}>0 && $1<20 && ${2=13}>0 && $2<20 && ${3=5}>0 && $3
 
   # Game over.
   if {*}" && "!{*,ESC}
-    w[] {visu,w},{visu,h},0,"[G"{`39`}"MIC] Jawbreaker (Final Score : "$score")"
+    w[] -1,-1,0,"[G'MIC] Jawbreaker (Final Score : "$score")"
     260,85 => gameover t. "Game Over!",3,0,53,1,1 t. "Score : "$score,23,53,32,1,1
     +dilate. 5 => "mgameover" *.. 255 r.. 100%,100%,1,3
     repeat 25 {
@@ -39295,7 +39352,7 @@ x_landscape : check_display $0
   (64^16^0) r. $W => groundcolor # Ground color
 
   # Start animation.
-  w[] 600,400,0,"[G"{`39`}"MIC] Virtual Landscape"
+  w[] ${"fitscreen[] 800,520,40%,70%"},0,"[G'MIC] Virtual Landscape"
   do
 
     # Get part of the map to display.
@@ -39341,7 +39398,9 @@ x_landscape : check_display $0
     r. {*,w},{*,h},1,3
     fps=${-fps} if $fps>0 to. $fps" fps",5,5,24,2,0.2 fi
     w. -1,-1,0 rm.
-    if {*,CTRLLEFT}" && "{*,D} w[] 900,600 elif {*,CTRLLEFT}" && "{*,C} w[] 600,400 fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     wait 20
   while {*}" && "!{*,ESC}" && "!{*,Q}
   rm w 0 }
@@ -39374,7 +39433,7 @@ x_life : check_display $0
   score=0 # Current score
   bestscore=0 # Best score
   stock=500 # Remaining cells
-  w[0] 400,400,0,"[G"{`39`}"MIC] The Game of Life" # Initialize display window
+  w[0] ${"fitscreen [2],40%,70%"},0,"[G'MIC] The Game of Life" # Initialize display window
   cursor[0] 0
 
   # Start user-event loop.
@@ -39385,8 +39444,7 @@ x_life : check_display $0
     if {*,x}>0" && "{*,b}==1" && "$stock>0 # Add random cells to the game if mouse button pressed
       nb:=u*7
       repeat $nb {
-        x:={*,x}/{*,w}*{0,w}+u(-4,4)
-        y:={*,y}/{*,h}*{0,h}+u(-3,3)
+        x,y={0,[{*,x,y}]*[w,h]/[{*,w,h}]+u(-4,4)}
         =[0] 1,$x,$y
         =[1] $iteration,$x,$y
         point[2] {$x*{2,w}/{0,w}},{$y*{2,h}/{0,h}},0,0.8,255
@@ -39414,14 +39472,15 @@ x_life : check_display $0
     n. 0,{3,w} map. [3] *. 0.1 +[2,-1] /[2] 1.1
     [2] if {*,x}>0 # Add a small target icon at the mouse position
       opac:=0.7*min(1,$stock/500) r:=min(500,$stock)*cos($iteration)/100
-      ellipse. {*,x},{*,y},{15+$r},{15+$r},0,$opac,0,196,0
-      ellipse. {*,x},{*,y},{10+$r},{10+$r},0,$opac,32,64,16
-      ellipse. {*,x},{*,y},{5+$r},{5+$r},0,$opac,255,230,0
+      vx,vy:=round([{*,x,y}]*[w,h]/[{*,w,h}])
+      ellipse. $vx,$vy,{15+$r},{15+$r},0,$opac,0,196,0
+      ellipse. $vx,$vy,{10+$r},{10+$r},0,$opac,32,64,16
+      ellipse. $vx,$vy,{5+$r},{5+$r},0,$opac,255,230,0
     fi
     t. "Living cells : "$score"\n"\ # Add score description
        "Stock : "$stock"\n"\
        "Score : "$bestscore,5,3,22,0.7,255
-    w. {*,w},{*,h}
+    w.
     if {*,S} o. gmic_life.png fi # Save snapshot if requested
     rm.
 
@@ -39429,6 +39488,9 @@ x_life : check_display $0
       score={0,is} bestscore:=max($score,$bestscore)
     fi
     wait 60
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     iteration+=1
   while {*}" && "!{*,ESC}" && "!{*,Q}
 
@@ -39459,7 +39521,7 @@ x_light : check_display $0
   sh.. 0,50%,0,2 *. 120 rm.
   25%,25%,1,1 rand. -20,20 smooth. 10,0,1,1,4 ri. ..,3 b. 3 n. -100,100
   +[-2,-1] g. xy a[-2,-1] c n. -150,150
-  w[] {1.5*{-2,w}},{1.5*{-2,h}},0,"[G"{`39`}"MIC] Light Effect" # Init display window
+  w[] ${"fitscreen ..,40%,70%"},0,"[G'MIC] Light Effect" # Init display window
   cursor[0] 0
 
   # Create a large light image.
@@ -39488,7 +39550,9 @@ x_light : check_display $0
     r. 100%,100%,1,3 +. [-4] c. 0,255
     fps=${-fps} if $fps>0 to. $fps" fps",5,5,16,1,0.2 fi
     w.
-    if {*,CTRLLEFT}" && "{*,D} w[] {3*w},{3*h} elif {*,CTRLLEFT}" && "{*,C} w[] {1.5*w},{1.5*h} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     rm. if {*,x}>=0" && "!{*,b} wait else wait 20 fi
   while {*}" && "!{*,ESC}" && "!{*,Q}
   w[] 0 rm[-3--1]
@@ -39515,9 +39579,9 @@ x_mandelbrot : skip ${1=0},${2=0.317},${3=0.03} check_display $0
     siz:=min({*,w,h}) # Desired window dimension
     $siz,$siz mandelbrot. {0,^},256,$1,{[$1?$2:0,$1?$3:0]} map. [1] # Render fractal
     if $1 # Display on window
-      w. $siz,$siz,0,"[G"{`39`}"MIC] Julia Set c=("{0,_[I[0],I[1]]}")-("{0,_[I[2],I[3]]}"), c0=($2,$3)"
+      w. $siz,$siz,0,"[G'MIC] Julia Set c=("{0,_[I[0],I[1]]}")-("{0,_[I[2],I[3]]}"), c0=($2,$3)"
     else
-      w. $siz,$siz,0,"[G"{`39`}"MIC] Mandelbrot Set c=("{0,_[I[0],I[1]]}")-("{0,_[I[2],I[3]]}")"
+      w. $siz,$siz,0,"[G'MIC] Mandelbrot Set c=("{0,_[I[0],I[1]]}")-("{0,_[I[2],I[3]]}")"
     fi
     w,h={w},{h} round. select. 2,0,0,0,1 # Get the user selection
     if i[0]>0 # If valid selection found
@@ -39575,7 +39639,7 @@ x_mask_color : check "${2=5}>=0 && ${3=5}>=0" skip ${1=all} check_display $0
   m _ac_forward:$_f
   foreach {
     slices 0 basename {0,n} nm=${}
-    wh=${fitscreen\ {[w,h,1]},128,1024}
+    wh=${fitscreen\ {[w,h]},128,1024}
     +r $wh,1,100%,2
     +_ac_forward. channels. $_s
     if {1,s>3} channels[1] 0,2 fi to_rgb[1]
@@ -39616,7 +39680,7 @@ x_mask_color : check "${2=5}>=0 && ${3=5}>=0" skip ${1=all} check_display $0
       if {*,r} is_resized=1
       elif $is_ctrl" && "{*,-D} w[] {1,1.25*[w,h]} is_resized=1
       elif $is_ctrl" && "{*,-C} w[] {1,0.8*[w,h]} is_resized=1
-      elif $is_ctrl" && "{*,R} w[] ${fitscreen[]\ {0,[w,h,1]},128,1024} is_resized=1
+      elif $is_ctrl" && "{*,R} w[] ${fitscreen[]\ {0,[w,h]},128,1024} is_resized=1
       fi
       if $is_resized rm[1,2] +r {*,d},{*,e},1,3,2 +_ac_forward. channels. $_s refresh=1 fi
 
@@ -39721,7 +39785,7 @@ x_metaballs3d : check_display $0
   72,72,72 M=8 mode=3
   s0,s1,s2,s3,s4,s5=Dots,Wireframe,Flat,Flat-shaded,Gouraud-shaded,Phong-shaded
   repeat $M { fx$>,fy$>,fz$>:=2*[g,g,g] }
-  w[0] ${"fitscreen[] "{0,1.5*[w,h]}},0,"[G"{`39`}"MIC] 3D Metaballs"
+  w[0] ${"fitscreen [0],40%,70%"},0,"[G'MIC] 3D Metaballs"
   do
     repeat $M {
       x$>:=w/2+0.5*(w-{2,w}-4)*cos(${fx$>}*$|)
@@ -39741,7 +39805,9 @@ x_metaballs3d : check_display $0
     +j3d[1] ..,50%,50%,0,1,{!$mode?3:$mode},0,0,300,0,0,-500,1,0.1
     fps=${-fps} if $fps>0 to. $fps" fps",5,{h-22},16,2,0.2 fi
     w.
-    if {*,CTRLLEFT}" && "({*,C}" || "{*,-D}) w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}} fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     rm[-3--1] wait 20
     if {*,b}" || "{*,SPACE} mode:=($mode+({*,b}&2?-1:1))%6 wait -1 rm[1] i[1] 0 fi
   while {*}" && "!{*,ESC}" && "!{*,Q}
@@ -39790,6 +39856,7 @@ x_minesweeper : check "${1=20}>=8 && $1<=30 && ${2=$1}>=8 && $2<=30" check_displ
   .,.,1,3,255 frame. xy,1,0 frame. xy,23,255
   0 t. "Number of mines : "$nb_mines,0,0,18,1,100,200,255 negate. j.. .,{({-2,w}-w)/2},{{-2,h}-h-2} rm.
   => canvas
+  w. ${"fitscreen .,40%,60%"},0,"[G'MIC] Minesweeper"
 
   # Start user interaction loop.
   failed=0 succeeded=0 nb_flags=0 started=0
@@ -39805,13 +39872,13 @@ x_minesweeper : check "${1=20}>=8 && $1<=30 && ${2=$1}>=8 && $2<=30" check_displ
       0 t. "Game\nOver!",3,3,38,1,255 r. 100%,100%,1,4 sh. 3 dilate. 5 /. 2 rm.
       drop_shadow. 5,5,1 blend[canvas,-1] alpha
       0 t. "Boom! You failed!",0,0,18,1,100,255,255 r. {canvas,w},100%,1,3,0,0,0.5,0.5 negate. j[canvas] .,0,3 rm.
-      do w[canvas] {w},{h} wait while {*}" && "!{*,ESC}" && "!{*,Q}
+      do w[canvas] wait while {*}" && "!{*,ESC}" && "!{*,Q}
     elif $succeeded
       0 t. "Success!",3,3,38,1,255 r. 100%,100%,1,4 sh. 3 dilate. 5 /. 2 rm.
       drop_shadow. 5,5,1 blend[canvas,-1] alpha
       0 t. "Congratulations! ("{round($|-$tic)}" s)",0,0,18,1,255,100,255 r. {canvas,w},100%,1,3,0,0,0.5,0.5
       negate. j[canvas] .,0,3 rm.
-      do w[canvas] {w},{h} wait while {*}" && "!{*,ESC}" && "!{*,Q}
+      do w[canvas] wait while {*}" && "!{*,ESC}" && "!{*,Q}
     else
       +==[board] 10 nb_flags:=is rm.
       do
@@ -39820,8 +39887,8 @@ x_minesweeper : check "${1=20}>=8 && $1<=30 && ${2=$1}>=8 && $2<=30" check_displ
         r. {canvas,w},100%,1,3,0,0,0.5,0.5
         negate. j[canvas] .,0,3 rm.
         wait 50
-        x,y:=int(([{*,x,y}]-24)/24) b={*,b}
-        w[canvas] {w},{h},0,"[G"{`39`}"MIC] Minesweeper"
+        x,y:=int(([{*,x,y}]*[{canvas,[w,h]}]/[{*,w,h}]-24)/24) b={*,b}
+        w[canvas]
       while {*}" && "!{*,ESC}" && "!{*,Q}" && "!$b
     fi
 
@@ -39862,11 +39929,11 @@ x_minimal_path : check_display $0
   if !$! sp ? fi
   n 0,200 round 1
   foreach {
-    w[0] -1,-1,0,"[G"{`39`}"MIC] Select Starting Point P0"
+    w[0] ${"fitscreen [0],40%,70%"},0,"[G'MIC] Select Starting Point P0"
 
     if !narg($first_time)
       parallel 0,"+l[0] { rs ,128 frame xy,1,0 \
-        alert \"[G"{`39`}"MIC Minimal Path]\",\
+        alert \"[G'MIC Minimal Path]\",\
            \"The G\47MIC minimal path demo illustrates how minimal paths\n\
            can be computed in images to detect and track edge points.\n\
            Use your mouse to select desired starting and ending points,\n\
@@ -39884,7 +39951,7 @@ x_minimal_path : check_display $0
     if min($P0)>=0
       p=1
       do
-        w[0] -1,-1,0,"[G"{`39`}"MIC] Select Ending Point P"$p
+        w[0] -1,-1,0,"[G'MIC] Select Ending Point P"$p
         +select[0] 0
         if {*,S}
           rm.
@@ -39902,6 +39969,9 @@ x_minimal_path : check_display $0
             pointcloud. 0 *. 255 r. 100%,100%,1,[0],0,0,0,0,0,0.5 ri. [0],0 -|[0,-1]
             P0=$P1 p+=1
           fi
+        fi
+        if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+          w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
         fi
       while {*}" && "!{*,ESC}" && "!{*,Q}
     fi
@@ -39965,7 +40035,7 @@ x_morph : check "isint(${1=16}) && isint(${2=3},0,4)" check_display $0
       # Generate base images.
       if !narg($imgb0)" || "!narg($imgb1)
         if {*} wdims=${"fitscreen[] "{*,d},{img0,{*,d}*h/w}}
-        else wdims=${"fitscreen[] "{img0,[w,h,1]},128,50%}
+        else wdims=${"fitscreen[] "{img0,[w,h]},128,50%}
         fi
         w[] $wdims,0,"[G'MIC] Interactive Morph"
         repeat 2 { +to_color[img$>] r. $wdims,1,100%,2 n. 0,255 => imgb$> }
@@ -40173,7 +40243,9 @@ x_pacman : check_display $0
     warp. ..,0,0,1 rm.. -|[-2,-1] r. 100%,{h+24},1,3,0,0,0,1
     t. "Lives :",10,0,24,1,255 t. "Score :",{w-140},0,24,1,255
     if $lives +r[pacman_2] 12,12,1,4,2 r. {100*$lives}%,100%,1,4,0,2 j.. .,90,7 rm. fi => visu
-    w[visu] {visu,f=h<0.5*{*,v}?1.5:1;[w,h]*=f},0,"[G"{`39`}"MIC] Pacman" cursor[0] 0
+    w[visu] ${"fitscreen [visu],40%,70%"},0,"[G'MIC] Pacman"
+    cursor[0] 0
+
     0 t. "Level "$level,0,0,$font64,1,1 autocrop. 0 expand. xy,4 (0,255^0,255^0,0) +map.. . rm.. dilate.. 8
     => levelm_N,level_N
 
@@ -40216,8 +40288,8 @@ x_pacman : check_display $0
       if $oscore>0 j. [score$nscore],$xscore,$yscore,0,0,$oscore,[scorem$nscore],255 oscore-=0.04 yscore-=1 fi
       j. [gate],158,223,0,0,0.6
       w.
-      if {*,CTRLLEFT}" && "{*,D} w[] {2*w},{2*h}
-      elif {*,CTRLLEFT}" && "{*,C} w[] {f=h<0.5*{*,v}?1.5:1;[w,h]*=f}
+      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+         w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
       fi
       rm.
 
@@ -40546,7 +40618,7 @@ x_plasma : check_display $0
   M:=w
 
   # Start animation loop.
-  w[] {0,f=1.5*h<0.5*{*,v}?3:1.5;[w,h]*=f},0,"[G"{`39`}"MIC] Plasma Effect"
+  w[0] ${"fitscreen [0],50%"},0,"[G'MIC] Plasma Effect"
   t=0 tt:=-1.5*{0,w}
 
   do
@@ -40577,9 +40649,10 @@ x_plasma : check_display $0
 
     # Display rendered frame.
     fps=${-fps} if $fps>0 to. $fps" fps",5,5,16,1,0.2 fi
-    w.
-    if {*,CTRLLEFT}" && "{*,D} w[] {3*w},{3*h} elif {*,CTRLLEFT}" && "{*,C} w[] {1.5*w},{1.5*h} fi
-    rm. wait 20
+    w. rm. wait 20
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
   while {*}" && "!{*,ESC}" && "!{*,Q}
   rm[{-2*$N-2}--1] w[] 0 }
 
@@ -40628,6 +40701,7 @@ x_quantize_rgb : check "isint(${1=16},2)" check_display $0
   rectangle. 5,310,{w-6},360,1,2
   300,300,1,1,'(y<<11)+(x<<2)+3' j.. .,5,5 rm.
   a[-2,-1] c => visu
+  w. ${"fitscreen .,50%"},0,"[G'MIC] RGB Quantization"
 
   # Start k-means iterations.
   dithering=0 clustering=0 pause=1 s0=off s1=on
@@ -40663,10 +40737,10 @@ x_quantize_rgb : check "isint(${1=16},2)" check_display $0
       0 t. "Colors: "{centroids,w},2,0,16,1,255,255,255 +dilate. 3 j... ..,2,2,0,0,1,.,255
       rm[-2,-1] => visu_centroids j[visu] [visu_centroids],5,310
     fi
-    l[visu] {
-      w -1,-1,0,"[G"{`39`}"MIC] RGB Quantization"
-      if {*,CTRLLEFT}" && "{*,D} w[] {2*w},{2*h} elif {*,CTRLLEFT}" && "{*,C} w[] {w},{h} fi
-    }
+    w[visu]
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
 
     # Check for user's interactions.
     x:=int({*,x}*{visu,w}/{*,w})
@@ -40781,7 +40855,7 @@ x_reflection3d : check_display $0
 
   # Start animation loop.
   xb,xl,anim=0
-  w[] ${"fitscreen[] 400,400,1,35%"},0,"[G"{`39`}"MIC] 3D Reflection"
+  w[] ${"fitscreen[] 800,800,40%,70%"},0,"[G'MIC] 3D Reflection"
   do
 
     tic=$|
@@ -40806,8 +40880,10 @@ x_reflection3d : check_display $0
     # Display frame and update animation variables.
     fps=${-fps} if $fps>0 to. $fps" fps",5,{h-19},13,1,0.2 fi
     w. rm.
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
 
-    if {*,CTRLLEFT}" && "{*,D} w[] 800,800 elif {*,CTRLLEFT}" && "{*,C} w[] 400,400 fi
     xb:=($xb+6)%400
     xl:=($xl-6)%400
     anim+=1
@@ -40836,7 +40912,7 @@ x_rubber3d : check_display $0
   400,400,64,3
   {w},{h},1,3,'!c?x:c==1?y:y*{1,d}/h'
   {w},{h},1,3
-  w[] ${"fitscreen[] .,35%"},0,"[G"{`39`}"MIC] 3D Rubber Object"
+  w[] ${"fitscreen .,40%,70%"},0,"[G'MIC] 3D Rubber Object"
   frame=0
   do
     fps=${-fps}
@@ -40844,9 +40920,10 @@ x_rubber3d : check_display $0
     r3d[0] 0.1,1,0.6,{3*cos($|*1.25)} r3d[0] 1,0.2,0.6,-1
     +warp[1] [2],0,0,1 *[3] 0.8 *. 0.2 +[3] . rm.
     if $fps>0 to. $fps" fps",5,{h-29},24,2,0.2 fi
-    w.
-    if {*,CTRLLEFT}" && "{*,D} w[] {2*w},{2*h} elif {*,CTRLLEFT}" && "{*,C} w[] {w},{h} fi
-    wait[0] 20
+    w. wait[0] 20
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
     sh[2] 2 -. 1 &. {{1,d}-1} rm.
     frame:=($frame-1)%{1,d}
   while {*}" && "!{*,ESC}" && "!{*,Q}
@@ -41471,7 +41548,7 @@ x_shadebobs : check_display $0
 ---- Keys '"${c}"ESC"$n"' or '"${c}"Q"$n"' to exit.\n
 ----\n
 -------------------------------------------------"
-  rm t=100 w ${"fitscreen[] 512,512,1,35%"},0,"[G"{`39`}"MIC] Shade Bobs"
+  rm t=100 w ${"fitscreen[] 512,512,40%,70%"},0,"[G'MIC] Shade Bobs"
 
   # Start animation loop.
   do
@@ -41524,8 +41601,8 @@ x_spline : check_display $0
 -----------------------------------------------------"
 
   # Init display and variables.
-  if $! a x n 0,255 to_rgb else (0;0^0;128^0;0) r. 1024,1024,1,3,3 => "[G"{`39`}"MIC] Spline Editor" fi
-  w[0] {0,[w,h]/2},0,0,{n}
+  if $! a x n 0,255 to_rgb else (0;0^0;128^0;0) r. 1024,1024,1,3,3 => "[G'MIC] Spline Editor" fi
+  w. ${"fitscreen .,35%,65%"},0,{0,n}
   0 # Point coordinates
   roundness=0.5 # Curve roundness
   visuflags=23 # Visualisation flags
@@ -41584,9 +41661,10 @@ x_spline : check_display $0
     if {*,PADADD}" && "$roundness<1 roundness*=1.1 wait -1 fi # Increase roundness
     if {*,PADSUB}" && "$roundness>0.1 roundness*=0.9 wait -1 fi # Decrease roundness
     if {*,R}" && "!{*,CTRLLEFT}" && "!{*,CTRLRIGHT} rm. i[1] 0 wait -1 fi # Reset curve
-    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,D} w[] {{*,w}*1.5},{{*,h}*1.5} fi # Increase window size
-    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,C} w[] {{*,w}/1.5},{{*,h}/1.5} fi # Decrease window size
-    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,R} w[] {0,w},{0,h} fi # Reset window size
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+      w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+    fi
+    if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "{*,R} w[] ${"fitscreen [0],35%,65%"} fi # Reset window size
     if {*,r} w[] fi # Resize window if necessary
 
     # Set/unset active point.
@@ -41647,7 +41725,7 @@ x_starfield3d : check_display $0
     0 t. "Version "${-strver},0,0,48,1,1 rs. ,18 +f. 255 to_rgb.
     random3d 2500 col3d. 255 *3d. 320,200,1000 -3d. 160,100
     l3d 0,0,-600
-    w[] ${"fitscreen[] 640,400,1,35%"},0,"[G"{`39`}"MIC] 3D Starfield"
+    w[] ${"fitscreen[] 800,500,40%,70%"},0,"[G'MIC] 3D Starfield"
     t0=0 t=0
 
     do
@@ -41684,6 +41762,9 @@ x_starfield3d : check_display $0
       j. ...,{(w-{-3,w})/2},120,0,0,$op,[-4]
 
       w. wait 30 rm.
+      if ({*,CTRLLEFT}" || "{*,CTRLRIGHT})" && "({*,C}" || "{*,-D})
+        w[] ${"fitscreen[] "{round([{*,w,h}]*({*,-C}?0.75:1.25))}}
+      fi
       t0+=1 t:=$t0%350
       if !$t x=0 repeat 5 { z$>:=-3200-150*$> } fi
 
@@ -41783,7 +41864,7 @@ x_tetris : check_display $0
 
     +shift[background] 0,{round(-13*$|*1.04^$score)},0,0,2
     j. [curr_render],0,0,0,0,1,[curr_render_mask],255
-    w. ${"fitscreen .,20%"},0,"[G"{`39`}"MIC] Tetris" rm. cursor[0] 0
+    w. ${"fitscreen .,20%"},0,"[G'MIC] Tetris" rm. cursor[0] 0
 
     # Manage user interactions.
     if {*,SPACE} fall_mode=1 fi
@@ -41878,7 +41959,7 @@ x_tictactoe : check_display $0
   tmp2=0 # [-2] : Temporary variable 2
   tmp1=0 # [-1] : Temporary variable 1
   _x_tictactoe2 # Generate board
-  w. -1,-1,0," " # Init display window
+  w. ${"fitscreen .,40%,70%"},0," " # Init display window
 
   # Start main loop.
   do
@@ -41890,11 +41971,11 @@ x_tictactoe : check_display $0
 
     # Select position by the user.
     do # Enter event loop
-      w[] {w},{h},0,"[G"{`39`}"MIC] "$message wait # Wait for events and force window size if necessary
+      w[] -1,-1,0,"[G'MIC] "$message wait # Wait for events and force window size if necessary
       if !{*}" || "{*,ESC}" || "{*,Q} w[] 0 rm return fi # Quit properly if window has been closed
-      if {*,b}&1" && "{*,x}>20" && "{*,y}>20" && "{*,x}<400" && "{*,y}<400 # If mouse button pressed on the board area
-        tmp3:=int(({*,x}-15)/130) # X of the selected position (0,1 or 2)
-        tmp2:=int(({*,y}-15)/130) # Y of the selected position (0,1 or 2)
+      if {*,b}&1" && "{*,x}>=0" && "{*,y}>=0 # If mouse button pressed on the board area
+        tmp3:=int(({*,x}*w/{*,w}-15)/130) # X of the selected position (0,1 or 2)
+        tmp2:=int(({*,y}*h/{*,h}-15)/130) # Y of the selected position (0,1 or 2)
         tmp1:=4^($tmp2*3+$tmp3) # Get state code of the selected position
         if int($state/$tmp1)%4 tmp1=-1 fi # Check availability of position
       else tmp1=-1 fi # If no mouse button, do nothing but loop
@@ -42033,7 +42114,7 @@ x_tixy : skip "${1=sin(t-sqrt((x-8)^2+(y-8)^2))}" check_display $0
 ---- Keys '"${c}"CTRL+R"$n"' reset window size.\n
 ---- Keys '"${c}"ESC"$n"', '"${c}"Q"$n"' or '"${c}"RETURN"$n"' close the current window.\n
 ------------------------------------------------------------------------------------------------"
-  w[] ${"fitscreen[] 800,800"},0,"[G'MIC] tixy: "$expr
+  w[] ${"fitscreen[] 800,800,40%,70%"},0,"[G'MIC] tixy: "$expr
   t0=$| is_recording=0 is_antialias=1 is_screenshot=0 is_formula=0 nb_frames=0
   360,1,1,3,[x,abs(cos(x/w*pi))^0.5,1] hsv2rgb. shift. -180,0,0,0,2 => cmap
   strvar $expr basename=${}
@@ -42129,7 +42210,7 @@ x_warp : check "isint(${1=2},2) && isint(${2=$1},2) && isint(${3=0},0) && isint(
       # Generate base image.
       if !narg($imgb)
         if {*} wdims=${"fitscreen[] "{*,d},{img,{*,d}*h/w}}
-        else wdims=${"fitscreen[] "{img,[w,h,1]},128,60%}
+        else wdims=${"fitscreen[] "{img,[w,h]},128,60%}
         fi
         w[] $wdims,0,"[G'MIC] Interactive Warp"
         +to_color[img] r. $wdims,1,100%,2 n. 0,255 => imgb
@@ -42314,7 +42395,7 @@ x_waves : check_display $0
   } else k[0] r[0] 100,100,1,3,2 fi
   i[0] (20;80;0^20;80;0^20;80;0) r[0] 400,300,1,3,3 water[0] 100,2
 
-  w[0] ${"fitscreen [0],35%"},0,"[G"{`39`}"MIC] Image Waves"
+  w[0] ${"fitscreen [0],40%,70%"},0,"[G'MIC] Image Waves"
   w:=w elevation3d. 0 rv3d.
   sh. 8,{7+3*i[6]},0,0 r. 3,{h/3},1,1,-1
   (0,1,0;1,0,1;0,1,0) /. 2
@@ -42369,7 +42450,7 @@ x_whirl : check "${1=0.2}>=0" check_display $0
 ----\n
 --------------------------------------------------"
 
-  5,5,1,3 256,256,1,3 [-1] w. ${"fitscreen[] 384,384,1,35%"},0,"[G"{`39`}"MIC] Fractal Whirls"
+  5,5,1,3 256,256,1,3 [-1] w. ${"fitscreen[] 384,384,40%,70%"},0,"[G'MIC] Fractal Whirls"
   tangle=0 tzoom=0 xc,yc:=(w-{-3,w})/2,(h-{-3,h})/2
   do
     rand... 0,255 j.. [-3],$xc,$yc,0,0
@@ -42607,7 +42688,7 @@ gui_print_preview : skip "${1=},${3=}" check "${2=32}>=0 && ${4=20}>=0"
   drgba
   siz:=0$_preview_area_width?[0$_preview_area_width,0$_preview_area_height]:\
        0$_preview_width?[0$_preview_width,0$_preview_height]:\
-       [${fitscreen[]\ {[max(w,1),max(h,1),1]},400,800}]
+       [${fitscreen[]\ {[max(w,1),max(h,1)]},400,800}]
   sizw:=arg(1,$siz)-8
   if $! rs $siz,3,1 drgba else $siz,1,3,128 fi
   (1;0.5^1;0.5^0;1)
@@ -45976,7 +46057,7 @@ fx_charcoal :
 fx_colorize_interactive : skip "${4=},${5=},${6=}"
   N=$! nm={n}
   resolution:=arg(1+$3,512,1024,2048,0)
-  => "[G"{`39`}"MIC] Colorize"
+  => "[G'MIC] Colorize"
   if [$9][0]==-1" || "[$8]!=[w,h] _gui_control_points= else _gui_control_points=$9 fi
   N=$!
 
@@ -50261,7 +50342,7 @@ fx_extract_foreground :
   foreach {
     nm=${-gui_layer_name}
     initial_pos=${-gui_layer_pos}
-    => "[G"{`39`}"MIC] Interactive Foreground Extraction"
+    => "[G'MIC] Interactive Foreground Extraction"
     if [$6][0]==-1" || "[$5]!=[w,h] _gui_control_points= else _gui_control_points=$6 fi
     status=${x_segment\ $resolution}
     sh 3 b. $1% if $2>0 dilate. {1+2*$2} elif $2<0 erode. {1-2*$2} fi
@@ -55182,8 +55263,8 @@ fx_illuminate_shape2d_preview_interactive :
     to_rgba
     +__fx_illuminate_shape2d[0] $1,2,${3-6},0,1,""$9,0,${11-15},""${16-29},""0,0
     if $!>2 rm[0] elif $input_type>=2 sh[0] 0,2 f. 128 rm. fi
-    siz=${fitscreen[]\ {[w,h,1]},256,640}
-    wsiz0=${fitscreen[]\ $siz,1,30%,100%}
+    siz=${fitscreen[]\ {[w,h]},256,640}
+    wsiz0=${fitscreen[]\ $siz,30%,100%}
     wsiz=$wsiz0
     r $siz,1,100%,3
     s. c,-3 !=. 0 l.. { - 128 / 127 s c,-2 / } a[-2,-1] c # Gradient map
@@ -56124,6 +56205,125 @@ _fx_shapes16 :
 _fx_shapes17 :
   _fx_shapes9 $* expand xy,1 +erode 3 -
 
+#@gui Organic Fibers : fx_organic_fibers, fx_organic_fibers(0)
+#@gui : note = note("<span color="#EE5500"><small><b>Global Parameters:</b></small></span>")
+#@gui : Agent Density (%) = float(20,0,50)
+#@gui : Iterations = int(20,1,256)
+#@gui : Orientations = ~int(3,2,16)
+#@gui : sep = separator()
+#@gui : note = note("<span color="#EE5500"><small><b>Sensor Parameters:</b></small></span>")
+#@gui : Sensor Distance (px) = ~int(15,0,400)
+#@gui : Sensor Angle (deg.) = ~float(15,0,180)
+#@gui : sep = separator()
+#@gui : note = note("<span color="#EE5500"><small><b>Motion Parameters:</b></small></span>")
+#@gui : Motion Distance (px) = ~int(3,0,400)
+#@gui : Motion Angle (deg.) = ~float(15,0,180)
+#@gui : Moment (%) = ~float(30,0,100)
+#@gui : Trail Blur (px) = ~float(1,0,20)
+#@gui : sep = separator()
+#@gui : note = note("<span color="#EE5500"><small><b>Rendering Parameters:</b></small></span>")
+#@gui : Particle Size (px) = ~int(19,1,128)
+#@gui : Particle Thickness (%) = ~float(10,0,100)
+#@gui : Quantize Orientations = ~int(24,1,32)
+#@gui : Opacity (%) = ~float(50,0,100)
+#@gui : Sharpening (%) = ~float(0,0,100)
+#@gui : Palette = choice(33,"Default","HSV","Lines","Hot","Cool","Jet","Flag","Cube","Rainbow","Parula","Spring",\
+# "Summer","Autumn","Winter","Bone","Copper","Pink","Vga","Algae","Amp","Balance","Curl","Deep","Delta","Dense",\
+# "Diff","Gray","Haline","Ice","Matter","Oxy","Phase","Rain","Solar","Speed","Tarn","Tempo","Thermal","Topo",\
+# "Turbid","Aurora","Hocuspocus","SRB2","Uzebox","Amiga7800","Amiga7800mess","Fornaxvoid1")
+#@gui : sep = separator()
+#@gui : note = note{"<small>This filter has been inspired by the following web page, written by Etienne Jacob \
+# (aka <i>Bleuje</i>):</small>"}
+#@gui : link = link("https://bleuje.com/physarum-explanation/")
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2025/07/14</i>.</small>")
+fx_organic_fibers :
+  agent_density,nb_iterations,nb_orientations,\
+  sensor_distance,sensor_angle,\
+  motion_distance,motion_angle,motion_moment,trail_blur,\
+  particle_size,particle_thickness,quantize_orientations,opacity,sharpening,palette=${1-15}
+  arg0 $palette,default,hsv,lines,hot,cool,jet,flag,cube,rainbow,parula,spring,summer,autumn,winter,bone,copper,pink,\
+                vga,algae,amp,balance,curl,deep,delta,dense,diff,gray,haline,ice,matter,oxy,phase,rain,solar,speed,\
+                tarn,tempo,thermal,topo,turbid,aurora,hocuspocus,srb2,uzebox,amiga7800,amiga7800mess,fornaxvoid1
+  palette=${}
+
+  # Define header for math expression.
+  header="
+    const no = $nb_orientations;
+    const sd = $sensor_distance;
+    const sa = $sensor_angle;
+    const md = $motion_distance;
+    const ma = $motion_angle;
+    const mm = $motion_moment%;
+    const opacity = $opacity%;"
+
+  # Pre-compute rotation matrices.
+  eval ${header}"
+    sRs = mRs = vector(#4*no);
+    off = 0; repeat (no,k, ang = lerp(-sa,sa,k/(no - 1)); copy(sRs[off],rot(ang°)); off+=4);
+    off = 0; repeat (no,k, ang = lerp(-ma,ma,k/(no - 1)); copy(mRs[off],rot(ang°)); off+=4);
+    store('sRs',sRs); store('mRs',mRs)"
+
+  # Pre-compute oriented sprites for agents.
+  $particle_size,$particle_size,$quantize_orientations
+  repeat d { 100%,100% gaussian. 25%,{25*$particle_thickness%}%,{-2,180*$>/d} j.. .,0,0,$> rm. } => masks
+
+  # Render images.
+  foreach[^-1] {
+    nm={n}
+    100%,100%x2 rm[0] => canvas,trail
+    $agent_density%,$agent_density%,1,4,"[ u(w#$trail - 1),u(h#$trail - 1),unitnorm([g,g]) ]" => agents
+    pass. 1
+
+    # Generate frames.
+    repeat $nb_iterations {
+      progress {$>*100/$nb_iterations}
+      f[canvas] 0
+      f[agents] :${header}"begin(
+          sRs = get('sRs',4*no);
+          mRs = get('mRs',4*no);
+          one = vector(#wh#$masks,1);
+          const sm = w#$masks;
+          const sm2 = int(sm/2);
+        );
+        A = I; X = A[0,2]; U = A[2,2];
+
+        # Get sensor information.
+        max_orientation = max_value = -inf;
+        repeat (no,k,
+          R = sRs[4*k,4];
+          sX = X + sd*mul(R,U);
+          value = i(#$trail,sX,1,2);
+          value>max_value?(max_value = value; max_orientation = k);
+        );
+
+        # Turn agent according to sensor measure.
+        R = mRs[4*max_orientation,4];
+        U = lerp(mul(R,U),U,mm);
+
+        # Move agent along new orientation.
+        X+=md*U;
+        X[0]%=w#$canvas;
+        X[1]%=h#$canvas;
+        iX = round(X);
+
+        ++i(#$trail,iX);
+        ang = rad2deg(atan2(U[1],U[0]));
+        z = round(ang*d#$masks/180)%d#$masks;
+        mask = crop(#$masks,0,0,z,sm,sm,1);
+
+        draw(#$canvas,one,iX[0] - sm2,iX[1] - sm2,sm,sm,opacity,mask);
+        [ X,unitnorm(U) ]"
+
+      b[trail] $trail_blur,2
+      n[trail] 0,1
+    }
+    progress 100
+    k[canvas] n 0,255 sharpen {5*$sharpening} map $palette
+    => $nm
+  }
+  rm.
+
 #@gui Pack Ellipses : fx_pack_ellipses, fx_pack_ellipses_preview(0)
 #@gui : Min Radius (px) = float(3,1,256)
 #@gui : Max Radius (px) = float(20,1,256)
@@ -57062,7 +57262,7 @@ fx_inpaint_matchpatch :
     +round select_color. 0,{round([$R,$G,$B,$A])}
     if $10 dilate. {1+2*$10} fi
     if $11
-      visu_size=${fitscreen[]" "{0,[w,h,1]},25%,50%}
+      visu_size=${fitscreen[]" "{0,[w,h]},25%,50%}
       w1.. $visu_size,0,"[Preview] G'MIC: Inpaint [multi-scale]"
     fi
     srand 0 inpaint_matchpatch.. [1],${1-5}
