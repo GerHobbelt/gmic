@@ -52,7 +52,7 @@
 */
 
 #ifndef gmic_version
-#define gmic_version 371
+#define gmic_version 373
 
 #ifndef gmic_pixel_type
 #define gmic_pixel_type float
@@ -208,7 +208,7 @@ namespace gmic_library {
 #endif
 
 #ifdef gmic_is_parallel
-#define cimg_use_pthread
+#include <pthread.h>
 #endif
 
 #define cimg_library gmic_library
@@ -267,7 +267,7 @@ inline double gmic_mp_store(const double *const ptrs, const unsigned int siz,
 #elif cimg_OS==1
 #include <cerrno>
 #include <sys/resource.h>
-#if !defined(__NetBSD__) && !defined(cimg_use_pthread) && cimg_display!=1
+#if !defined(__NetBSD__) && !defined(cimg_use_pthread)
 #include <sys/syscall.h>
 #endif
 #include <signal.h>
@@ -384,6 +384,7 @@ struct gmic {
   static char *strreplace_bw(char *const str);
   static unsigned int strescape(const char *const str, char *const res);
   static const gmic_image<char>& decompress_stdlib();
+  static void warn(const char *format, ...);
 
   template<typename T>
   gmic& _gmic(const char *const command_line, gmic_list<T>& images, gmic_list<char>& image_names,
@@ -391,7 +392,7 @@ struct gmic {
               float *const p_progress, bool *const p_is_abort);
 
   gmic_image<char> get_variable(const char *const name, const unsigned int *const variable_sizes=0,
-                                const gmic_list<char> *const image_names=0, unsigned int *const varlength=0);
+                                const gmic_list<char> *const image_names=0, unsigned int *const varlength=0) const;
   const char *set_variable(const char *const name, const char operation='=', const char *const value=0,
                            const double dvalue=0, const unsigned int *const variable_sizes=0);
   const char *set_variable(const char *const name, const gmic_image<unsigned char>& value,

@@ -183,7 +183,7 @@
 #   - _preview_area_width: Width of the preview widget area.
 #   - _preview_area_height: Height of the preview widget area.
 #   - _preview_x0: X-coordinate of the upper-left corner of the preview (expressed in the image space).
-#   - _preview_y0: Y-coordinate of the upper-left corner of the preview (exressed in the image space).
+#   - _preview_y0: Y-coordinate of the upper-left corner of the preview (expressed in the image space).
 #   - _preview_x1: X-coordinate of the lower-right corner of the preview (expressed in the image space).
 #   - _preview_y1: Y-coordinate of the lower-right corner of the preview (expressed in the image space).
 #   - _randomized: Boolean that tells if the filter parameters have been randomized with the "Randomize" button.
@@ -462,7 +462,7 @@ reference : skip "${2=}"
 "* A G'MIC item that is not a filename nor a special input string designates a 'command' "\
 "most of the time. Generally, commands perform image processing operations on one or several available images "\
 "of the list."\n\
-"* Reccurent commands have two equivalent names ('regular' and 'short'). For instance, command names "\
+"* Recurrent commands have two equivalent names ('regular' and 'short'). For instance, command names "\
 "'resize' and 'r' refer to the same image resizing action."\n\
 "* A G'MIC command may have mandatory or optional __arguments__. Command arguments must be specified "\
 "in the next item on the command line. Commas ',' are used to separate multiple arguments of a single command, "\
@@ -794,8 +794,8 @@ reference : skip "${2=}"
 "* 'I': current vector-valued processed pixel in the associated image, if any ('0' otherwise). "\
 "The number of vector components is equal to the number of image channels (e.g. 'I' = `[ R,G,B ]` for a "\
 "`RGB` image)."\n\
-"* 'null': A vector whose dimension is equal to the number of channels of the associated image, and whose values "\
-"are all 0."\n\
+"* '_0' and '_1': Vectors whose dimension is equal to the number of channels of the associated image, "\
+"and whose values are all '0' or '1'."\n\
 "* You may add '#ind' to any of the variable name above to retrieve the information for any "\
 "numbered image '[ind]' of the list (when this makes sense). For instance 'ia#0' denotes the average value of the "\
 "first image of the list)."\n\
@@ -1119,7 +1119,7 @@ reference : skip "${2=}"
 "expression passed to a 'fill', 'eval' or 'input' commands can be evaluated in *parallel*, using multiple "\
 "computation threads."\n\
 "* G'MIC tries to auto-detect if an expression can be *parallelized*, and if it can be evaluated *in-place* "\
-"(otherwise, a temporary copy of the image is allocated). However, this auto-detection can be overriden, by starting "\
+"(otherwise, a temporary copy of the image is allocated). However, this auto-detection can be overridden, by starting "\
 "the mathematical expression for the `fill` or `eval` commands, with a single character, that can be:"\n\
 "  - '*': Evaluate expression in *parallel*, eventually using a temporary image copy."\n\
 "  - ':': Evaluate expression in *parallel*, but *in-place*."\n\
@@ -1884,10 +1884,9 @@ compress_to_keypoints : check "inrange(${1=3},0,3) && isint(${2=0}) && ${3=1%}>=
     nb_keypoints:="da_size(#1) - 2"
     do
       +da_freeze[1]
-
-      if $dim==3 [0],[0],[0] eval.. "begin(ret = I); i(#-1,i0,i1,i2) = 1; ret"
-      elif $dim==2 [0],[0] eval.. "begin(ret = I); i(#-1,i0,i1) = 1; ret"
-      else [0] eval.. "begin(ret = I); i[#-1,i0] = 1; ret"
+      if $dim==3 [0],[0],[0] eval.. "i(#-1,i0,i1,i2) = 1; _0"
+      elif $dim==2 [0],[0] eval.. "i(#-1,i0,i1) = 1; _0"
+      else [0] eval.. "i[#-1,i0] = 1; _0"
       fi
       distance. 1 n. 0.1,1
       decompress_from_keypoints.. , rv[-2,-1]
@@ -2033,7 +2032,7 @@ csv2ts : skip "${1=fr}"
 #@cli : Default value: 'mode=1'.
 
 #@cli delete : filename1[,filename2,...] : (+)
-#@cli : Delete specified filenames on disk. Multiple filenames must be separated by commas.
+#@cli : Delete specified files or directories on disk. Multiple filenames must be separated by commas.
 
 #@cli d : eq. to 'display'.
 d :
@@ -2305,7 +2304,7 @@ _display : skip ${1=},${3=}
       thumb_height2:=$thumb_height+2
       thumb_x_px:=cut($thumb_x*$thumb_sumw,-16,$thumb_x_px_max)
 
-      # Generate thumnail view.
+      # Generate thumbnail view.
       if $thumb_view_update $0_rmn thumb_view thumb_view_update=0 fi
       if !0$thumb_view
         $0_rmn thumb_index_map
@@ -4673,7 +4672,7 @@ _display_quiver : check "${1=16}>0 && ${2=1.5}>=0 && isint(${3=2},0,2)"
         i1 = arg0(k,2,10,6);
         i2 = arg0(k,12,12,8);
         polygon(#1,3,X[i0,2],X[i1,2],X[i2,2],1,C);
-      ); I"
+      ); _0"
     rm..
   }
 
@@ -4726,7 +4725,7 @@ _display_tensors : check "${1=16}>0 && ${2=1.5}>=0 && isint(${3=2},0,2) && ${4=2
   foreach {
     * {($2*$1/2)/max(abs(im),abs(iM))} # Normalize tensor values
     {$1*w},{$1*h},1,{"1<<cut($3,0,2)"}
-    f.. "
+    eval.. "
       begin(C = resize([255],s#1,1); Co = resize([0],s#1,1); Co[s#1 - 1] = $3?255:0);
       "${-math_lib}"
       X = ([ x,y ]+=0.5)*$1;
@@ -4743,7 +4742,7 @@ _display_tensors : check "${1=16}>0 && ${2=1.5}>=0 && isint(${3=2},0,2) && ${4=2
         );
       );
       for (k = 1, k>=0, --k, ellipse(#1,X,r1 + k*$4,r2 + k*$4,ang°,1,arg0(k,C,Co)));
-      I"
+      _0"
     rm..
   }
 
@@ -5716,7 +5715,7 @@ __input_obj_parse_mtl : skip "${1=}"
                        ' input_obj_img_',varname,'=-1',
                        ' input_obj_whs_',varname,'=0,0,0',
                        ' u 0 }'));
-            get('{}')?++img_ind; # Else error occured when loading texture
+            get('{}')?++img_ind; # Else error occurred when loading texture
           );
         );
       )"
@@ -5785,7 +5784,7 @@ output_565 : check "isbool(${2=0})"
 
 #@cli output_csv : "filename",_column_separator
 #@cli : Output selected ascii-encoded arrays as .csv files.
-#@cli : Defaut value: 'column_separator=,'.
+#@cli : Default value: 'column_separator=,'.
 output_csv : skip "${2=,}"
   e[^-1] "Output ascii-encoded array$? as file '"{/"$1"}"', with column separator '$2'."
   N=$! +foreach {
@@ -6972,7 +6971,7 @@ parse_cli_images :
   rm
 
 # Generate a single image from a list of images, for the reference documentation.
-# $1 : boolean that tells if the image name is inserted at the botton of the generated image.
+# $1 : boolean that tells if the image name is inserted at the bottom of the generated image.
 _parse_cli_images : l[] { check "isbool(${1=1})" is_arg=1 arg1=$1 onfail is_arg=0 arg1=1 }
   if !$is_arg noarg fi
   if !$! rm return fi
@@ -9127,7 +9126,7 @@ straprilfool : skip "${1=}"
 #
 parse_gui_parseparams_json : u 1 # Tell parser to parse filter parameters
 parse_gui_trigger_json :
-  foreach { # Keep only 1-level folders
+  foreach { # Keep only 1-level directories
     => {`s=[['{n}'],0];p=find(s,_'/',size(s)-1,0);p>=0?(p=find(s,_'/',p-1,0);p>0?copy(s,s[p+1],size(s)-p));s`}
   }
   sort_list +,n
@@ -9292,7 +9291,7 @@ _parse_gui_json :
 #
 parse_gui_parseparams_gmicol : u 1 # Tell parser to parse filter parameters
 parse_gui_trigger_gmicol :
-  foreach { # Keep only 1-level folders
+  foreach { # Keep only 1-level directories
     => {`s=[['{n}'],0];p=find(s,_'/',size(s)-1,0);p>=0?(p=find(s,_'/',p-1,0);p>0?copy(s,s[p+1],size(s)-p));s`}
   }
   sort_list +,n
@@ -10568,7 +10567,7 @@ _select :
     repeat $2 { +f "begin(C = I["$ind"]; R = rot(90°)); R*(I - C) + C" ind:=2*h a y }
     s c -.. {-2,ia} -. {ia} a c / {max(abs(im),abs(iM))}
     angle:=$3-atan2(i1,i0)*180/pi f. "begin(R = rot("$angle"°)); R*I"
-    n 0,{$1-1} round $1,$1,1,1 eval.. "!x?polygon(#1,2,I(0,y),I(1,y),1,1); I" k.
+    n 0,{$1-1} round $1,$1,1,1 eval.. "!x?polygon(#1,2,I(0,y),I(1,y),1,1); _0" k.
   } fi
   => "[2D dragon shape]"
 
@@ -11042,7 +11041,7 @@ update_deprecate : check "isint($1,1,999)"
 
 # update_download_html.
 # Update file versions on G'MIC download page, with specified version number.
-# $1 = version number (e.g. '3.7.1').
+# $1 = version number (e.g. '3.7.3').
 update_download_html : check "
     is_digit(c)=(c>=_'0' && c<=_'9');
     ver = ['${1=undefined}'];
@@ -12000,6 +11999,7 @@ _update_gmicol : # Keep only a subset of existing filters
   "Artistic/Lineart",\
   "Artistic/Lylejk's Painting",\
   "Artistic/Make Squiggly",\
+  "Artistic/Marker Drawing",\
   "Artistic/Paint With Brush",\
   "Artistic/Painting",\
   "Artistic/Photoillustration",\
@@ -12631,7 +12631,7 @@ _strings2ts_dest :
 #
 parse_gui_parseparams_zart : u 1 # Tell parser to parse filter parameters
 parse_gui_trigger_zart :
-  foreach { # Keep only 1-level folders
+  foreach { # Keep only 1-level directories
     => {`s=[['{n}'],0];p=find(s,_'/',size(s)-1,0);p>=0?(p=find(s,_'/',p-1,0);p>0?copy(s,s[p+1],size(s)-p));s`}
   }
   sort_list +,n
@@ -12945,7 +12945,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=370,371,$_version
+  versions=371,372,373,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -14035,7 +14035,7 @@ compress_huffman : check ${"is_image_arg $1"} skip "${2=}"
 
   # Transform Huffman tree to codebook to speed up encoding.
   if ['$2']==0 # Retrieve max integer value of all tree leafs
-    eval. ">begin(Mlv = -inf); i2<0 && i3<0?Mlv = max(Mlv,i0); end(set('Mlv',Mlv)); I"
+    eval. ">begin(Mlv = -inf); i2<0 && i3<0?Mlv = max(Mlv,i0); end(set('Mlv',Mlv)); _0"
   else
     Mlv=$2
   fi
@@ -14050,7 +14050,7 @@ compress_huffman : check ${"is_image_arg $1"} skip "${2=}"
     );
     ncode = 0; repeat (nb_bits,(ncode<<=1)|=(code&1); code>>=1); # Reverse bit order
     I[#-1,i0] = [ ncode,nb_bits ];
-  ); I"
+  ); _0"
   rm..
 
   # Encode input data.
@@ -14581,7 +14581,7 @@ noise_poissondisk : check "${1=8}>0 && isint(${2=30},1) && ${3=2}>0"
     R:=ispercentage($R0)?max(w,h,d)*$R0:$R0
     C:=$R/sqrt(sum([$W,$H,$D]>1)) # Cell size
 
-    # Determing optimal set of neighbors.
+    # Determining optimal set of neighbors.
     _poissondisk[] $R,$P,$C
     f. "($W<2 && i0) || ($H<2 && i1) || ($D<2 && i2)?[8,8,8]:I" discard. 8 s. y,3 a[-3--1] x # Discard useless dims
     neighbors={^} rm.
@@ -14717,7 +14717,7 @@ normalize_sum :
 #@cli : $$
 orientation :
   e[^-1] "Compute pointwise orientation vectors, in image$?."
-  repeat $! { +norm[$>] replace. 0,1 /[$>,-1] }
+  foreach { +norm replace. 0,1 / }
 
 #@cli otsu : _nb_levels>0
 #@cli : Hard-threshold selected images using Otsu's method.
@@ -14962,6 +14962,15 @@ threshold : check "isexpr($1) && isbool(${2=0})"
        i<=-value?i + value:0"
   else ge $1
   fi
+
+#@cli unitnorm : _p>=0
+#@cli : Compute the pointwise Lp-norm in selected images.
+#@cli : Default value: 'p=2'.
+#@cli : $ image.jpg +unitnorm 2
+unitnorm : skip "${1=2}"
+  l[] { if isnum($1) p=$1 else p=2 noarg fi onfail p=2 noarg }
+  e[^-1] "Compute pointwise L"$p"-norm, in image$?."
+  foreach { +normp $p replace. 0,1 / }
 
 #@cli vector2tensor
 #@cli : Convert selected vector fields to corresponding tensor fields.
@@ -15529,14 +15538,14 @@ colormap : check "isint($1,0) && isbool(${2=1}) && isint(${3=1},0,2)"
     +n 0,255 100%,100%,100%,1,"H = 0; repeat (s#-1,c,(H*=31)+=j(#-1,0,0,0,c)); H%2048" # Compute hashcode map
     rm.. equalize. 2048 n. 0,2047 round. 1
     0x2048 eval[0] "> # Find single occurrence of each color/vector
-      begin(size = vector2048(); null = vectors());
+      begin(size = vector2048());
       I = I; H = i#1; indH = H + 2; sizH = size[H];
       !sizH || find(#indH,I,s#0*(sizH - 1),-s#0)<0?( # Color not found
         sizH>=h(#indH)?resize(#indH,s#0,max(8,2*h#indH),1,1,0);
         copy(i(#indH,0,sizH,0,0),I);
         ++size[H];
       );
-      null; end(fill(size,k,resize(#k + 2,s#0,size[k],1,1,0)))"
+      end(fill(size,k,resize(#k + 2,s#0,size[k],1,1,0))); _0"
     a[2--1] y permute. yzcx rm..
 
     if $1" && "$1<w
@@ -15661,7 +15670,7 @@ count_colors : check "isint(${1=0},0)"
     +n 0,255 100%,100%,100%,1,"H = 0; repeat (s#-1,c,(H*=31)+=j(#-1,0,0,0,c)); H%2048" # Compute hashcode map
     rm.. equalize. 2048 n. 0,2047 round. 1
     0x2048 eval[0] "> # Find single occurrence of each color/vector.
-      begin(size = vector2048(); nb = 0; null = vectors());
+      begin(size = vector2048(); nb = 0);
       const max_nb = $1;
       !max_nb || nb<max_nb?(
         I = I; H = i#1; indH = H + 2; sizH = size[H];
@@ -15671,7 +15680,7 @@ count_colors : check "isint(${1=0},0)"
           ++size[H]; ++nb;
         );
       );
-      null; end(set('nb',sum(size)))"
+      end(set('nb',sum(size))); _0"
     k[0] res.=$sep$nb sep=,
   }
   u $res
@@ -18022,12 +18031,12 @@ extract : check "isint(${2=0},0,5)"
     "xyzc-coords + scalar value","xyz-coords + vector-values"
   e[^-1] "Extract "$s$2" from image$? verifying condition '$1'."
   str=">begin(run('1,32,1,',arg0($2,4,3,1,s,5,3 + s)));($1)?("
-  if !$2     str.="da_push([x,y,z,c]));i"
-  elif $2==1 str.="da_push([x,y,z]));I"
-  elif $2==2 str.="da_push(i));i"
-  elif $2==3 str.="da_push(I));I"
-  elif $2==4 str.="da_push([x,y,z,c,i]));i"
-  else str.="da_push([x,y,z,I]));I"
+  if !$2     str.="da_push([x,y,z,c]));0"
+  elif $2==1 str.="da_push([x,y,z]));_0"
+  elif $2==2 str.="da_push(i));0"
+  elif $2==3 str.="da_push(I));_0"
+  elif $2==4 str.="da_push([x,y,z,c,i]));0"
+  else str.="da_push([x,y,z,I]));_0"
   fi
   str.=";end(da_freeze())"
   repeat $! { nm={$>,n} eval[$>] $str => $nm rv[$>,-1] rm. }
@@ -19671,14 +19680,16 @@ _gradient : skip "${1=}"
 #@cli : Default values: 'scheme=0' and 'boundary_conditions=1'.
 #@cli : $ image.jpg gradient_norm equalize
 #@cli : $$ https://gmic.eu/oldtutorial/_gradient_norm
-gradient_norm : skip "${1=},${2=}"
-  scheme,boundary=0,1
+gradient_norm :
+  $=arg scheme,boundary=0,1
   l[] {
-    if "isint($1,-1,6) && ($#==1 || ($#==2 && isint($2,0,3)))" scheme=$1 if $#==2 boundary=$2 fi
+    if "isnum("$arg1") && isint("$arg1",-1,6) && "\
+      "($#==1 || ($#==2 && isnum("$arg2") && isint("$arg2",0,3)))" scheme=$arg1 if $#==2 boundary=$arg2 fi
     else scheme,boundary=0,1 noarg
     fi
     onfail scheme,boundary=0,1 noarg
   }
+
   e[^-1] "Compute gradient norm of image$?, with "\
    ${"arg0 $scheme+1,backward,centered,forward,sobel,rotation-invariant,deriche,vanvliet,fb-maxabs"}" scheme and "\
    ${"arg0 $boundary,dirichlet,neumann,periodic,mirror"}" boundary conditions."
@@ -20013,7 +20024,7 @@ inpaint_pde : check ${is_image_arg\ $1}" && isexpr(${2=-9}) && isint(${3=1},0,3)
                  X = round(x*wl1/w1); Y = round(y*hl1/h1); Z = round(z*dl1/d1);
                  I(#-2,X,Y,Z) += I(#0,x,y,z);
                  ++i(#-1,X,Y,Z)
-               );I"
+               ); _0"
       +max. 1 /[-3,-1] !=. 0
 
       if !$> # First scale: Initialize by value propagation
@@ -20812,11 +20823,11 @@ remove_pixels : check "$1>=0"
   e[^-1] "Remove $1 of the non-zero pixels in image$?."
   foreach {
     # Extract zero-valued pixels.
-    1,1,1,4 eval.. "begin(N = 0; ret = I); norm(I)?(++N; da_push([u,x,y,z])); ret; end(set('N',N); da_freeze())"
+    1,1,1,4 eval.. "begin(N = 0); norm(I)?(++N; da_push([u,x,y,z])); end(set('N',N); da_freeze()); _0"
     N:=round(ispercentage($1)?$N*cut($1,0,1):$1)
 
     # Remove subset of this pixel set.
-    sort. +,y r. 1,$N,1,100%,0 eval. "begin(ret = I); I(#-2,i1,i2,i3) = 0; ret" rm.
+    sort. +,y r. 1,$N,1,100%,0 eval. "I(#-2,i1,i2,i3) = 0; _0" rm.
   }
 
 #@cli rolling_guidance : std_deviation_s[%]>=0,std_deviation_r[%]>=0,_precision>=0
@@ -21237,17 +21248,13 @@ unsharp_octave : check "${1=4}>0 && ${3=2}>=0" skip ${2=1},${4=0}
 
 #@cli voronoi
 #@cli : Compute the discrete Voronoi diagram of non-zero pixels in selected images.
-#@cli : $ 400,400 noise 0.2,2 eq 1 +label_fg 0 voronoi[-1] +gradient[-1] xy,1 append[-2,-1] c \
-# norm[-1] ==[-1] 0 map[-2] 2,2 mul[-2,-1] normalize[-2] 0,255 dilate_circ[-2] 4 reverse max
+#@cli : $ 400,400,1,3 eval "repeat(50,I(v([w,w]-1)) = v([255,255,255]))" +voronoi +gradient_norm. eq. 0 *[-2,-1]
 voronoi :
   e[^-1] "Compute the discrete Voronoi diagram of non-zero pixels in image$?."
   foreach {
-    s c
-    foreach {
-      +!=. 0 distance. 1 *. -1
-      watershed.. . rm.
-    }
-    a c
+    +colormap 0,0,1 index.. .,0,0
+    +!=.. 0 distance. 1 *. -1
+    watershed... . map... .. k...
   }
 
 #@cli watermark_fourier : text,_size>0
@@ -21734,12 +21741,12 @@ histogram_nd : check $1>0 skip ${2=0%},${3=100%}
       $nb_levels,$nb_levels
       eval.. "ind(p) = cut(int($nb_levels*(p - $vmin)/($vmax - $vmin)),0,$nb_levels - 1);
               inrange(i0,$vmin,$vmax) && inrange(i1,$vmin,$vmax)?
-              ++i(#-1,ind(i0),ind(i1),0,0); I"
+              ++i(#-1,ind(i0),ind(i1),0,0); _0"
     else # 3d
       $nb_levels,$nb_levels,$nb_levels
       eval.. "ind(p) = cut(int($nb_levels*(p - $vmin)/($vmax - $vmin)),0,$nb_levels - 1);
               inrange(i0,$vmin,$vmax) && inrange(i1,$vmin,$vmax) && inrange(i2,$vmin,$vmax)?
-              ++i(#-1,ind(i0),ind(i1),ind(i2),0); I"
+              ++i(#-1,ind(i0),ind(i1),ind(i2),0); _0"
     fi
     k. => $nm
   }
@@ -21863,13 +21870,12 @@ img2patches : check "isint($1,1) && ${2=0}>=0 && isint(${3=0},0,3)"
     # Extract patches.
     $1,$1,{$Nw*$Nh},100%
     eval.. "*
-      begin(null = vector(#s); const boundary = $3);
+      begin(const boundary = $3);
       (x%$step) + (y%$step)==0?(
         P = crop(x,y,$psiz,$psiz);
         ind = (y*$Nw + x)/$step;
         draw(#1,P,0,0,ind,0,$psiz,$psiz,1,s);
-      );
-      null"
+      ); _0"
     k. => $nm
   }
 
@@ -22252,7 +22258,6 @@ matchpatch_alt : check ${"is_image_arg $1"}" && isint($2,1) && isint(${3=$2},1) 
           const nb_randomizations = $6;
           const nb_propagations = d#$patches>1?3:2;
           get_score(P,Q,occ) = sqrt(norm(P - Q)^2 + occ*size(P)*penalization%);
-          ret = [ 0,0,0,0 ];
         );
 
         is_bwd?(X = w - 1 - x; Y = h - 1 - y; Z = d - 1 - z):(ref(x,X); ref(y,Y); ref(z,Z));
@@ -22294,8 +22299,7 @@ matchpatch_alt : check ${"is_image_arg $1"}" && isint($2,1) && isint(${3=$2},1) 
             I(X,Y,Z) = [ best_u,best_v,best_w,best_score ];
             penalization>1?++i(#$occurrences,best_u,best_v,best_w);
           );
-        );
-        ret"
+        ); _0"
     }
     if narg($occurrences) rm[occurrences] fi
     s[map] c,-3
@@ -22370,12 +22374,12 @@ pointcloud : check "${1=0}<=3 && ${2=0}>=0 && ${3=0}>=0 && ${4=0}>=0"
 
     else # Retrieve set of point coordinates from rendered point cloud image
       16,1,1,{s+3}
-      f.. ">
+      eval.. ">
         begin(N = 0; zero = vectors(0));
-        I!=zero?I[#-1,N++] = [ x,y,z,I ];
+        I!=zero?(I[#-1,N++] = [ x,y,z,I ]);
         N>=w(#-1)?resize(#-1,1.5*w(#-1),1,1,s#-1,0);
         end(resize(#-1,N,1,1,s#-1,0));
-        I"
+        _0"
     fi
     k. => $nm
   }
@@ -22601,7 +22605,8 @@ slic : check "${1=16}>0 && ${2=10}>=0 && ${3=10}>0"
     fi
     r. {wh},1,1,2,-1
     100%,1,1,{0,s},"I(#0,I#1)" a[-2,-1] c # Add superpixels colors
-    [0],[0],1,2 eval.. "I(#-1,i0,i1) = [ x + 1,1 ]; I" s. c distance. 1 *. -1 watershed.. . rm. channels. 0,1
+    [0],[0],1,2 eval.. "I(#-1,i0,i1) = [ x + 1,1 ]; _0"
+    s. c distance. 1 *. -1 watershed.. . rm. channels. 0,1
 
     # Start iteration loop.
     repeat $nb_iter {
@@ -22628,14 +22633,12 @@ slic : check "${1=16}>0 && ${2=10}>=0 && ${3=10}>0"
               I(#-1,x,y) = [ k,delta ];
             );
           )
-        );
-      I"
+        ); _0"
 
       # Update superpixels.
       f[1] 0 channels[1] 0,{-2,s}
-      eval[2] "I[#1,i0]+=[ x,y,I#0,1 ];I"
+      eval[2] "I[#1,i0]+=[ x,y,I#0,1 ]; _0"
       s[1] c,-{1,s-1} max[2] 1 /[1,2]
-
     }
 
     # Remove small and isolated regions (surrounded by pixels all having the same label).
@@ -23425,7 +23428,7 @@ close_binary :
 
       # Detect pairs of keypoints preserving the spline constraints.
       256,1,1,3 => keypairs
-      f[keycoords] ">
+      eval[keycoords] ">
         begin(ind = 0);
         for (nx = x + 1, nx<w, ++nx,
           const cosmin = cos("$spline_anglemax"*pi/180);
@@ -23447,8 +23450,7 @@ close_binary :
             I[#"$keypairs",ind++] = [ quality,x,nx ];
           );
         );
-        end(resize(#"$keypairs",ind,1,1,3,0));
-        I"
+        end(resize(#"$keypairs",ind,1,1,3,0)); _0"
       if {keypairs,w} sort[keypairs] -,x
       else rm[keypairs]
       fi
@@ -23458,7 +23460,7 @@ close_binary :
       ind_strokes:=$allow_self_intersections?$strokes:$new_strokes
 
       if narg($keypairs)
-        f[keypairs] ">"$_edgel_lib"
+        eval[keypairs] ">"$_edgel_lib"
           for_spline(code) = for (t = 0, t<=1, t+=dt,
             t3 = t*(t2 = t*t);
             P = round(mul([t3,t2,t,1],C,2));
@@ -23574,14 +23576,14 @@ close_binary :
                 );
               );
             );
-          ); I"
+          ); _0"
         rm[keypairs]
       fi
 
       # Find and connect segments.
       ==[new_strokes] 0 # Negate values to consider boundary pixels (0) as strokes
 
-      f[keycoords] ">"$_edgel_lib"
+      eval[keycoords] ">"$_edgel_lib"
         for_segment(code) = for (t = 0, t<=tmax, ++t,
           P = round(S + t*ST);
           code#;
@@ -23682,7 +23684,7 @@ close_binary :
               if (is_cond, ++i(#"$keycoords",x,0,0,2));
             );
           );
-        ); I"
+        ); _0"
       ==[new_strokes] 0
       if !0$_keep_keycoords rm[keycoords] fi # Small hack used by the plug-in preview
     fi
@@ -23714,13 +23716,12 @@ curve : check ${"is_image_arg $1"}" && ${2=0}>=0 && isnum(${3=45}) && inrange(${
     # Ensure consecutive curve points are at a minimal distance from each others.
     1,1,1,2
     eval.. ">
-      begin(ret = [ 0,0 ]; pP = I);
+      begin(pP = I);
       P = I; norm(P - pP)>1e-3?(da_push(pP); pP = P);
       end(
         da_size()?(norm(P - da_back())>1e-3?da_push(P)):da_push(I[0]);
         da_freeze();
-      );
-      ret"
+      ); _0"
     rm..
 
     # Estimate (tilted) normals.
@@ -23834,13 +23835,12 @@ graph : check ${"is_image_arg $1"}" && isint(${2=1},0,3) && isint(${3=1},0,7)" s
             d_color = color*0.75;
             const h1 = h#0 - 1;
             const y_zero = cut($ytop*h1/max(1e-8,$ytop-$ybottom),0,h1); # y-coordinate of the x-axis
-            ret = I
           );
           x0 = i0; y0 = i1;
           x1 = x<w - 1?j[1] - 1:w#0 - 1;
           polygon(#0,4,x0,y_zero,x0,y0,x1,y0,x1,y_zero,opacity,color);
           (x1 - x0)>1?polygon(#0,-3,x0,y_zero,x0,y0,x1,y0,opacity,-0xFFFFFFFF,d_color);
-          ret"
+          _0"
       else
         permute. cxyz polygon[0] .,$opacity,-$pattern,$color # Curve plot
       fi
@@ -24090,7 +24090,7 @@ thickpolygon : check "(isnum($1) && isint($1,1)) || "${"is_image_arg $1"}
 
   # Parse argument list.
   $=arg
-  if isnum($1) # Coordinates explicitely set in arguments
+  if isnum($1) # Coordinates explicitly set in arguments
     N=$1 x0,y0=${2,3} k,ind=1,4 repeat $N-1 { x$k,y$k=${arg$ind},${arg{$ind+1}} k+=1 ind+=2 } vertices=
   else # Coordinates specified as an image
     pass$1 N:=int(whds/2) r. 2,$N,1,1,-1 permute. yzcx round. store. vertices ind=2
@@ -26739,7 +26739,7 @@ pointcloud3d :
           da_push(#4,RGB[0],RGB[1],RGB[2]);
           da_push(#5,opac);
         );
-      ); I; end(repeat(4,k,da_freeze(#k + 2)); i[#1,6] = i[#1,7] = ui2f(nbp))"
+      ); end(repeat(4,k,da_freeze(#k + 2)); i[#1,6] = i[#1,7] = ui2f(nbp)); _0"
     a[1--1] y k. => $nm
   }
 
@@ -27802,17 +27802,17 @@ surfels3d : check "${1=1}>0 && ${2=1}>0 && ${3=1}>0"
 #@cli : Generate 3D tensor fields from selected images.
 #@cli : when 'shape'>0, it gives the ellipsoid shape precision.
 #@cli : Default values: 'radius_factor=1', 'shape=2' and 'radius_min=0.05'.
-#@cli : $ 7,7,7,9,"U = unitnorm([x,y,z] - [w,h,d]/2); mul(U,U,3) + 0.3*eye(3)" tensors3d 0.8
+#@cli : $ 7,7,7,9,"U = unitnorm([x,y,z] - int([w,h,d]/2)); mul(U,U,3) + 0.3*eye(3)" tensors3d 0.8
 tensors3d : check "${1=1}>=0 && isint(${2=2},0) && ${3=0.05}>=0"
   e[^-1] "Generate 3D tensor field(s) from image$?, with radius factor $1, "\
           ${"if $2 u ellipsoid else u box fi"}" shape and radius min $3."
   foreach {
 
     # Check input image format.
-    if s==1 100%,100%,100%,6,"[i#0,0,0,i#0,0,i#0]" k.
-    elif s==3 100%,100%,100%,6,"[R#0,G#0,0,B#0,0,0]" k.
-    elif s==4 100%,100%,100%,6,"[R#0,G#0,0,A#0,0,0]" k.
-    elif s==9 100%,100%,100%,6,"I=I#0;[I[0],I[1],I[2],I[4],I[5],I[8]]" k.
+    if s==1 100%,100%,100%,6,"[ i#0,0,0,i#0,0,i#0 ]" k.
+    elif s==3 100%,100%,100%,6,"[ R#0,G#0,0,B#0,0,0 ]" k.
+    elif s==4 100%,100%,100%,6,"[ R#0,G#0,0,A#0,0,0 ]" k.
+    elif s==9 100%,100%,100%,6,"I = I#0;[ I[0],I[1],I[2],I[4],I[5],I[8] ]" k.
     fi
     if s!=6 error[0--4] "Command '$0': Image '"{n}"' has an invalid size (spectrum="{s}")." fi
 
@@ -27821,7 +27821,7 @@ tensors3d : check "${1=1}>=0 && isint(${2=2},0) && ${3=0.05}>=0"
       T = I(#0);
       M = [ T[0], T[1], T[2], T[1], T[3], T[4], T[2], T[4], T[5] ];
       eig = eig(M);
-      if (det(eig[3,9])<0, eig[3]*=-1; eig[4]*=-1; eig[5]*=-1);
+      det(eig[3,9])<0?(eig[3]*=-1; eig[4]*=-1; eig[5]*=-1);
       eig[0] = max(0,eig[0]);
       eig[1] = max(0,eig[1]);
       eig[2] = max(0,eig[2]);
@@ -27831,7 +27831,7 @@ tensors3d : check "${1=1}>=0 && isint(${2=2},0) && ${3=0.05}>=0"
     # Create 3D object.
     if $2 sphere3d 1,{$2-1} else box3d 1 fi
     N,P:=i[6],i[7] siz:=h n3d. c3d. .x{0,whd-1}
-    f[0] "
+    eval[0] "
       const N = "$N";
       const P = "$P";
       const siz = "$siz";
@@ -27860,7 +27860,7 @@ tensors3d : check "${1=1}>=0 && isint(${2=2},0) && ${3=0.05}>=0"
         col = resize(col0,3*P,0,2);
         const off = siz - 4*P;
         draw(#ind,col,0,off,0,0,1,size(col),1,1);
-        0); I"
+        0); _0"
     rm[0] +3d
   }
 
@@ -28099,7 +28099,7 @@ voxelize3d : check "${1=128}>0 && isbool(${2=1}) && isbool(${3=0})" check3d
 
         rasterize_triangle(P0,P1,P2) = (
           N = cross(P1# - P0#,P2# - P0#); # Normal vector
-          rasterize_segment(P0#,P1#); # Hack: Ensure correct jonction between adjacent triangles
+          rasterize_segment(P0#,P1#); # Hack: Ensure correct junction between adjacent triangles
           rasterize_segment(P0#,P2#);
           rasterize_segment(P1#,P2#);
           norm(N)?( # Non-colinear vertices
@@ -28976,7 +28976,7 @@ nn_lib :
       T#_factor_up = i(##T#_ind,8,2);
       !nn_iteration?(i[##T#_ind,1] = T#_lr_max);
 
-      # Note : i(##T#_ind,9,2) is used to store last iteration where a lr change occured.
+      # Note : i(##T#_ind,9,2) is used to store last iteration where a lr change occurred.
     );
 
     nn_scheduler_adaptive_update(T) = (
@@ -29175,8 +29175,8 @@ nn_lib :
       d#IN+=d#OUT0 + d#OUT1;
     );
 
-    # columnpatch2d: Rearrange matrix columns as image patchs.
-    #---------------------------------------------------------
+    # columnpatch2d: Rearrange matrix columns as image patches.
+    #----------------------------------------------------------
     nn_columnpatch2d_init_forward(OUT,IN,out_width,out_height,patch_size,overlap) = (
       const OUT#_patch_size = patch_size;
       const OUT#_p_o = OUT#_patch_size - overlap;
@@ -30748,8 +30748,8 @@ nn_lib :
       learning_mode?draw(##P#_ind,P#_params);
     );
 
-    # patchcolumn2d: Rearrange image patchs as matrix columns.
-    #---------------------------------------------------------
+    # patchcolumn2d: Rearrange image patches as matrix columns.
+    #----------------------------------------------------------
     nn_patchcolumn2d_init_forward(OUT,IN,patch_size,overlap) = (
       const OUT#_patch_size = patch_size;
       const OUT#_p_o = OUT#_patch_size - overlap;
@@ -31607,7 +31607,7 @@ nn_clone : check "isvarname(['$1']) && # out0
   _nn_previous_layer=$out0
 
 #@cli nn_columnpatch2d : out,in,out_width>0,out_height>0,patch_size>0,_overlap>0
-#@cli : Add a 'columnpatch2d' layer (rearrangement of matrix columns as image patchs) to the current network.
+#@cli : Add a 'columnpatch2d' layer (rearrangement of matrix columns as image patches) to the current network.
 #@cli : Default values: 'overlap=0'.
 nn_columnpatch2d : check "isvarname(['$1']) && # out
                           (s2 = ['$2']; isvarname(s2) || s2=='.') && # in
@@ -32909,7 +32909,7 @@ nn_parameters : check "isvarname(['$1']) && # out
   _nn_previous_layer=$out
 
 #@cli nn_patchcolumn2d : out,in,patch_size>0,_overlap>=0
-#@cli : Add a 'patchcolumn2d' layer (rearrangement of image patchs as matrix columns) to the current network.
+#@cli : Add a 'patchcolumn2d' layer (rearrangement of image patches as matrix columns) to the current network.
 #@cli : Default value: 'overlap=0'.
 nn_patchcolumn2d : check "isvarname(['$1']) && # out
                           (s2 = ['$2']; isvarname(s2) || s2=='.') && # in
@@ -35068,7 +35068,7 @@ pixelsort : check "(str1=['${1=+}']; isin(str1,'+','-')) && "\
 _pixelsort :
   s. c,-{s-1} N={-2,s} permute.. cxyz r.. {-2,[w*h,d,s,1]},-1 # Merge image + criterion into a single image
   sort:=;_'$1'==_'+';
-  eval. "*begin(ret = 0; V = vector(#w#0); const N = $N);
+  eval. "*begin(V = vector(#w#0); const N = $N);
     i && !j(-1)?( # Start of a segment
       for (xe = x + 1, i(xe,y,z) && xe<w, ++xe);
       --xe>x?(dx = xe - x + 1; Ndx = N*dx; Nx = N*x; copy(V,i(#0,Nx),Ndx); copy(i(#0,Nx),sort(V,$sort,0,dx,N),Ndx));
@@ -35201,7 +35201,7 @@ sketchbw :
 
       # Draw curved or straight strokes.
       if $is_curved
-        f[2] "*
+        eval[2] "*
           oub = ovb = ouf = ovf = 0;
           oixb = xb = xf = i0;
           oiyb = yb = yf = i1;
@@ -35234,10 +35234,9 @@ sketchbw :
             ixb = round(xb);
             iyb = round(yb);
             if (ixb!=oixb || iyb!=oiyb, (i(#1,ixb,iyb)*=omop)+=op; oixb = ixb; oiyb = iyb);
-          ));
-          I"
+          )); _0"
       else
-        f[2] "*
+        eval[2] "*
           const l = "$length";
           x = i0;
           y = i1;
@@ -35246,7 +35245,7 @@ sketchbw :
           op = "$opacity" * (i(#0,x,y,0,3)<"$threshold"?"$bgfactor":1);
           omop = 1 - op;
           polygon(#1,2,x - l*u,y - l*v,x + l*u,y + l*v,op,1);
-          I"
+          _0"
       fi
       rm.
     }
@@ -35539,26 +35538,21 @@ whirls : skip ${1=3},${2=6},${3=0.5},${4=1.8}
 #
 #------------------------------------
 
-#@cli deform : _amplitude[%]>=0,_interpolation
+#@cli deform : _amplitude[%]>=0,_interpolation,_boundary_conditions
 #@cli : Apply random smooth deformation on selected images.
 #@cli : 'interpolation' can be { 0:None | 1:Linear | 2:Bicubic }.
-#@cli : Default value: 'amplitude=10'.
+#@cli : 'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }.
+#@cli : Default values: 'amplitude=10', 'interpolation=1' and 'boundary_conditions=3'.
 #@cli : $ image.jpg +deform[0] 10 +deform[0] 20
-deform : check "${1=10}>=0 && isint(${2=1},0,2)"
+deform : check "${1=10}>=0 && isint(${2=1},0,2) && isint(${3=3},0,3)"
   e[^-1] "Apply random smooth deformation on image$?, with amplitude $1."
-  foreach { if w
-    w,h,d:=w,h,d
-    amp:=ispercentage($1)?max($w,$h,$d)*$1:$1
-    sx,sy,sz=1
-    if $w!=1 sx=2% fi
-    if $h!=1 sy=2% fi
-    if $d!=1 sz=2% fi
-    $sx,$sy,$sz,3
-    if $w!=1 sh. 0 noise. $amp rm. fi
-    if $h!=1 sh. 1 noise. $amp rm. fi
-    if $d!=1 sh. 2 noise. $amp rm. fi
-    r. ..,..,..,3,5 warp.. .,1,$2,1 rm.
-  fi }
+  foreach {
+    if w
+      {vmax([w,h,d]*2%,1)},3,"(ispercentage($1)?max(w,h,d)*$1:$1)*([ w#-1,h#-1,d#-1 ]>1)*[g,g,g]"
+      r. ..,..,..,3,5
+      warp.. .,1,$2,$3 rm.
+    fi
+  }
 
 #@cli euclidean2polar : _center_x[%],_center_y[%],_stretch_factor>0,\
 # _boundary_conditions={ 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }
@@ -36162,7 +36156,7 @@ shadow_patch : skip ${1=0.7}
 #@cli : $ uniform_distribution 8,3 shuffle
 shuffle :
   e[^-1] "Shuffle vector values of images$? with Fisher-Yates algorithm."
-  f "<begin(P = whd);swap(I[v(0,--P)],I());I"
+  eval[^] "<begin(P = whd); swap(I[v(0,--P)],I()); _0"
 
 #@cli spread : _dx[%]>=0,_dy[%]>=0,_dz[%]>=0
 #@cli : Spread pixel values of selected images randomly along x,y and z.
@@ -36522,7 +36516,7 @@ _blend_shapeprevalent :
 
   # Extract most frequent occurrence for each distinct region.
   1,$nb_labels,1,{0,s}
-  eval.. "P = I; region = P[size(P) - 1]; i[#-1,region]<P[0]?(I[#-1,region] = P[0,size(P) - 1]); I"
+  eval.. "P = I; region = P[size(P) - 1]; i[#-1,region]<P[0]?(I[#-1,region] = P[0,size(P) - 1]); P"
   channels. 1,100% +channels[0] 100%
   map. .. rm[-3,-2] channels.. 0,{0,s-2}
 
@@ -36711,10 +36705,10 @@ sub_alpha : check ${"is_image_arg $1"}" && inrange(${2=1},0,1)"
   pass$1 0 remove_opacity
   foreach[^-1] {
     nm={n} pass. rv
-    100%,100%,1,{s+1},"begin(null = vector(#s,0); I_b = vector(#s#0));
+    100%,100%,1,{s+1},"begin(zero = vector(#s); I_b = vector(#s#0));
       I_a = I(#0);
       I_c = I(#1);
-      I_c==I_a?null:(
+      I_c==I_a?zero:(
         dI_ac = I_a - I_c;
         fill(I_b,k,I_c[k]>I_a[k]?lerp(I_c[k],255,$2):lerp(I_c[k],0,$2));
         alpha_b = max(dI_ac/(I_a - I_b));
@@ -37978,9 +37972,9 @@ filename_dated :
     {`v2s(date(4),-2,2)`}{`v2s(date(5),-2,2)`}{`v2s(date(6),-2,2)`}$ext
 
 #@cli files : _mode,path : (+)
-#@cli : Return the list of files and/or subfolders from specified path.
+#@cli : Return the list of files and/or subdirectories from specified path.
 #@cli : 'path' can be eventually a matching pattern.
-#@cli : 'mode' can be { 0:Files only | 1:Folders only | 2:Files + folders }.
+#@cli : 'mode' can be { 0:Files only | 1:Directories only | 2:Files + Directories }.
 #@cli : Add '3' to 'mode' to return full paths instead of filenames only.
 #@cli : Default value: 'mode=5'.
 
@@ -42445,7 +42439,7 @@ x_morph : check "isint(${1=16}) && isint(${2=3},0,4)" check_display $0
             X = round((I)[2*"$frame",2]*fact);
             y=="$selected_keypoint"?(ellipse(#-1,X,radius2+2,radius2+2,0,1,255));
             ellipse(#-1,X,radius2,radius2,0,opacity,0);
-            ellipse(#-1,X,radius1,radius1,0,opacity,I[#"$colormap",i4]); I"
+            ellipse(#-1,X,radius1,radius1,0,opacity,I[#"$colormap",i4]); _0"
         fi
         w. -1,-1,0,"[G'MIC] Interactive Morph ("${"s0=Source s1=Target u ${s"$frame"}"}")"
       fi
@@ -44665,7 +44659,7 @@ x_warp : check "isint(${1=2},2) && isint(${2=$1},2) && isint(${3=0},0) && isint(
             );
             X = round((I)[0,2]*fact);
             ellipse(#-1,X,radius2,radius2,0,opacity,0);
-            ellipse(#-1,X,radius1,radius1,0,opacity,y<"$N0"?col1:col2); I"
+            ellipse(#-1,X,radius1,radius1,0,opacity,y<"$N0"?col1:col2); _0"
         fi
         w.
       fi
@@ -45513,7 +45507,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.0 - Linux 64 bits - 3.7.1</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.0 - Linux 64 bits - 3.7.3</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -45544,8 +45538,9 @@ fx_gmicky_preview :
 #@gui : - <b>2024/06/14</b> : version <i>3.4.0</i>.\n
 #@gui : - <b>2024/12/31</b> : version <i>3.5.0</i>.\n
 #@gui : - <b>2025/08/21</b> : version <i>3.6.0</i>.\n
-#@gui : - <span foreground="#EE5500"><b>2026/02/13</b> : version <i>3.7.0</i> (Current stable).</span>\n
-#@gui : - <b>2026/02/16</b> : version <i>3.7.1</i> (Current pre-release).\n
+#@gui : - <b>2026/02/13</b> : version <i>3.7.0</i>.\n
+#@gui : - <span foreground="#EE5500"><b>2026/02/26</b> : version <i>3.7.2</i> (Current stable).</span>\n
+#@gui : - <b>2026/03/07</b> : version <i>3.7.3</i> (Current pre-release).\n
 #@gui : "}
 #@gui : sep = separator()
 #@gui : url = link{"View changelog for next major version (3.8)","https://discuss.pixls.us/t/on-the-road-to-gmic-3-8"}
@@ -45942,7 +45937,7 @@ fx_array_mirror_preview :
 
 #@gui Array [Random] : fx_array_random, fx_array_random(1)
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
-# Creates a grid of random patchs of the image.
+# Creates a grid of random patches of the image.
 #@gui : "}, sep = separator()
 #@gui : Source X-Tiles = ~int(5,1,128)
 #@gui : Source Y-Tiles = ~int(5,1,128)
@@ -46184,7 +46179,7 @@ _fx_drawn_montage :
 
   # Get bounding boxes for each associated color in layout layer, as well as labeled layout layer.
   to_rgb[0] to_rgba[^0] $nb_layers,1,1,4,[inf,inf,-inf,-inf] [0],[0]
-  f[0] "
+  eval[0] "
     begin(colors = [ "$cols" ]);
     repeat ("$nb_layers",l,
       I==colors[3*l,3]?(
@@ -46194,7 +46189,7 @@ _fx_drawn_montage :
         if (y>i(#-2,l,0,0,3), i(#-2,l,0,0,3) = y);
         i(#-1,x,y) = l + 1;
       );
-    ); I"
+    ); _0"
 
   thumbnail=0 boundaries=0
   if $-1
@@ -46823,7 +46818,7 @@ fx_shuffle_patches :
 #@gui : Relief = ~float(50,0,255)
 #@gui : Border Thickness (%) = ~float(5,0,100)
 #@gui : Border Outline = ~int(0,0,16)
-#@gui : Ouline Color = ~color(0,0,0,255)
+#@gui : Outline Color = ~color(0,0,0,255)
 #@gui : sep = separator()
 #@gui : Random Seed = ~int(0,0,65535)
 #@gui : sep = separator()
@@ -46891,7 +46886,7 @@ fx_isolate_tiles :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2024/12/17</i>.</small>")
@@ -47364,7 +47359,7 @@ fx_ghost :
         x1 = x - N*ca;
         y1 = y - N*sa;
         polygon(#-1,2,x0,y0,x1,y1,-1,1);
-        I"
+        _0"
       k. normalize_local $5,$6
       n 0,255 if $7 negate fi
     }
@@ -47471,7 +47466,7 @@ fx_houghsketchbw :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -47532,6 +47527,103 @@ fx_lylejk_painting :
     fx_kuwahara. $2,$3,0,0
     texturize_canvas. $4,4 => $nm
   }
+
+#@gui Marker Drawing : fx_marker_drawing, fx_marker_drawing_preview(0)
+#@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
+# Generate marker drawing effect.
+#@gui : "}, sep = separator()
+#@gui : Length (px) = int(70,0,256)
+#@gui : Radius (px) = float(4,1,32)
+#@gui : Opacity (%) = float(10,0,100)
+#@gui : Inertia (%) = float(15,0,100)
+#@gui : Curviness (%) = float(100,0,200)
+#@gui : Anisotropy (%) = float(85,0,100)
+#@gui : Smoothness = float(0.5,0,5)
+#@gui : Coherence = float(3,0,16)
+#@gui : Iterations = int(3,1,64)
+#@gui : sep = separator()
+#@gui : Background Type = choice(1,"Blur","Color")
+#@gui : Background Blur = float(20,0,128)_1
+#@gui : Background Color = color(255,255,255,255)_2
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/02/23</i>.</small>")
+__fx_marker_drawing :
+  length,radius,opacity,inertia,curviness,anisotropy,smoothness,coherence,nb_iterations,\
+    b_type,b_blur,b_R,b_G,b_B,b_A=${1-15}
+
+fx_marker_drawing :
+  __fx_marker_drawing $*
+
+  foreach { nm={n} to_rgb => img
+    +diffusiontensors 0,{$anisotropy%},$smoothness,$coherence,0 channels. 0,3 f. "[ i0,i1,i1,i2 ]" => tensors
+    {img,[w,h,1,1]} => binary
+    if $b_type==0 +b[img] $b_blur
+    else {img,[w,h,1,4]} fc. $b_R,$b_G,$b_B,$b_A
+    fi
+    => canvas
+
+    repeat $nb_iterations {
+      {round(wh*3%)},1,1,1,":
+        spline(_X0,_U0,_X1,_U1) = (
+          ref(_X0,sp_X0); ref(_U0,sp_U0); ref(_X1,sp_X1); ref(_U1,sp_U1);
+          sp_C = transpose(solve([ 0,0,0,1,1,1,1,1,0,0,1,0,3,2,1,0 ],[ sp_X0,sp_X1,sp_U0,sp_U1 ],2),2);
+          sp_N = ceil(norm(sp_X1 - sp_X0) + 0.5*(norm(sp_U0) + norm(sp_U1)))/4;
+          repeat (sp_N,sp_n,
+            sp_t = lerp(0,1,sp_n/(sp_N - 1));
+            sp_X = mul(sp_C,[ sp_t^3, sp_t^2, sp_t, 1 ],1);
+            sp_U = mul(sp_C,[ 3*sp_t^2, 2*sp_t, 1, 0 ],1);
+            sp_ang = atan2(sp_U[1],sp_U[0]);
+            ellipse(#$canvas,round(sp_X),3*radius,radius,sp_ang,opacity,RGB,255);
+            i(#$binary,round(sp_X)) = 1;
+          );
+        );
+
+        const length = $length;
+        const radius = $radius;
+        const opacity = $opacity%;
+        const inertia = length*$inertia%;
+        const curviness = length*$curviness%;
+
+        # Randomly pick a starting location.
+        do (X0 = v([w#$img,h#$img] - 1), i(#$binary,X0));
+
+        !i(#$binary,X0)?(
+          X = X0;
+          U = cexp([0,u(360°)]);
+          XUs = vector(#4*length,-1);
+          copy(XUs[0],[ X,U ]);
+
+          # Explore streamline.
+          ind = 1;
+          nb_cross = 0;
+          repeat (length,
+            T = I(#$tensors,X,1,1);
+            U = T*U;
+            U/=max(1e-8,abs(U));
+            nX = X + U;
+            i(#$binary,nX,1)?++nb_cross;
+            nb_cross>inertia || !min(inrange(nX,[0,0],[w#$img,h#$img]))?break();
+            X = nX;
+            ind4 = ind*4;
+            copy(XUs[ind4],[ X,U ]);
+            ind = (ind + 1)%length;
+          );
+
+          # Draw spline.
+          pind = (ind + 1)%length; pind4 = 4*pind;
+          Xp = XUs[pind4,2]; Up = XUs[pind4 + 2,2];
+          Xp[0]>=0?(RGB = I(#$img,X0); spline(Xp,curviness*unitnorm(Up),X,curviness*unitnorm(U)));
+        )" rm.
+    }
+    k[canvas] => $nm
+  }
+
+fx_marker_drawing_preview :
+  __fx_marker_drawing $*
+  fx_marker_drawing $*
+  u "{"$length"}{"$radius"}{"$opacity"}{"$inertia"}{"$curviness"}"\
+    "{"$anisotropy"}{"$smoothness"}{"$coherence"}{"$iterations"}"\
+    "{"$b_type"}{"$b_blur"}_"{$b_type==0?2:1}"{"$b_R,$b_G,$b_B,$b_A"}_"{$b_type==1?2:1}
 
 #@gui Paint With Brush : fx_paint_with_brush, fx_paint_with_brush_preview(0)
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
@@ -47833,16 +47925,16 @@ fx_polygonize_delaunay :
 
     # Render filling.
     if $5==4 # Linear
-      +f[0] 0 f... "*i?(
+      +f[0] 0 eval... "*i?(
         p = I(#1); P0 = I[#2,p[0]]; P1 = I[#2,p[1]]; P2 = I[#2,p[2]];
         W = solve([P0[0],P1[0],P2[0],P0[1],P1[1],P2[1],1,1,1],[x,y,1]);
         I(#-1) = cut(W[0]*I(#0,P0) + W[1]*I(#0,P1) + W[2]*I(#0,P2),0,255);
-      );I"
+      ); _0"
     elif $5==3 # Average
-      +f[0] 0 f... "*i?(
+      +f[0] 0 eval... "*i?(
         p = I(#1); P0 = I[#2,p[0]]; P1 = I[#2,p[1]]; P2 = I[#2,p[2]];
         I(#-1) = (I(#0,P0) + I(#0,P1) + I(#0,P2))/3;
-      );I"
+      ); _0"
     elif $5==2 # Random
       +norm[1] label_fg. 0 {iM+1},1,1,3 rand. 0,255 to_rgba. point. 0 map.. . rm.
     else # Black or white
@@ -47991,12 +48083,12 @@ fx_quadtree :
       j.. .,{-2,w-6},$> rm.
     }
 
-    # Synthetize image.
+    # Synthesize image.
     permute. cyzx
     channels[0] 0,3 f[0] 0
 
     if !$mode # Squares
-      f. ">
+      eval. ">
         rectangle(ind,P0,P1,opacity,color) = (
           _P0 = P0;
           _P2 = P1;
@@ -48014,11 +48106,10 @@ fx_quadtree :
         _(else),
           rectangle(#0,Xpp,Xnn,1,colo);
           rectangle(#0,Xpp + "$outline",Xnn - "$outline",1,col);
-        );
-        I"
+        ); _0"
 
     elif $mode==1 # Sierpinski design
-      f. ">
+      eval. ">
         P = I;
         Xpp = P[0,2];
         Xnn = P[2,2];
@@ -48035,11 +48126,10 @@ fx_quadtree :
         _(else),
           polygon(#0,3,Xnp,Xnn,Xpn,1,col1);
           polygon(#0,3,Xnp,Xpp,Xpn,1,col2)
-        );
-        I"
+        ); _0"
 
     else # Ellipse painting
-      f. ">
+      eval. ">
         begin(colo = [ 0,0,0,255 ]);
         P = I;
         Xpp = P[0,2];
@@ -48056,7 +48146,7 @@ fx_quadtree :
         angle = atan2(eig[5],eig[4])*180/pi;
         if ("$outline">0, ellipse(#0,Xcc,R,r,angle°,1,colo));
         ellipse(#0,Xcc,R - "$outline",r - "$outline",angle°,1,col);
-        I"
+        _0"
       if !$outline sh[0] 100% if !im solidify[0] 10% fi fi
     fi
     k[0]
@@ -48081,7 +48171,7 @@ fx_quadtree :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -48196,7 +48286,7 @@ _fx_shapeism8 : # Custom
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/09/20</i>.</small>")
@@ -48298,7 +48388,7 @@ fx_stringify :
       sh[$p] 100% f. "arg0((j[1,2]-i)%4,0,1,0,-1)" is_hole:=is!=4 rm.
       if !$is_hole" || "$fill_holes
         channels[$p] 0,1 rs[$p] ,$sampling%,1
-        eval[$p] ":begin(color = [ "$color" ]; const offset = h/($link + 2)*$offset%; ret = I);
+        eval[$p] ":begin(color = [ "$color" ]; const offset = h/($link + 2)*$offset%);
           P = I;
           $link==3?(repeat (h,k,polygon(#2,2,P,I[k],$opacity%,color))):( # All-points link
             Q = J[offset,2];
@@ -48308,7 +48398,7 @@ fx_stringify :
                 S = J[3*offset,2]; polygon(#2,-4,P,R,Q,S,$opacity%,0xFFFFFFFF,color) # 4-points link
               );
             );
-          ); ret"
+          ); _0"
       fi
       progress {lerp(75,100,($>+1)/($>+$<+1))}
     }
@@ -49021,16 +49111,16 @@ _fx_colorize_lineart_smart :
       +negate[strokes] *. 255 to_rgb.
       +-[new_strokes] [strokes] dilate. 2
       100%,100%,1,3,[0,128,255] j... .,0,0,0,0,1,.. rm[-2,-1]
-      if narg($keycoords) f[keycoords] "ellipse(#-1,(I)[0,2],3,3,0,1,[255,0,0]);I" rm[keycoords] fi
+      if narg($keycoords) eval[keycoords] "ellipse(#-1,(I)[0,2],3,3,0,1,[255,0,0]); _0" rm[keycoords] fi
       => geometry
     fi
 
     # Label color regions and inpaint strokes.
     if $1==1 # Mode: Color spots-guided colorization
       to_rgba[$colors] [colors],[colors]
-      f[colors] "i(#-1) = A<255?0:norm(R,G+0.3,B+0.6);I"
+      eval[colors] "i(#-1) = A<255?0:norm(R,G+0.3,B+0.6); _0"
       label_fg. 0 {1+iM},1,1,{colors,s+1}
-      f.. ">I[#-1,i]+=[ I(#"$colors"),1 ];I"
+      eval.. ">I[#-1,i]+=[ I(#"$colors"),1 ]; _0"
       s. c,{-s+1} /[-2,-1]
       +l[new_strokes] { * -1 + 1 +b 1% b.. 1 min }
       watershed... .,0 rm. map.. . rm.
@@ -49661,7 +49751,7 @@ fx_boost_fade :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -49755,7 +49845,7 @@ fx_clut_from_ab : skip "${4=},${5=}"
   if $!<2 error "At least two input layers are needed to run this filter." fi
   repeat $!-1 { l[$<,-1] {
     nm=${gui_layer_name..}
-    i[0] {a=0$_is_preview?32:64;[a,a,a]},4 f[1] ">I(#0,round(I(#2)*(w#0-1)/255))+=[R,G,B,1]; I"
+    i[0] {a=0$_is_preview?32:64;[a,a,a]},4 eval[1] ">I(#0,round(I(#2)*(w#0-1)/255))+=[R,G,B,1]; _0"
     l[0] {
       s c,-3 +max. 1 /[-3,-1] ==. 0 inpaint_pde.. .,75%,1 distance. 0 *. {-1/(1+$6)} exp.
       f.. "f = i(#-1); f*I + (1-f)*[x,y,z]*255/(w-1)" rm.
@@ -52615,7 +52705,7 @@ _fx_cluts_colorslide :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Reference Colors = choice("Bottom Layer","Top Layer")
 #@gui : sep = separator()
@@ -52662,7 +52752,7 @@ fx_transfer_histogram_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Reference Colors = choice("Bottom Layer","Top Layer")
 #@gui : sep = separator()
@@ -52742,7 +52832,7 @@ fx_transfer_rgb_preview :
     rm.
   } }
 
-#@gui Tune HSV Colors : fx_tune_hsv, fx_tune_hsv_preview(1)
+#@gui Tune HSV Colors : fx_tune_hsv, fx_tune_hsv_preview
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
 # Fine-tunes specific hue, saturation, and value ranges.
 #@gui : "}, sep = separator()
@@ -52855,7 +52945,7 @@ _fx_tune_hsv :
             ' cyan=',v2s(cyan),
             ' blue=',v2s(blue),
             ' magenta=',v2s(magenta))
-      ); I"
+      ); _0"
 
     # Compute color mapping.
     if narg($colors)
@@ -53029,7 +53119,7 @@ fx_vibrance :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2013/06/06</i>.</small>")
@@ -53323,7 +53413,7 @@ fx_laplacian :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -53360,7 +53450,7 @@ fx_local_orientation :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Stretch")
 #@gui : sep = separator()
@@ -53448,7 +53538,7 @@ _fx_morphological :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -54014,7 +54104,7 @@ fx_heightfield_warp : skip "${2=}"
     100%,100%,1,3,infx2 => xyz,uvw
 
     sh[XYZ] 0,1 round. rm.
-    eval[XYZ] ":begin(ret = I);
+    eval[XYZ] ":
       nx = x + 1; ny = y + 1;
       P0 = I(x,y);
       P1 = I(nx,y,0,0,1);
@@ -54054,8 +54144,7 @@ fx_heightfield_warp : skip "${2=}"
             );
           );
         );
-      );
-      ret"
+      ); _0"
     rm[-5--3]
     channels.. 0,1
     f.. "begin(is_inf = 0); isinf(i)?(is_inf = 1; -1):i; end(merge(is_inf,+); set('is_inf',is_inf))"
@@ -54850,7 +54939,7 @@ fx_warp_interactive_preview :
       );
       X = (I)[0,2]*fact;
       ellipse(#0,X,radius2,radius2,0,1,0);
-      ellipse(#0,X,radius1,radius1,0,1,col1); I"
+      ellipse(#0,X,radius1,radius1,0,1,col1); _0"
     rm.
 
     if narg($__x_warp_keypoints)
@@ -55020,7 +55109,7 @@ fx_warp_rbf_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55140,7 +55229,7 @@ __fx_simulate_grain :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55175,7 +55264,7 @@ fx_blur_angular_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2015/03/02</i>.</small>")
@@ -55291,7 +55380,7 @@ __fx_dof_blur :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55317,7 +55406,7 @@ fx_blur_gaussian :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55341,7 +55430,7 @@ fx_glow :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55433,7 +55522,7 @@ fx_blur_motion_preview :
         polygon(#0,4,pP - [1,0],pP + [1,0],P + [1,0],P - [1,0],1,col);
         polygon(#0,4,pP - [0,1],pP + [0,1],P + [0,1],P - [0,1],1,col);
         pP = P;
-      ); I"
+      ); _0"
     rm[-2,-1]
 
     # Draw control points.
@@ -55489,7 +55578,7 @@ _fx_blur_motion_preview_circle :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2020/09/11</i>.</small>")
@@ -55546,7 +55635,7 @@ fx_blur_multidirectional :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55648,7 +55737,7 @@ _fx_chromatic_aberrations :
 #@gui : Upscale Factor = choice(3,"x1","x2","x3","x4","x5","x6","x7","x8")
 #@gui : Rendering Precision = choice{"Low (Faster)","High (Slower)"}
 #@gui : Smoothness (%) = float(0,0,10)
-#@gui : Neighborhhod Size (px) = int(4,1,16)
+#@gui : Neighborhood Size (px) = int(4,1,16)
 #@gui : Stride (%) = float(50,0,100)
 #@gui : sep = separator()
 #@gui : Adaptive Pattern = bool(1)
@@ -55872,7 +55961,7 @@ fx_crt_scanlines_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -55902,7 +55991,7 @@ _fx_dirty :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/09/01</i>.</small>")
@@ -56158,7 +56247,7 @@ fx_lomo :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2019/01/16</i>.</small>")
@@ -56192,7 +56281,7 @@ _fx_mess_with_bits :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice(1,"None","Cut","Normalize")
 #@gui : sep = separator()
@@ -56217,7 +56306,7 @@ _fx_noise :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/12/06</i>.</small>")
@@ -56265,7 +56354,7 @@ fx_noise_gradient :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2019/01/24</i>.</small>")
@@ -56294,7 +56383,7 @@ fx_noise_perlin :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -56325,7 +56414,7 @@ fx_spread :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2025/12/01</i>.</small>")
@@ -56357,7 +56446,7 @@ _fx_offset_stripes :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -56489,7 +56578,7 @@ fx_rain_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -56567,7 +56656,7 @@ fx_rebuild_from_similar_blocks :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -56592,7 +56681,7 @@ fx_scanlines :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2018/08/19</i>.</small>")
@@ -56721,7 +56810,7 @@ fx_watermark_visible : skip "${1= }"
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/09/02</i>.</small>")
@@ -56773,7 +56862,7 @@ _fx_warp_by_intensity :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -56825,7 +56914,7 @@ fx_equalize_details :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2018/01/31</i>.</small>")
@@ -56891,7 +56980,7 @@ _fx_equalize_local_histograms :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Authors: <i>David Tschumperlé</i> and <i>Patrick David</i>.
@@ -56926,13 +57015,13 @@ fx_freaky_details :
 #@gui : Average Smoothness = ~float(20,0,40)
 #@gui : Constrain Values = ~bool(1)
 #@gui : sep = separator()
-#@gui : Channel(s) = ~choice(7,"All","RGBA [All]","RGBA [Red-Green-Blue]","RGBA [Red]","RGBA [Green]","RGBA [Blue]",\
+#@gui : Channel(s) = ~choice(12,"All","RGBA [All]","RGBA [Red-Green-Blue]","RGBA [Red]","RGBA [Green]","RGBA [Blue]",\
 # "RGBA [Alpha]","Linear RGB [All]","Linear RGB [Red]","Linear RGB [Green]","Linear RGB [Blue]","YCbCr [All]",\
 # "YCbCr [Luminance]","YCbCr [Blue-Red Chrominances]","YCbCr [Blue Chrominance]","YCbCr [Red Chrominance]",\
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -56956,7 +57045,7 @@ fx_normalize_local :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2018/02/28</i>.</small>")
@@ -56988,7 +57077,7 @@ fx_local_processing :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2018/01/10</i>.</small>")
@@ -57019,7 +57108,7 @@ _fx_magic_details :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2014/08/08</i>.</small>")
@@ -57049,7 +57138,7 @@ fx_mighty_details :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/10/14</i>.</small>")
@@ -57072,7 +57161,7 @@ fx_sharpen_alpha :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -57098,7 +57187,7 @@ fx_deblur :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -57125,7 +57214,7 @@ _fx_unsharp_goldmeinel :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -57145,7 +57234,7 @@ fx_sharpen_inversediff :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2020/01/14</i>.</small>")
@@ -57187,7 +57276,7 @@ _fx_sharpen_multiscale :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice(1,"Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -57227,7 +57316,7 @@ fx_unsharp_richardsonlucy :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -57247,7 +57336,7 @@ fx_sharpen_shock :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/09/20</i>.</small>")
@@ -57279,7 +57368,7 @@ _fx_sharpen_texture :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note{"\n\n<small><b>Note: </b>
@@ -57428,7 +57517,7 @@ fx_split_details_wavelets_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -57449,7 +57538,7 @@ fx_map_tones :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Authors: <i>Paul Nasca</i> and <i>David Tschumperlé</i>.
@@ -57863,7 +57952,7 @@ fx_vignette :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice(2,"None","Cut","Normalize")
 #@gui : sep = separator()
@@ -58579,7 +58668,7 @@ fx_tones2layers_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : Value Action = choice("None","Cut","Normalize")
 #@gui : sep = separator()
@@ -58669,7 +58758,7 @@ _fx_drop_shadow3d :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2021/03/23</i>.</small>")
@@ -59063,7 +59152,7 @@ __fx_illuminate_shape2d : # Input selection must contains a single image. Output
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2011/02/21</i>.</small>")
@@ -59133,7 +59222,7 @@ fx_light_leaks_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -59213,7 +59302,7 @@ fx_light_relief :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -59400,7 +59489,7 @@ fx_canvas :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/07/20</i>.</small>")
@@ -59635,7 +59724,7 @@ fx_generic_halftone_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -59741,7 +59830,7 @@ fx_mineral_mosaic :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/07/19</i>.</small>")
@@ -60093,7 +60182,7 @@ fx_pack_ellipses :
       r1 = fact*(i2 + $radius_dilation);
       r2 = max(1,r1*i(#$isotropy,i0,i1));
       ellipse(#$mask,round(fact*i0),round(fact*i1),r1,r2,i(#$angles,i0,i1),1,y + 1);
-      I"
+      _0"
 
     r[img] {mask,[w,h]},1,100%,3
     blend[img] [mask],shapeaverage0
@@ -60155,7 +60244,7 @@ fx_pack_sprites_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -60546,7 +60635,7 @@ fx_seamless_turbulence :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2014/12/01</i>.</small>")
@@ -60570,7 +60659,7 @@ _fx_shockwaves :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -60957,7 +61046,7 @@ fx_draw_whirl :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -62044,7 +62133,7 @@ fx_gradient_from_curve_preview : skip "${19=}"
         push(${2-3}); $1>2?push(${4-5}); $1>3?push(${6-7}); $1>4?push(${8-9}); $1>5?push(${10-11}); push(${12-13});
         da_freeze()"
       r. 1,1000%,1,2,5 round.
-      eval. "y?(P0 = J[-1]; P1 = I; polygon(#1,2,P0[0],P0[1],P1[0],P1[1],1,255)); I" rm.
+      eval. "y?(P0 = J[-1]; P1 = I; polygon(#1,2,P0[0],P0[1],P1[0],P1[1],1,255)); _0" rm.
       +dilate. 3 to_colormode.. {0,s} j[0] [1],0,0,0,0,1,[2],255 k[0]
       eval "
         draw_circle(x,y,R,G,B) = (
@@ -63183,8 +63272,7 @@ fx_sine_curve :
         dY = Y - pY;
         ang = atan2(dY,dX)*180/pi;
         ellipse(#-1,X,Y,r1,r2,ang°,opacity,255);
-      );
-      I"
+      ); _0"
     rm..
     r. $W,$H,1,1,2 n 0,255
     i[0] 100%,100%,1,3 fc[0] $colR,$colG,$colB
@@ -63979,7 +64067,7 @@ fx_inpaint_pde_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2013/08/27</i>.</small>")
@@ -64016,7 +64104,7 @@ fx_smooth_antialias :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2013/08/27</i>.</small>")
@@ -64040,7 +64128,7 @@ fx_smooth_bilateral : skip ${5=0},${6=0}
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64065,7 +64153,7 @@ fx_smooth_diffusion :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Preview Type = choice("Full","Forward Horizontal","Forward Vertical","Backward Horizontal",
@@ -64111,7 +64199,7 @@ fx_smooth_guided_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64134,7 +64222,7 @@ fx_smooth_meancurvature :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -64156,7 +64244,7 @@ fx_smooth_median :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64195,7 +64283,7 @@ _fx_smooth_nlmeans5 :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64220,7 +64308,7 @@ fx_smooth_patch :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note{"<small><b>Note:</b> Beware, this filter uses a very computationally intensive algorithm to
@@ -64247,7 +64335,7 @@ fx_smooth_patchpca :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64272,7 +64360,7 @@ fx_smooth_peronamalik :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64405,7 +64493,7 @@ fx_smooth_skin_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -64429,7 +64517,7 @@ fx_smooth_tv :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : Parallel Processing = choice("Auto","One Thread","Two Threads","Four Threads","Eight Threads",
@@ -65683,7 +65771,7 @@ fx_gmic_demos_preview :
 # "YCbCr [Green Chrominance]","Lab [All]","Lab [Lightness]","Lab [ab-Chrominances]","Lab [a-Chrominance]",\
 # "Lab [b-Chrominance]","Lch [All]","Lch [ch-Chrominances]","Lch [c-Chrominance]","Lch [h-Chrominance]","HSV [All]",\
 # "HSV [Hue]","HSV [Saturation]","HSV [Value]","HSI [All]","HSI [Intensity]","HSL [All]","HSL [Lightness]",\
-# "CMYK [All]","CYMK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
+# "CMYK [All]","CMYK [Cyan-Magenta-Yellow]","CMYK [Cyan]","CMYK [Magenta]","CMYK [Yellow]","CMYK [Key]","YIQ [All]",\
 # "YIQ [Luma]","YIQ [Chromas]","RYB [All]","RYB [Red]","RYB [Yellow]","RYB [Blue]")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/06/20</i>.</small>")
@@ -65954,6 +66042,7 @@ fx_solve_maze_preview :
 
 #@cli _gallery_artistic
 #@cli : This entry defines some examples of artistic filters for the G'MIC gallery page.
+#@cli : $ image.jpg fx_marker_drawing 70,4,10,15,100,85,0.5,3,3,1,20,255,255,255,255 _label="Marker~drawing"
 #@cli : $ image.jpg fx_engrave 0.5,4,0,7.68,15.2,0,0,1,10,1,0,0,0,1,0 gui_merge_layers _label="Engrave"
 #@cli : $ image.jpg fx_bokeh 3,8,0,30,8,4,0.3,0.2,210,210,80,160,0.7,30,20,20,1,2,170,130,20,110,0.15,0 _label="Bokeh"
 #@cli : $ image.jpg fx_8bits 25,800,16,0 _label="Oldschool~8bits"
@@ -66176,8 +66265,4 @@ fx_solve_maze_preview :
 #@cli : $ https://gmic.eu/samples/distortion.gmic go _fps=20 _label="Distortion"
 #@cli : $ https://gmic.eu/samples/rotozoom.gmic go _fps=15 _label="Rotozoom"
 
-# Local Variables:
-# mode: gmic
-# End:
-#
 # (End of G'MIC custom commands)
