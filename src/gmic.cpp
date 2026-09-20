@@ -1811,13 +1811,16 @@ inline bool is_xyzc(const char c) {
   return c=='x' || c=='y' || c=='z' || c=='c';
 }
 
-// Return image argument as a shared or non-shared copy of one existing image.
-inline bool _gmic_image_arg(const unsigned int ind, const CImg<unsigned int>& selection) {
-  cimg_forY(selection,l) if (selection[l]==ind) return true;
-  return false;
+// Return an image argument as a shared or non-shared copy of one existing image of the list.
+template<typename T>
+CImg<T> gmic::_gmic_image_arg(CImgList<T>& images, const CImgList<T>& parent_images,
+                              const CImg<unsigned int>& selection, const unsigned int uind) {
+  check_shared_image(images,parent_images,images[uind]);
+  cimg_forY(selection,l) if (selection[l]==uind) return images[uind]; // Non-shared copy
+  return images[uind].get_shared(); // Shared copy
 }
-#define gmic_image_arg(ind) gmic_check(_gmic_image_arg(ind,selection)?images[ind]:\
-                                       images[ind].get_shared())
+
+#define gmic_image_arg(uind) _gmic_image_arg(images,parent_images,selection,uind)
 
 // Macro to manage argument substitutions from a command.
 void gmic::_gmic_substitute_args(const char *const argument, const char *const argument0,
@@ -1863,7 +1866,7 @@ inline char *_gmic_argument_text(const char *const argument, char *const argumen
 
 #define gmic_apply(function,optim_inplace) { \
     uind = selection[l]; \
-    gmic_check(images[uind]); \
+    gmic_check_shared_image(images[uind]); \
     if (is_get) { \
       _gmic_apply(function,optim_inplace); \
       image_names[uind].get_copymark().move_to(image_names); \
@@ -1873,7 +1876,7 @@ inline char *_gmic_argument_text(const char *const argument, char *const argumen
 // Same as 'gmic_apply' but force computation with double-precision images.
 #define gmic_apply_double(function) { \
     uind = selection[l]; \
-    gmic_check(images[uind]); \
+    gmic_check_shared_image(images[uind]); \
     if (is_get) { \
       CImg<double>(images[uind],false).function.move_to(images); \
       image_names[uind].get_copymark().move_to(image_names); \
@@ -1903,7 +1906,7 @@ inline char *_gmic_argument_text(const char *const argument, char *const argumen
      const char *const ssep = sep=='%'?"%":""; \
      print(0,description1 ".",arg1_1,arg1_2,arg1_3); \
      cimg_forY(selection,l) { \
-       CImg<T>& img = gmic_check(images[selection[l]]); \
+       CImg<T>& img = gmic_check_shared_image(images[selection[l]]); \
        nvalue = value; \
        if (sep=='%' && img) { \
          vmax = (double)img.max_min(vmin); \
@@ -1920,7 +1923,7 @@ inline char *_gmic_argument_text(const char *const argument, char *const argumen
      print(0,description2 ".",arg2_1,arg2_2); \
      const CImg<T> img0 = gmic_image_arg(*ind); \
      cimg_forY(selection,l) { \
-       CImg<T>& img = gmic_check(images[selection[l]]); \
+       CImg<T>& img = gmic_check_shared_image(images[selection[l]]); \
        if (is_get) { \
          g_img.assign(img,false).function2(img0).move_to(images); \
          image_names[selection[l]].get_copymark().move_to(image_names); \
@@ -1930,7 +1933,7 @@ inline char *_gmic_argument_text(const char *const argument, char *const argumen
    } else if (cimg_sscanf(argument,"'%4095[^']%c%c",gmic_use_formula,&sep,&end)==2 && sep=='\'') { \
      strreplace_fw(formula); print(0,description3 ".",arg3_1,arg3_2); \
      cimg_forY(selection,l) { \
-       CImg<T>& img = gmic_check(images[selection[l]]); \
+       CImg<T>& img = gmic_check_shared_image(images[selection[l]]); \
        if (is_get) { \
          g_img.assign(img,false).function3((const char*)formula,images).move_to(images); \
          image_names[selection[l]].get_copymark().move_to(image_names); \
@@ -1941,15 +1944,15 @@ inline char *_gmic_argument_text(const char *const argument, char *const argumen
      print(0,description4 ".",gmic_selection.data()); \
      if (images && selection) { \
        if (is_get) { \
-         g_img.assign(gmic_check(images[selection[0]]),false); \
+         g_img.assign(gmic_check_shared_image(images[selection[0]]),false); \
          for (unsigned int l = 1; l<(unsigned int)selection.height(); ++l) \
-           g_img.function2(gmic_check(images[selection[l]])); \
+           g_img.function2(gmic_check_shared_image(images[selection[l]])); \
          image_names[selection[0]].get_copymark().move_to(image_names); \
          g_img.move_to(images); \
        } else if (selection.height()>=2) { \
-       CImg<T>& img = gmic_check(images[selection[0]]); \
+       CImg<T>& img = gmic_check_shared_image(images[selection[0]]); \
        for (unsigned int l = 1; l<(unsigned int)selection.height(); ++l) \
-         img.function2(gmic_check(images[selection[l]])); \
+         img.function2(gmic_check_shared_image(images[selection[l]])); \
        remove_images(images,image_names,selection,1,selection.height() - 1); \
        }}} \
    is_change = true; \
@@ -3590,8 +3593,9 @@ const char *gmic::set_variable(const char *const name, const char operation,
     }
   }
 
-  // Manage particular case of variable '_cpus': Set max number of threads for multi-threaded operators.
-  if (!std::strcmp(name,"_cpus")) {
+  if (!std::strcmp(name,"_cpus")) { // Manage case of setting variable '_cpus'
+
+    // Set max number of threads for multi-threaded operators.
     int nb_cpus = 0;
     if (cimg_sscanf(vars[ind],"%d%c",&nb_cpus,&end)!=1 || nb_cpus<=0) {
       s_value.assign(8);
@@ -3602,7 +3606,8 @@ const char *gmic::set_variable(const char *const name, const char operation,
 #if cimg_use_openmp!=0
     if (!gmic_getenv("OMP_NUM_THREADS")) omp_set_num_threads(nb_cpus);
 #endif
-  }
+  } else if (!std::strcmp(name,"_user_agent")) // Manage case of setting variable '_user_agent'
+    cimg::user_agent(vars[ind]);
 
   // Modify slot position of modified/created variable to make it more accessible next time.
   if (ind!=vars._width - 1) {
@@ -4031,39 +4036,37 @@ bool gmic::check_cond(const char *const expr, CImgList<T>& images, const char *c
 #define arg_error(command) gmic::error(true,0,command,"Command '%s': Invalid argument '%s'.",\
                                        command,gmic_argument_text())
 
-// Check if a shared image of the image list is safe or not.
-//----------------------------------------------------------
+// Check if a shared image of the image list links to an existing image.
+//----------------------------------------------------------------------
 template<typename T>
-inline bool gmic_is_valid_pointer(const T *const ptr) {
-#if cimg_OS==1
-  const int result = access((const char*)ptr,F_OK);
-  if (result==-1 && errno==EFAULT) return false;
-#elif cimg_OS==2 // #if cimg_OS==1
-  return !IsBadReadPtr((void*)ptr,1);
-#endif // #if cimg_OS==1
-  return true;
-}
-
-template<typename T>
-CImg<T>& gmic::check_image(const CImgList<T>& list, CImg<T>& img) {
-  check_image(list,(const CImg<T>&)img);
+CImg<T>& gmic::check_shared_image(const CImgList<T>& images, const CImgList<T>& parent_images,
+                                  CImg<T>& img) {
+#ifdef gmic_check_shared_images
+  if (!img.is_shared()) return img;
+  const T *const ptr = img.data();
+  cimglist_rof(images,l) { // Check that a corresponding non-shared image exist in current image list
+    const CImg<T>& elt = images[l];
+    if (!elt.is_shared()) {
+      const T *const ptrs = elt.data(), *const ptre = elt.end();
+      if (ptr>=ptrs && ptr<ptre) return img;
+    }
+  }
+  cimglist_rof(parent_images,l) { // Check that corresponding shared or non-shared image exist in parent list ('pass')
+    const CImg<T>& elt = parent_images[l];
+    const T *const ptrs = elt.data(), *const ptre = elt.end();
+    if (ptr>=ptrs && ptr<ptre) return img;
+  }
+  const unsigned int w = img.width(), h = img.height(), d = img.depth(), s = img.spectrum();
+  img.assign(); // Prevent further memory access
+  error(true,"Invalid shared image (%d,%d,%d,%d): Referenced data buffer not found among existing images.",
+        w,h,d,s);
+#else
+  cimg::unused(images,parent_images);
+#endif
   return img;
 }
 
-template<typename T>
-const CImg<T>& gmic::check_image(const CImgList<T>& list, const CImg<T>& img) {
-#ifdef gmic_check_image
-  if (!img.is_shared() || gmic_is_valid_pointer(img.data())) return img;
-  error(true,list,0,0,"Image list contains an invalid shared image (%p,%d,%d,%d,%d) "
-        "(references a deallocated buffer).",
-        img.data(),img.width(),img.height(),img.depth(),img.spectrum());
-#else // #ifdef gmic_check_image
-  cimg::unused(list);
-#endif // #ifdef gmic_check_image
-  return img;
-}
-
-#define gmic_check(img) check_image(images,img)
+#define gmic_check_shared_image(img) check_shared_image(images,parent_images,img)
 
 // Remove list of images in a selection.
 //---------------------------------------
@@ -4173,6 +4176,7 @@ gmic& gmic::_gmic(const char *const command_line,
   set_variable("_path_user",0,gmic::path_user());
   set_variable("_version",0,cimg_str2(gmic_version));
   set_variable("_pixeltype",0,cimg::type<gmic_pixel_type>::string());
+  set_variable("_user_agent",0,"gmic");
 
   cimg_snprintf(str,str.width(),"%u",cimg::nb_cpus());
   set_variable("_cpus",0,str.data());
@@ -4570,7 +4574,7 @@ CImg<char> gmic::substitute_item(const char *const source,
             ++feature;
           } else ind = images.width() - 1;
 
-          CImg<T> &img = ind>=0?gmic_check(images[ind]):CImg<T>::empty();
+          CImg<T> &img = ind>=0?gmic_check_shared_image(images[ind]):CImg<T>::empty();
           *substr = 0;
           if (!*feature)
             error(true,0,0,
@@ -4955,7 +4959,10 @@ gmic& gmic::_run(const CImgList<char>& command_line,
   is_start = true;
   *progress = -1;
   if (reference_time==(gmic_uint64)-1) reference_time = cimg::time();
-  return _run(command_line,position,images,image_names,images,image_names,variable_sizes,0,0,0,push_new_run);
+  CImgList<T> parent_images;
+  CImgList<char> parent_image_names;
+  return _run(command_line,position,images,image_names,parent_images,parent_image_names,
+              variable_sizes,0,0,0,push_new_run);
 }
 
 #if defined(_MSC_VER) && !defined(_WIN64)
@@ -5635,7 +5642,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   gmic_selection.data(),*ind);
             cimg_forY(selection,l) {
               const unsigned int _ind = selection[l];
-              CImg<T>& img = gmic_check(images[_ind]);
+              CImg<T>& img = gmic_check_shared_image(images[_ind]);
               g_list.assign(2);
               g_list[0].assign(img,true);
               g_list[1].assign(img0,true);
@@ -5665,7 +5672,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   gmic_selection.data());
             if (selection) {
               g_list.assign(selection.height());
-              cimg_forY(selection,l) g_list[l].assign(gmic_check(images[selection[l]]),true);
+              cimg_forY(selection,l) g_list[l].assign(gmic_check_shared_image(images[selection[l]]),true);
               CImg<T> img;
               try { CImg<T>::append_CImg3d(g_list).move_to(img); }
               catch (CImgException&) {
@@ -5719,8 +5726,8 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   gmic_selection.data(),
                   axis,align);
             if (selection) {
-              cimg_forY(selection,l) if (gmic_check(images[selection[l]]))
-                g_list.insert(gmic_check(images[selection[l]]),~0U,true);
+              cimg_forY(selection,l) if (gmic_check_shared_image(images[selection[l]]))
+                g_list.insert(gmic_check_shared_image(images[selection[l]]),~0U,true);
               CImg<T> img = g_list.get_append(axis,align);
               if (is_get) {
                 img.move_to(images);
@@ -6072,7 +6079,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   is_full_check?"full":"fast");
           cimg_forY(selection,l) {
             uind = selection[l];
-            CImg<T>& img = gmic_check(images[uind]);
+            CImg<T>& img = gmic_check_shared_image(images[uind]);
             if (!img.is_CImg3d(is_full_check,&(*gmic_use_message=0))) {
               if (is_very_verbose) {
                 cimg::mutex(29);
@@ -6134,7 +6141,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   arg_command_text,
                   add_debug_info?", with debug info":"");
             try {
-              file = cimg::std_fopen(cimg::load_network(arg_command,gmic_use_argx,network_timeout,true,0,"gmic"),"r");
+              file = cimg::std_fopen(cimg::load_network(arg_command,gmic_use_argx,network_timeout,true),"r");
             } catch (...) {
               file = 0;
             }
@@ -6805,7 +6812,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   gmic_selection.data(),
                   sx,sepx?"%":"");
             cimg_forY(selection,l) {
-              CImg<T> &img = gmic_check(images[selection[l]]);
+              CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
               sx = cimg::round(sepx=='%'?sx*cimg::max(img.width(),img.height(),img.depth())/100:sx);
               gmic_apply(dilate((unsigned int)sx),true);
             }
@@ -6826,7 +6833,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   sy,sepy=='%'?"%":"",
                   sz,sepz=='%'?"%":"");
             cimg_forY(selection,l) {
-              CImg<T> &img = gmic_check(images[selection[l]]);
+              CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
               sx = cimg::round(sepx=='%'?sx*img.width()/100:sx);
               sy = cimg::round(sepy=='%'?sy*img.height()/100:sy);
               sz = cimg::round(sepz=='%'?sz*img.depth()/100:sz);
@@ -6936,8 +6943,9 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   is_forward?"forward":"backward",
                   argy);
 
-            const CImg<T> reference = gmic_image_arg(*ind);
-            const CImg<T> constraints = ind0?gmic_image_arg(*ind0):CImg<T>::empty();
+            const CImg<T>
+              reference = gmic_image_arg(*ind),
+              constraints = ind0?gmic_image_arg(*ind0):CImg<T>::empty();
             cimg_forY(selection,l)
               gmic_apply(displacement(reference,smoothness,precision,(unsigned int)nb_scales,
                                       cimg::type<double>::is_inf(nb_iterations)?~0U:(unsigned int)nb_iterations,
@@ -6972,7 +6980,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   metric==0?"chebyshev":metric==1?"manhattan":metric==2?"euclidean":
                   "squared-euclidean");
             cimg_forY(selection,l) {
-              CImg<T> &img = gmic_check(images[selection[l]]);
+              CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
               nvalue = value;
               if (sep0=='%' && img) {
                 vmax = (double)img.max_min(vmin);
@@ -7002,7 +7010,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   *ind);
             const CImg<T> custom_metric = gmic_image_arg(*ind);
             if (algorithm<3) cimg_forY(selection,l) {
-                CImg<T> &img = gmic_check(images[selection[l]]);
+                CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
                 nvalue = value;
                 if (sep0=='%' && img) {
                   vmax = (double)img.max_min(vmin);
@@ -7013,7 +7021,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               }
             else cimg_forY(selection,l) {
                 uind = selection[l] + off;
-                CImg<T>& img = gmic_check(images[uind]);
+                CImg<T>& img = gmic_check_shared_image(images[uind]);
                 nvalue = value;
                 if (sep0=='%' && img) {
                   vmax = (double)img.max_min(vmin);
@@ -7138,7 +7146,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           cimg_forY(selection,l) {
             uind = selection[l] + off;
             CImg<float> val, vec;
-            gmic_check(images[uind]).gmic_symmetric_eigen(val,vec);
+            gmic_check_shared_image(images[uind]).gmic_symmetric_eigen(val,vec);
             if (is_get) {
               val.move_to(images);
               vec.move_to(images);
@@ -7324,7 +7332,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                 value0,sep0=='%'?"%":"",
                 value1,sep1=='%'?"%":"");
           cimg_forY(selection,l) {
-            CImg<T>& img = gmic_check(images[selection[l]]);
+            CImg<T>& img = gmic_check_shared_image(images[selection[l]]);
             nvalue0 = value0; nvalue1 = value1;
             vmin = vmax = 0;
             if (sep0=='%' || sep1=='%') {
@@ -7380,7 +7388,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   gmic_selection.data(),
                   sx,sepx?"%":"");
             cimg_forY(selection,l) {
-              CImg<T> &img = gmic_check(images[selection[l]]);
+              CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
               sx = cimg::round(sepx=='%'?sx*cimg::max(img.width(),img.height(),img.depth())/100:sx);
               gmic_apply(erode((unsigned int)sx),true);
             }
@@ -7401,7 +7409,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   sy,sepy=='%'?"%":"",
                   sz,sepz=='%'?"%":"");
             cimg_forY(selection,l) {
-              CImg<T> &img = gmic_check(images[selection[l]]);
+              CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
               sx = cimg::round(sepx=='%'?sx*img.width()/100:sx);
               sy = cimg::round(sepy=='%'?sy*img.height()/100:sy);
               sz = cimg::round(sepz=='%'?sz*img.depth()/100:sz);
@@ -7948,7 +7956,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   value0,sep0=='%'?"%":"",
                   value1,sep1=='%'?"%":"");
             cimg_forY(selection,l) {
-              CImg<T> &img = gmic_check(images[selection[l]]);
+              CImg<T> &img = gmic_check_shared_image(images[selection[l]]);
               nvalue0 = value0; nvalue1 = value1;
               vmin = vmax = 0;
               if (sep0=='%' || sep1=='%') {
@@ -8190,7 +8198,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   value,sep=='%'?"%":"");
             cimg_forY(selection,l) {
               uind = selection[l];
-              CImg<T>& img = gmic_check(images[uind]);
+              CImg<T>& img = gmic_check_shared_image(images[uind]);
               if (img) {
                 vertices.assign();
                 primitives.assign();
@@ -8284,7 +8292,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   value,sep=='%'?"%":"");
             cimg_forY(selection,l) {
               uind = selection[l];
-              CImg<T>& img = gmic_check(images[uind]);
+              CImg<T>& img = gmic_check_shared_image(images[uind]);
               if (img) {
                 vertices.assign();
                 primitives.assign();
@@ -9240,7 +9248,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             if (err==-1) print(0,"Disable load-from-network.");
             else if (!err) print(0,"Enable load-from-network, with no timeout.");
             else print(0,"Enable load-from-network, with %ds timeout.",err);
-            cimg::network_mode(err!=-1,true);
+            cimg::network_mode(err!=-1);
             if (err!=-1) network_timeout = err;
           } else arg_error(builtin_command);
           ++position;
@@ -9313,7 +9321,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   value1,sep1=='%'?"%":"",
                   value);
             cimg_forY(selection,l) {
-              CImg<T>& img = gmic_check(images[selection[l]]);
+              CImg<T>& img = gmic_check_shared_image(images[selection[l]]);
               nvalue0 = value0; nvalue1 = value1;
               vmin = vmax = 0;
               if (sep0=='%' || sep1=='%') {
@@ -9611,7 +9619,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
 
             cimg_forY(selection,l) {
               uind = selection[l];
-              const CImg<T>& img = gmic_check(images[uind]);
+              const CImg<T>& img = gmic_check_shared_image(images[uind]);
               if (selection.height()!=1) cimg::number_filename(filename,l,6,gmic_use_formula);
               CImgList<float> opacities;
               vertices.assign(img,false);
@@ -9643,7 +9651,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                        (cimg_sscanf(options,"%255[a-z123468]%c",&(*argx=0),&end)==2 && end==','))?
               argx:"auto";
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -9773,7 +9781,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               use_bigtiff = (bool)cimg::round(opacity);
 
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -9840,7 +9848,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             // GIF file.
             float fps = 0, _nb_loops = 0;
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -9879,7 +9887,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             if (cimg_sscanf(options,"%f%c",&quality,&end)!=1) quality = 100;
             if (quality<0) quality = 0; else if (quality>100) quality = 100;
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -9919,7 +9927,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
 
             // MNC file.
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -9956,7 +9964,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             // RAW data file.
             const char *stype = cimg_sscanf(options,"%255[a-z123468]%c",gmic_use_argx,&end)==1?argx:"auto";
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -10125,7 +10133,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             if (!fps) fps = 25;
             if (*name=='0' && !name[1]) *name = 0;
             g_list.assign(selection.height());
-            cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+            cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
               CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
             if (empty_indices && is_verbose) {
               selection2string(empty_indices>'y',1,eselec);
@@ -10160,13 +10168,14 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               const CImgList<char> ncommand_line = command_line_to_CImgList(formula);
               unsigned int nposition = 0;
               CImg<char>::string("").move_to(callstack); // Anonymous scope
-              _run(ncommand_line,nposition,images,image_names,images,image_names,variable_sizes,0,0,0,false);
+              _run(ncommand_line,nposition,images,image_names,parent_images,parent_image_names,
+                   variable_sizes,0,0,0,false);
               callstack.remove();
 
             } else { // Not found -> Try generic image saver
 
               g_list.assign(selection.height());
-              cimg_forY(selection,l) if (!gmic_check(images[selection(l)]))
+              cimg_forY(selection,l) if (!gmic_check_shared_image(images[selection(l)]))
                 CImg<unsigned int>::vector(selection(l)).move_to(empty_indices);
               if (empty_indices && is_verbose) {
                 selection2string(empty_indices>'y',1,eselec);
@@ -10612,29 +10621,45 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
         // 'qr'.
         if (id_builtin_command==id_qr) {
           gmic_substitute_args(true);
-          if ((*argument=='0' || *argument=='1') && !argument[1]) { is_cond = (*argument=='1'); ++position; }
-          else is_cond = true;
-          print(0,"Compute QR decomposition%s of matri%s%s%s.",
+          unsigned int is_reduced_form = 1, is_pivoting = 0;
+          if ((cimg_sscanf(argument,"%u%c",&is_reduced_form,&end)==1 ||
+               cimg_sscanf(argument,"%u,%u%c",&is_reduced_form,&is_pivoting,&end)==2) &&
+              is_reduced_form<=1 && is_pivoting<=1)
+            ++position;
+          else { is_reduced_form = 1; is_pivoting = 0; }
+
+          print(0,"Compute QR decomposition%s of matri%s%s%s with%s pivoting.",
                 selection.height()>1?"s":"",selection.height()>1?"ce":"x",gmic_selection.data(),
-                is_cond?", in reduced form":"");
+                is_reduced_form?", in reduced form":"",
+                is_pivoting?"":"out");
+
           CImg<float> Q, R;
+          CImg<unsigned int> perm;
           unsigned int off = 0;
           cimg_forY(selection,l) {
             uind = selection[l] + off;
-            const CImg<T>& img = gmic_check(images[uind]);
-            img.QR(Q,R,is_cond);
+            const CImg<T>& img = gmic_check_shared_image(images[uind]);
+            img.QR(Q,R,is_reduced_form,is_pivoting,&perm);
             if (is_get) {
               Q.move_to(images);
               R.move_to(images);
               image_names[uind].get_copymark().move_to(image_names);
               image_names.back().get_copymark().move_to(image_names);
+              if (is_pivoting) {
+                perm.move_to(images);
+                image_names.back().get_copymark().move_to(image_names);
+              }
             } else {
-              images.insert(1,uind + 1);
+              images.insert(is_pivoting?2:1,uind + 1);
+              image_names.insert(is_pivoting?2:1,uind + 1);
               Q.move_to(images[uind].assign());
               R.move_to(images[uind + 1]);
-              image_names.insert(1,uind + 1);
               image_names[uind].get_copymark().move_to(image_names[uind + 1]);
-              ++off;
+              if (is_pivoting) {
+                perm.move_to(images[uind + 2]);
+                image_names[uind + 1].get_copymark().move_to(image_names[uind + 2]);
+              }
+              off+=is_pivoting?2:1;
             }
           }
           is_change = true;
@@ -10710,7 +10735,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                     value0,sep0=='%'?"%":"",
                     value1,sep1=='%'?"%":"",
                     *ind);
-              pdf = gmic_check(images[*ind]);
+              pdf = gmic_check_shared_image(images[*ind]);
               precision = axis=='%'?std::max(1U,(unsigned int)(value*pdf.size()/100)):!value?65536:value;
             } else
               print(0,"Fill image%s with random values in range [%g%s,%g%s] (uniformly distributed).",
@@ -10718,7 +10743,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                     value0,sep0=='%'?"%":"",
                     value1,sep1=='%'?"%":"");
             cimg_forY(selection,l) {
-              CImg<T>& img = gmic_check(images[selection[l]]);
+              CImg<T>& img = gmic_check_shared_image(images[selection[l]]);
               nvalue0 = value0; nvalue1 = value1;
               vmin = vmax = 0;
               if (sep0=='%' || sep1=='%') {
@@ -11722,7 +11747,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             int off = 0;
             cimg_forY(selection,l) {
               uind = selection[l] + off;
-              const CImg<T>& img = gmic_check(images[uind]);
+              const CImg<T>& img = gmic_check_shared_image(images[uind]);
               if (!img) {
                 if (no_get) {
                   images.remove(uind);
@@ -11803,7 +11828,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               int off = 0;
               cimg_forY(selection,l) {
                 uind = selection[l] + off;
-                const CImg<T>& img = gmic_check(images[uind]);
+                const CImg<T>& img = gmic_check_shared_image(images[uind]);
                 if (!img) {
                   if (no_get) {
                     images.remove(uind);
@@ -11864,7 +11889,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           int off = 0;
           cimg_forY(selection,l) {
             uind = selection[l] + off;
-            CImg<T>& img = gmic_check(images[uind]);
+            CImg<T>& img = gmic_check_shared_image(images[uind]);
             if (!img) {
               if (no_get) {
                 images.remove(uind);
@@ -12055,7 +12080,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   z,sepz=='%'?"%":"");
             cimg_forY(selection,l) {
               uind = selection[l];
-              CImg<T>& img = gmic_check(images[uind]);
+              CImg<T>& img = gmic_check_shared_image(images[uind]);
               const float
                 nx = (float)cimg::round(sepx=='%'?x*(img.width() - 1)/100:x),
                 ny = (float)cimg::round(sepy=='%'?y*(img.height() - 1)/100:y),
@@ -12175,7 +12200,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           unsigned int off = 0;
           cimg_forY(selection,l) {
             uind = selection[l] + off;
-            const CImg<T>& img = gmic_check(images[uind]);
+            const CImg<T>& img = gmic_check_shared_image(images[uind]);
             img.SVD(U,S,V,true,100);
             if (is_get) {
               U.move_to(images);
@@ -12424,7 +12449,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           int off = 0;
           cimg_forY(selection,l) {
             uind = selection[l] + off;
-            const CImg<T>& img = gmic_check(images[uind]);
+            const CImg<T>& img = gmic_check_shared_image(images[uind]);
             CImgList<T>::get_unserialize(img).move_to(g_list);
             if (g_list) {
               const CImg<T>& back = g_list.back();
@@ -12701,7 +12726,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
 
               cimg_forY(selection,l) {
                 uind = selection[l] + off;
-                CImg<T>& img = gmic_check(images[uind]);
+                CImg<T>& img = gmic_check_shared_image(images[uind]);
                 g_list.assign((int)nb_frames);
                 cimglist_for(g_list,t)
                   if (mode%2) g_list[t] = img.get_warp(warping_field*(t/(nb_frames - 1)),mode,interpolation,boundary);
@@ -12856,7 +12881,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
             // Get images to display and compute associated optimal size.
             unsigned int optw = 0, opth = 0;
             if (dimw && dimh) cimg_forY(selection,l) {
-                const CImg<T>& img = gmic_check(images[selection[l]]);
+                const CImg<T>& img = gmic_check_shared_image(images[selection[l]]);
                 if (img) {
                   g_list.insert(img,~0U,true);
                   optw+=img._width + (img.depth()>1?img._depth:0U);
@@ -13155,8 +13180,8 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               const unsigned int
                 uind0 = selection[l],
                 uind1 = l + 1<selection.height()?selection[l + 1]:~0U;
-              CImg<T> &img0 = gmic_check(images[uind0]),
-                      &img1 = uind1!=~0U?gmic_check(images[uind1]):CImg<T>::empty();
+              CImg<T> &img0 = gmic_check_shared_image(images[uind0]),
+                      &img1 = uind1!=~0U?gmic_check_shared_image(images[uind1]):CImg<T>::empty();
               if (uind1!=~0U) { // Complex transform
                 if (is_verbose) {
                   cimg::mutex(29);
@@ -14093,7 +14118,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                 _gmic_selection.data());
 
         for (int i = 0; i<nb; ++i) cimg_foroff(inds,l) {
-            g_list.insert(gmic_check(images[inds[l]]));
+            g_list.insert(gmic_check_shared_image(images[inds[l]]));
             (i?g_list_c[l + (i - 1)*inds.height()]:image_names[inds[l]]).get_copymark().move_to(g_list_c);
           }
 
@@ -14136,12 +14161,12 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
                   (cimg_sscanf(argc,"%lf%c%c",&dc,&sepc,&end)==2 && dc>0 && sepc=='%'))) {
 
         // New image with specified dimensions and optionally values.
-        if (indx) { dx = (float)gmic_check(images[*indx]).width(); sepx = 0; }
-        if (indy) { dy = (float)gmic_check(images[*indy]).height(); sepy = 0; }
-        if (indz) { dz = (float)gmic_check(images[*indz]).depth(); sepz = 0; }
-        if (indc) { dc = (float)gmic_check(images[*indc]).spectrum(); sepc = 0; }
+        if (indx) { dx = (float)gmic_check_shared_image(images[*indx]).width(); sepx = 0; }
+        if (indy) { dy = (float)gmic_check_shared_image(images[*indy]).height(); sepy = 0; }
+        if (indz) { dz = (float)gmic_check_shared_image(images[*indz]).depth(); sepz = 0; }
+        if (indc) { dc = (float)gmic_check_shared_image(images[*indc]).spectrum(); sepc = 0; }
         int idx = 0, idy = 0, idz = 0, idc = 0;
-        const CImg<T>& img = images.size()?gmic_check(images.back()):CImg<T>::empty();
+        const CImg<T>& img = images.size()?gmic_check_shared_image(images.back()):CImg<T>::empty();
         if (sepx=='%') { idx = (int)cimg::round(dx*img.width()/100); if (!idx) ++idx; }
         else idx = (int)cimg::round(dx);
         if (sepy=='%') { idy = (int)cimg::round(dy*img.height()/100); if (!idy) ++idy; }
@@ -14216,7 +14241,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
         if (!cimg::strncasecmp(_filename,"http://",7) ||
             !cimg::strncasecmp(_filename,"https://",8)) {
           try {
-            cimg::load_network(_filename,filename_tmp,network_timeout,true,0,"gmic");
+            cimg::load_network(_filename,filename_tmp,network_timeout,true);
           } catch (CImgIOException&) {
             print(0,"Input file '%s' at position%s",
                   filename0,
@@ -14954,7 +14979,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
     pop_callstack(initial_callstack_size);
 
     // Post-check validity of shared images.
-    cimglist_for(images,l) gmic_check(images[l]);
+    cimglist_for(images,l) gmic_check_shared_image(images[l]);
 
     // Display or print result.
     if (verbosity>0 && is_change && !is_quit && !is_return && callstack.size()==1 && images) {
@@ -14968,7 +14993,7 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
           CImg<char>::string("d").move_to(ncommand_line);
         } else
           CImg<char>::string("p").move_to(ncommand_line);
-        _run(ncommand_line,nposition,images,image_names,images,image_names,variable_sizes,0,0,0,false);
+        _run(ncommand_line,nposition,images,image_names,parent_images,parent_image_names,variable_sizes,0,0,0,false);
         callstack.remove();
       }
       is_change = false;

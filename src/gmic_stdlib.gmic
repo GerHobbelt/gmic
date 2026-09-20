@@ -625,6 +625,7 @@ reference : skip "${2=}"
 "  - '$_pixeltype': The type of image pixels (default: 'float32')."\n\
 "  - '$_prerelease': For pre-releases, the date of the pre-release as `yymmdd`. "\
 "For stable releases, this variable is set to `0`."\n\
+"  - '$_user_agent': A string telling the user-agent G'MIC uses when accessing network files (default: 'gmic'). "\n\
 "  - '$_version': A 3-digits number telling about the current version of the G'MIC interpreter "\
 " (e.g. '"$_version"'). "\n\
 "  - '$_vt100': Set to `1` if colored text output is allowed on the console. Otherwise, set to `0`."\n\
@@ -9912,8 +9913,11 @@ _plot : skip ${8=},${10=}
 #@cli : Default values: 'size=800'.
 +portrait : check "isint(${1=800},1)"
   e[^-1] "Input random portrait image of size $1x$1."
-  i jpg:"https://thispersondoesnotexist.com/" z. 12,0,1011,999
+  save_user_agent=$_user_agent
+  _user_agent="curl"
+  i jpg:"https://thispersondoesnotexist.com/random-person.jpeg" z. 12,0,1011,999
   rs. $1 => portrait
+  _user_agent=$_save_user_agent
 
 #@cli p : eq. to 'print'.
 p :
@@ -20686,7 +20690,9 @@ periodize_poisson :
     a c
   }
 
-#@cli rbf : dx,_x0,_x1,_phi(r) : dx,dy,_x0,_y0,_x1,_y1,_phi(r) : dx,dy,dz,x0,y0,z0,x1,y1,z1,phi(r)
+#@cli rbf : dx,_x0,_x1,_phi(r),_is_affine_term={ 0:No | 1:Yes } : \
+# dx,dy,_x0,_y0,_x1,_y1,_phi(r),_is_affine_term : \
+# dx,dy,dz,x0,y0,z0,x1,y1,z1,phi(r)_is_affine_term
 #@cli : Reconstruct 1D/2D or 3D image from selected sets of keypoints, by RBF-interpolation.
 #@cli : A set of keypoints is represented by a vector-valued image, where each pixel represents a single keypoint.
 #@cli : Vector components of a keypoint have the following meaning:
@@ -20696,81 +20702,93 @@ periodize_poisson :
 #@cli : Values 'x_k','y_k' and 'z_k' are the spatial coordinates of keypoint 'k'.
 #@cli : Values 'f1(),..,fN()' are the 'N' components of the vector value of keypoint 'k'.
 #@cli : The command reconstructs an image with specified size 'dx'x'dy'x'dz', with 'N' channels.
-#@cli : Default values: 'x0=y0=z0=0', 'x1=dx-1', 'y1=dy-1', 'z1=dz-1', 'phi(r)=r*log(1+r)'.
+#@cli : If 'affine_term==1', the reconstruction function includes an affine term.
+#@cli : Default values: 'x0=y0=z0=0', 'x1=dx-1', 'y1=dy-1', 'z1=dz-1', 'phi(r)=r*log(1+r)' and 'affine_term=0'.
 #@cli : $ sample colorful,400 100%,100% noise_poissondisk. 10 1,{is},1,5 \
 # eval[-2] "begin(p=0);i?(I[#-1,p++]=[x,y,I(#0)])" to_rgb[1] mul[0,1] dilate_circ[0] 5 +rbf[-1] {0,[w,h]} c[-1] 0,255
 #@cli : $ 32,1,1,5,u([400,400,255,255,255]) rbf 400,400 c 0,255
 rbf :
   $=a
   default_phi_r="r*log(1 + r)"
-  if isin($#,1,3,4) # 1D reconstruction
+  if isin($#,1,3,4,5) # 1D reconstruction
     dx,x0,x1=$a1,{$#>1?[$a2,$a3]:[0,$a1-1]}
     phi_r={`$#>3?['$a4']:'$default_phi_r'`}
-    check $dx>0
+    is_affine_term:={$#>4?$a5:0}
+    check $dx>0" && "isbool($is_affine_term)
     e[^-1] "Reconstruct 1D image from keypoint set$?, with size "$dx", "\
-     "from ("$x0") to ("$x1") and phi(r) = "$phi_r.
-    foreach { nm={n} if !w $dx elif whd==1 channels. 1,100% r. $dx,1,1,100% else
-      sh 1,100% +r. 1,1,1,100%,2 +store. avg ri. .. -[-2,-1] rm.
-      r 1,{whd},1,100%,-1 permute. cyzx
-      $dx,1,1,{w-1},"*
+      "from ("$x0") to ("$x1") and phi(r) = "$phi_r"."
+    foreach { nm={n} if !w $dx elif whd==1 channels 1,100% r $dx,1,1,100% else
+      r {whd},1,1,100%,-1
+      $dx,1,1,{s-1},"
         begin(
           phi(r) = ("$phi_r");
-          X = crop(#0,0,0,0,0,1,h#0,1,1);
-          F = crop(#0,1,0,0,0,s,h#0,1,1,1);
-          M = vector(#h#0^2);
-          repeat (h#0,k,
+          const n = w#-1;
+          const m = n;
+          Xk = crop(#-1,0,0,0,0,n,1,1,1);
+          D = crop(#-1,0,0,0,1,n,1,1,s);
+          avg = resize(D,n,1,1,s,1,1,1,s,2);
+          M = vector(#m*n);
+          repeat (n,k,
             for (l = 0, l<=k, ++l,
-              r = abs(X[k] - X[l]);
-              M[k*h#0 + l] = M[l*h#0 + k] = phi(r);
-            )
+              r = abs(Xk[k] - Xk[l]);
+              M[k*m + l] = M[l*m + k] = phi(r);
+            );
           );
+          F = permute(D,n,1,1,s,'cyzx');
+          F-=resize(avg,size(F),1);
           W = solve(M,F,s);
-          const fx = ("$x1-$x0")/(w-1);
         );
-        res = vectors(); x = (x - "$x0")*fx;
-        repeat (h#0,k, r = abs(x - X[k]); res+=W[s*k,s]*phi(r));
-        res"
-      k. $avg ri. .. + => $nm
+        res = vectors();
+        X = lerp($x0,$x1,x/(w - 1));
+        repeat (n,k, r = abs(X - Xk[k]); res+=W[s*k,s]*phi(r));
+        res+=avg"
+      k. => $nm
     fi }
 
-  elif isin($#,2,6,7) # 2D reconstruction
+  elif isin($#,2,6,7,8) # 2D reconstruction
     dx,dy,x0,y0,x1,y1=$a1,$a2,{$#>2?[$a3,$a4,$a5,$a6]:[0,0,[$a1,$a2]-1]}
     phi_r={`$#>6?['$a7']:'$default_phi_r'`}
-    check $dx>0" && "$dy>0
+    is_affine_term:={$#>7?$a8:0}
+    check $dx>0" && "$dy>0" && "isbool($is_affine_term)
     e[^-1] "Reconstruct 2D image from keypoint set$?, with size "$dx,$dy", "\
-     "from ("$x0,$y0") to ("$x1,$y1") and phi(r) = "$phi_r.
-    foreach { nm={n} if !w $dx,$dy elif whd==1 channels 2,100% r. $dx,$dy,1,100% else
-      sh 2,100% +r. 1,1,1,100%,2 +store. avg ri. .. -[-2,-1] rm.
-      r 1,{whd},1,100%,-1 permute. cyzx
-      $dx,$dy,1,{w-2},"*
+      "from ("$x0,$y0") to ("$x1,$y1") and phi(r) = "$phi_r"."
+    foreach { nm={n} if !w $dx,$dy elif whd==1 channels 2,100% r $dx,$dy,1,100% else
+      r {whd},1,1,100%,-1
+      $dx,$dy,1,{s-2},"*
         begin(
           phi(r) = ("$phi_r");
-          X = crop(#0,0,0,0,0,1,h#0,1,1);
-          Y = crop(#0,1,0,0,0,1,h#0,1,1);
-          F = crop(#0,2,0,0,0,s,h#0,1,1,1);
-          M = vector(#h#0^2);
-          repeat (h#0,k,
+          const n = w#-1;
+          const m = n;
+          Xk = crop(#-1,0,0,0,0,n,1,1,1);
+          Yk = crop(#-1,0,0,0,1,n,1,1,1);
+          D = crop(#-1,0,0,0,2,n,1,1,s);
+          avg = resize(D,n,1,1,s,1,1,1,s,2);
+          M = vector(#m*n);
+          repeat (n,k,
             for (l = 0, l<=k, ++l,
-              r = norm(X[k] - X[l],Y[k] - Y[l]);
-              M[k*h#0 + l] = M[l*h#0 + k] = phi(r);
-            )
+              r = norm(Xk[k] - Xk[l],Yk[k] - Yk[l]);
+              M[k*m + l] = M[l*m + k] = phi(r);
+            );
           );
+          F = permute(D,n,1,1,s,'cyzx');
+          F-=resize(avg,size(F),1);
           W = solve(M,F,s);
-          const fx = ("$x1-$x0")/(w-1);
-          const fy = ("$y1-$y0")/(h-1);
         );
-        res = vectors(); x = (x - "$x0")*fx; y = (y - "$y0")*fy;
-        repeat (h#0,k, r = norm(x - X[k], y - Y[k]); res+=W[s*k,s]*phi(r));
-        res"
-      k. $avg ri. .. + => $nm
+        res = vectors();
+        X = lerp($x0,$x1,x/(w - 1));
+        Y = lerp($y0,$y1,y/(h - 1));
+        repeat (n,k, r = norm(X - Xk[k],Y - Yk[k]); res+=W[s*k,s]*phi(r));
+        res+=avg"
+      k. => $nm
     fi }
 
-  elif isin($#,3,9,10) # 3D reconstruction
+  elif isin($#,3,9,10,11) # 3D reconstruction
     dx,dy,dz,x0,y0,z0,x1,y1,z1=$a1,$a2,$a3,{$#>3?[$a4,$a5,$a6,$a7,$a8,$a9]:[0,0,0,[$a1,$a2,$a3]-1]}
     phi_r={`$#>9?['$arg10']:'$default_phi_r'`}
-    check $dx>0" && "$dy>0" && "$dz>0
+    is_affine_term:={$#>10?$a11:0}
+    check $dx>0" && "$dy>0" && "$dz>0" && "isbool($is_affine_term)
     e[^-1] "Reconstruct 3D image from keypoint set$?, with size "$dx,$dy,$dz", "\
-     "from ("$x0,$y0,$z0") to ("$x1,$y1,$z1") and phi(r) = "$phi_r.
+      "from ("$x0,$y0,$z0") to ("$x1,$y1,$z1") and phi(r) = "$phi_r"."
     foreach { nm={n} if !w $dx,$dy,$dz elif whd==1 channels 3,100% r. $dx,$dy,$dz,100% else
       sh 3,100% +r. 1,1,1,100%,2 +store. avg ri. .. -[-2,-1] rm.
       r 1,{whd},1,100%,-1 permute. cyzx
@@ -25114,15 +25132,16 @@ poweriteration : check "isint(${1=1},1) && ${2=1e-6}>0 && isint(${3=1000},1)"
     rm[0]
   }
 
-#@cli qr : _is_reduced_form={ 0:No | 1:Yes } : (+)
-#@cli : Compute QR decomposition of selected matrices.
+#@cli qr : _is_reduced_form={ 0:No | 1:Yes },_is_pivoting={ 0:No | 1:Yes } : (+)
+#@cli : Compute QR decomposition of selected matrices (optionally with pivoting).
 #@cli : Assuming a selected image A is a matrix of size m×n (m rows, n columns), this command returns the matrices \
 # Q and R, so that A = Q*R.
 #@cli : - Q is an orthogonal matrix, of size 'm×m' if 'is_reduced_form==0', or 'm×min(m,n)' otherwise.
 #@cli : - R is an upper-trianguler matrix of size 'm×n' if 'is_reduced_form==0' or 'min(m,n)×n' otherwise.
 #@cli : - Q^T*Q = Id.
 #@cli : - If n>m, only the first m×m part of R is upper triangular.
-#@cli : Default value: 'is_reduced_form=1'.
+#@cli : If 'is_pivoting' is enabled, an additional image of column permutations is returned.
+#@cli : Default values: 'is_reduced_form=1' and 'is_pivoting=0'.
 #@cli : $ 10,10,1,1,'v(100)' +qr +mmul[-2,-1]
 
 #@cli solve : [image] : (+)
@@ -52736,8 +52755,10 @@ _fx_cluts_colorslide :
 #@gui : Preview = choice(1,"Before","After","Side-By-Side","Horizontal Split","Vertical Split","Diagonal Split 1",\
 # "Diagonal Split 2")
 #@gui : Preview Color Distribution = bool()
+#@gui : Style Preview Previous X = value(0)
+#@gui : Style Preview Previous Y = value(0)
 #@gui : Style Preview Position = point(0,0,0,0,255,255,255)_0
-#@gui : Style Preview Size = point(0,0,0,0,255,255,255)_0
+#@gui : Style Preview Size = point(0,0,0,0,128,128,128)_0
 #@gui : sep = separator()
 #@gui : note = note("<span color="#EE5500"><b>Histogram Matching:</b></span>")
 #@gui : Number of Bins = int(256,4,1024)_0-
@@ -52807,7 +52828,7 @@ fx_transfer_colors_preview :
                0.43670186400413513,-0.36199197173118591,0.82356184720993042,0
         snapshot3d {2*ceil(min([$pw/$M,$ph/$N]))},1.2,255,255,255 rs. 50%
         autocrop 255 => $nm
-     }
+      }
       if $!>1
         line.. 0,100%,100%,100%,1,0xF0F0F0F0,0
         line.. 0,100%,100%,100%,1,0x0F0F0F0F,255
@@ -52842,7 +52863,7 @@ fx_transfer_colors_preview :
   } fi
 
   l[$ind_style] {
-    xs,ys,dx,dy:=min($9,$11),min($10,$12),abs($11-$9),abs($12-$10)
+    oxs,oys,xs,ys=${9-12} dx,dy:=abs($13-$oxs),abs($14-$oys)
     if $dx&&$dy
       rs {ceil([$pw*$dx%,$ph*$dy%])}
     else
@@ -52864,19 +52885,19 @@ fx_transfer_colors_preview :
   j. [$ind_style],$xs%,$ys%
   k.
 
-  h:=$2==0?2:0 v:=$2==2?2:0 repeat 8 { c$>:=$2==2&&$17>$>?2:0 }
+  h:=$2==0?2:0 v:=$2==2?2:0 repeat 8 { c$>:=$2==2&&$19>$>?2:0 }
   u "{$1}{$2}{$3}{$4}{$5}{$6}"\
-    "{$7}{$8}{"$xs","$ys"}{"{$xs+$dx}","{$ys+$dy}"}"\
-    "{$13}_"$h\
-    "{$14}_"$v"{$15}_"$v"{$16}_"$v"{$17}_"$v\
-    "{${18-20}}_"$c0"{${21-23}}_"$c0\
-    "{${24-26}}_"$c1"{${27-29}}_"$c1\
-    "{${30-32}}_"$c2"{${33-35}}_"$c2\
-    "{${36-38}}_"$c3"{${39-41}}_"$c3\
-    "{${42-44}}_"$c4"{${45-47}}_"$c4\
-    "{${48-50}}_"$c5"{${51-53}}_"$c5\
-    "{${54-56}}_"$c6"{${57-59}}_"$c6\
-    "{${60-62}}_"$c7"{${63-65}}_"$c7
+    "{$7}{$8}{"$xs"}{"$ys"}{"$xs","$ys"}{"{$xs+$dx}","{$ys+$dy}"}"\
+    "{$15}_"$h\
+    "{$16}_"$v"{$17}_"$v"{$18}_"$v"{$19}_"$v\
+    "{${20-22}}_"$c0"{${23-25}}_"$c0\
+    "{${26-28}}_"$c1"{${29-31}}_"$c1\
+    "{${32-34}}_"$c2"{${35-37}}_"$c2\
+    "{${38-40}}_"$c3"{${41-43}}_"$c3\
+    "{${44-46}}_"$c4"{${47-49}}_"$c4\
+    "{${50-52}}_"$c5"{${53-55}}_"$c5\
+    "{${56-58}}_"$c6"{${59-61}}_"$c6\
+    "{${62-64}}_"$c7"{${65-67}}_"$c7
 
 _fx_transfer_colors :
   to_rgb
@@ -52892,7 +52913,7 @@ _fx_transfer_colors :
   if $2==0 # Histogram method
     foreach[^$ind_style] { nm={n}
       pass[$ind_style]
-      +transfer_histogram.. .,$13,$colorspace
+      +transfer_histogram.. .,$15,$colorspace
       if $5 rgb2hsv[0,-1] sh[0,-1] 100% j. ..,0,0,0,0,{$5%} rm[-2,-1] hsv2rgb[0,-1] fi # Brightness constraints
       if $6 +luminance[0] repeat $6 { guided.. .,5,5 } rm. fi # Spatial regularizationd.
       k. c 0,255 => $nm
@@ -52906,21 +52927,21 @@ _fx_transfer_colors :
       k. c 0,255 => $nm
     }
   else # Variational method
-    if $17>0
+    if $19>0
       l[] {
-        (${18-23}:c)
-        if $17>1 (${24-29}:c) fi
-        if $17>2 (${30-35}:c) fi
-        if $17>3 (${36-41}:c) fi
-        if $17>4 (${42-47}:c) fi
-        if $17>5 (${48-53}:c) fi
-        if $17>6 (${54-59}:c) fi
-        if $17>7 (${60-65}:c) fi
+        (${20-25}:c)
+        if $19>1 (${26-31}:c) fi
+        if $19>2 (${32-37}:c) fi
+        if $19>3 (${38-43}:c) fi
+        if $19>4 (${44-49}:c) fi
+        if $19>5 (${50-55}:c) fi
+        if $19>6 (${56-61}:c) fi
+        if $19>7 (${62-67}:c) fi
         a x
       }
-      transfer_rgb[^$ind_style,-1] [$ind_style],$14,$15,$6,{$5%},0,$3,{arg0($16,16,32,64)},. rm.
+      transfer_rgb[^$ind_style,-1] [$ind_style],$16,$17,$6,{$5%},0,$3,{arg0($18,16,32,64)},. rm.
     else
-      transfer_rgb[^$ind_style] [$ind_style],$14,$15,$6,{$5%},0,$3,{arg0($16,16,32,64)}
+      transfer_rgb[^$ind_style] [$ind_style],$16,$17,$6,{$5%},0,$3,{arg0($18,16,32,64)}
     fi
   fi
 
@@ -62244,12 +62265,12 @@ fx_gradient_from_curve_preview : skip "${19=}"
           ellipse(#0,x*w#0%,y*h#0%,9,9,0,1,0,0,0,255);
           ellipse(#0,x*w#0%,y*h#0%,7,7,0,1,R,G,B,255)
         );
-        draw_circle(${2-3},255,0,0);
-        $1>2?draw_circle(${4-5},255,179,0);
-        $1>3?draw_circle(${6-7},151,255,0);
-        $1>4?draw_circle(${8-9},0,255,28);
-        $1>5?draw_circle(${10-11},0,255,207);
-        draw_circle(${12-13},0,128,255)"
+        draw_circle(${2,3},255,0,0);
+        $1>2?draw_circle(${4,5},255,179,0);
+        $1>3?draw_circle(${6,7},151,255,0);
+        $1>4?draw_circle(${8,9},0,255,28);
+        $1>5?draw_circle(${10,11},0,255,207);
+        draw_circle(${12,13},0,128,255)"
     }
     if $!>1 r. {{0,w}-32},32,1,4,1 frame. xy,1,0,0,0,255 j[0] [1],16,{{0,h}-48} rm. fi
   }
@@ -62914,6 +62935,179 @@ fx_newton_fractal_preview : skip "${6=},${7=},${8=},${22=},${25=},${28=}"
     "{$27}{$28}{$29}{$30}{$31}{$32}{$33}"\
     "{$34}"_{$33?2:0}\
     "{"$px,$py"}{$37}{"$angle"}{0}{0}{0}{0}{$43}{$44}"
+
+#@gui Pixel Stretch : fx_pixel_stretch, fx_pixel_stretch_preview(1)
+#@gui : note = note("<span color="#EE5500"><b>Trail Parameters:</b></span>")
+#@gui : Trail Type = choice{1,"Sharp (Linear)","Smooth (Cubic)"}
+#@gui : Number of Control Points = int(3,2,6)
+#@gui : Starting Point (%) = point(80,20,0,1,255,0,0,-0)
+#@gui : oP = point(-1,-1,0,0,0,0,0,-0)_0
+#@gui : SL = point(80,10,0,1,255,0,0,-0)_0
+#@gui : SR = point(80,30,0,1,255,0,0,-0)_0
+#@gui : Mid Point #1 (%) = point(60,30,0,1,255,179,0,-0)
+#@gui : oM1 = point(-1,-1,0,0,0,0,0,-0)_0
+#@gui : M1L = point(50,30,0,1,255,179,0,-0)_0
+#@gui : M1R = point(70,30,0,1,255,179,0,-0)_0
+#@gui : Mid Point #2 (%) = point(60,50,0,1,151,255,0,-0)_0
+#@gui : oM2 = point(-1,-1,0,0,0,0,0,-0)_0
+#@gui : M2L = point(50,50,0,1,151,255,0,-0)_0
+#@gui : M2R = point(70,50,0,1,151,255,0,-0)_0
+#@gui : Mid Point #3 (%) = point(40,70,0,1,0,255,28,-0)_0
+#@gui : oM3 = point(-1,-1,0,0,0,0,0,-0)_0
+#@gui : M3L = point(30,70,0,1,0,255,28,-0)_0
+#@gui : M3R = point(50,70,0,1,0,255,28,-0)_0
+#@gui : Mid Point #4 (%) = point(60,80,0,1,0,255,207,-0)_0
+#@gui : oM4 = point(-1,-1,0,0,0,0,0,-0)_0
+#@gui : M4L = point(50,80,0,1,0,255,207,-0)_0
+#@gui : M4R = point(70,80,0,1,0,255,207,-0)_0
+#@gui : Ending Point (%) = point(30,99,0,1,0,128,255,-0)
+#@gui : oE = point(-1,-1,0,0,0,0,0,-0)_0
+#@gui : EL = point(20,99,0,1,0,128,255,-0)_0
+#@gui : ER = point(40,99,0,1,0,128,255,-0)_0
+#@gui : Align Side Points With Normals = bool(1)
+#@gui : Anti-Aliasing = _bool(1)
+#@gui : sep = separator()
+#@gui : note = note("<span color="#EE5500"><b>Slice Parameters:</b></span>")
+#@gui : Mode = choice(1,"Custom Slice","Slice of Curve")
+#@gui : Slice Start = point(25,75,0,1,128,128,128,-0)
+#@gui : Slice End = point(75,75,0,1,255,255,255,-0)
+#@gui : Slice Position in Curve (%) = float(100,0,100)_0
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/06/26</i>.</small>")
+fx_pixel_stretch_preview :
+  if !$! return else k[0] to_rgba fi
+  __fx_pixel_stretch $*
+  pw,ph=${-gui_preview_wh} Mwh:=max($pw,$ph)
+
+  # Offset side control points if central point has been moved, and reorder coords columns to (xl,xc,xr).
+  l[coords] { f "x>1 && max(I(1,y))>=0?I + I(0,y) - I(1,y):I" s x rm[1] rv[0,1] a x } => coords
+
+  # Align left & right control points with normals if necessary.
+  if $align_with_normals
+    +r[coords] 100%,$Mwh,1,100%,5 z. 1,1 g. y,0,1 b. y,1%
+    1,$nb_points,1,2,"U = unitnorm(I(#-1,0,round(y*(h#-1 - 1)/(h - 1)),0,1,1)); [ -U[1],U[0] ]" rm.. => normals
+    f[coords] "x!=1?(
+      C = I(1,y); N = I(#$normals,0,y);
+      U = I - C; sgn = sign(dot(U,N));
+      C + sgn*norm(U)*N):I"
+    rm[normals]
+  fi
+
+  # Extract pixel slice.
+  if $slice_mode # Slice of curve
+    slice_t={coords,$slice_pos*(h-1)%}
+    (0^$slice_t,1^$slice_t,2^$slice_t) +warp[coords] .,0,2,1 rm..
+    xs0,ys0,xs1,ys1:=[I[0],I[2]]
+    r. {round(max(abs($xs1-$xs0),abs($ys1-$ys0)))},1,1,100%,3 +warp[0] .,0,1,1 rm..
+  else # Custom slice
+    xs0,ys0,xs1,ys1:={fact=[w#0,h#0]%;[[$slice_sx,$slice_sy]*fact,[$slice_ex,$slice_ey]*fact]}
+    {round(max(abs($xs1-$xs0),abs($ys1-$ys0)))},1,1,4,"P = lerp([ $xs0,$ys0 ],[ $xs1,$ys1 ],x/(w - 1));I(#0,P,1,1)"
+  fi
+  => slice
+
+  # Draw trail preview.
+  sh[0] 0,2 *. 0.75 rm.
+  +r[coords] 100%,$Mwh,1,100%,{$trail_type?5:3} r. $Mwh,100%,1,100%,3
+  {0,[w,h,1,4]} eval.. "P = round(I); I(#-1,P) = I(#$slice,x*(w#$slice - 1)/(w - 1),0,0,1,1)" rm.. ja[0] . rm.
+
+  # Draw shape controls.
+  eval[coords] "I = I; x!=1?(C = I(1,y); polygon(#0,-2,C,I,1,0x0F0F0F0F,0); polygon(#0,-2,C,I,1,0xF0F0F0F0,255))"
+  eval[coords] "begin(colors = [ 255,0,0,255,179,0,151,255,0,0,255,28,0,255,207,0,128,255 ]);
+    RGB = colors[3*(y==$nb_points - 1?size(colors)/3 - 1:y),3];
+    I = I; r1 = x!=1?6:9; r2 = r1 - 2;
+    ellipse(#0,I,r1,r1,0,1,0,0,0,255);
+    ellipse(#0,I,r2,r2,0,1,RGB,255)"
+
+  # Draw pixel slice on curve.
+  if $slice_mode # Slice of curve
+    tt:=$trail_type?2:1
+    repeat 2 { thickline[0] {coords,[I($>,$slice_t,0,$tt,1),I($>+1,$slice_t,0,$tt,1)]},3,1,196,196,196,255 }
+    repeat 3 {
+      c:=lerp(128,255,$%)
+      rectangle[0] {coords,P=I($>,$slice_t,0,$tt,1);[P-6,P+6]},1,0,0,0,255
+      rectangle[0] {coords,P=I($>,$slice_t,0,$tt,1);[P-4,P+4]},1,$c,$c,$c,255
+    }
+  else
+    thickline[0] $xs0,$ys0,$xs1,$ys1,3,1,196,196,196,255
+    repeat 2 {
+      c:=$>?255:128
+      rectangle[0] {P=[${xs$>},${ys$>}];[P-6,P+6]},1,0,0,0,255
+      rectangle[0] {P=[${xs$>},${ys$>}];[P-4,P+4]},1,$c,$c,$c,255
+    }
+  fi
+
+  # Update filter parameters if necessary.
+  1,$nb_points,1,1,"begin(fact = [ w#0,h#0 ]%); # Transfer back modified 'coords' to 'arg_coords'
+    ty = y==h - 1?h#$arg_coords - 1:y;
+    I(#$arg_coords,0,ty) = I(#$coords,1,y)/fact;
+    I(#$arg_coords,2,ty) = I(#$coords,0,y)/fact;
+    I(#$arg_coords,3,ty) = I(#$coords,2,y)/fact"
+  rm.
+
+  repeat 4 { v{1+$>}:=$nb_points>2+$>?2:0 }
+
+  u "{"$trail_type"}{"$nb_points"}"\
+    "{"{arg_coords,I(0,0)}"}{"{arg_coords,I(0,0)}"}{"{arg_coords,I(2,0)}"}{"{arg_coords,I(3,0)}"}"\
+    "{"{arg_coords,I(0,1)}"}"_$v1"{"{arg_coords,I(0,1)}"}{"{arg_coords,I(2,1)}"}{"{arg_coords,I(3,1)}"}"\
+    "{"{arg_coords,I(0,2)}"}"_$v2"{"{arg_coords,I(0,2)}"}{"{arg_coords,I(2,2)}"}{"{arg_coords,I(3,2)}"}"\
+    "{"{arg_coords,I(0,3)}"}"_$v3"{"{arg_coords,I(0,3)}"}{"{arg_coords,I(2,3)}"}{"{arg_coords,I(3,3)}"}"\
+    "{"{arg_coords,I(0,4)}"}"_$v4"{"{arg_coords,I(0,4)}"}{"{arg_coords,I(2,4)}"}{"{arg_coords,I(3,4)}"}"\
+    "{"{arg_coords,I(0,5)}"}{"{arg_coords,I(0,5)}"}{"{arg_coords,I(2,5)}"}{"{arg_coords,I(3,5)}"}"\
+    "{"$align_with_normals"}{"$antialiasing"}"\
+    "{"$slice_mode"}"\
+    "{"$slice_sx,$slice_sy"}"_{!$slice_mode?2:0}\
+    "{"$slice_ex,$slice_ey"}"_{!$slice_mode?2:0}\
+    "{"$slice_pos"}"_{$slice_mode?2:0}
+  k[0]
+
+# Extract filter arguments as named variable + coordinates image.
+__fx_pixel_stretch :
+  trail_type,nb_points,align_with_normals,antialiasing,\
+    slice_mode,slice_sx,slice_sy,slice_ex,slice_ey,slice_pos=${1,2},${51-58}
+  (${3-50}) r. 2,4,6,1,-1 permute. yzcx => arg_coords
+  +l. { s y k[0-{$nb_points-2},-1] a y } sh. 0 *. {0,w%} rm. sh. 1 *. {0,h%} rm. => coords
+
+fx_pixel_stretch :
+  __$0 $* rm[arg_coords]
+  l[coords] { s x rm[1] rv[0,1] a x } => coords
+
+  foreach[^coords] {
+    nm=${-gui_layer_name}
+    w,h:=w,h Mwh:=max($w,$h)
+    pass[coords] 0
+
+    # Extract pixel slice.
+    to_rgba[0]
+    if $slice_mode # Slice of curve
+      slice_t={coords,$slice_pos*(h-1)%}
+      (0^$slice_t,1^$slice_t,2^$slice_t) +warp[coords] .,0,2,1 rm..
+      xs0,ys0,xs1,ys1:=[I[0],I[2]]
+      r. {round(max(abs($xs1-$xs0),abs($ys1-$ys0)))},1,1,100%,3 +warp[0] .,0,1,1 rm..
+    else # Custom slice
+      xs0,ys0,xs1,ys1:={fact=[w#0,h#0]%;[[$slice_sx,$slice_sy]*fact,[$slice_ex,$slice_ey]*fact]}
+      {max(abs($xs1-$xs0),abs($ys1-$ys0))},1,1,4,"P = lerp([ $xs0,$ys0 ],[ $xs1,$ys1 ],x/(w - 1));I(#0,P,1,1)"
+    fi
+    => slice
+
+    # Draw trail on a new transparent layer.
+    if $antialiasing *[coords] 2 fi
+    r[coords] 100%,$Mwh,1,100%,{$trail_type?5:3}
+    r[coords] $Mwh,100%,1,100%,3
+    {0,($antialiasing?2:1)*[w,h]},1,1,-1 100%,100%,1,1
+
+    eval[coords] ":const boundary = 1;
+      cc = I; nc = J(1,0); nn = J(1,1); cn = J(0,1);
+      polygon(#-1,4,cc,nc,nn,cn,1,1);
+      i(#-2,cc) = x*(w#$slice - 1)/(w - 1);
+      _0"
+    rm[coords]
+    repeat 2 { f.. "*const boundary = 1; V = crop(x - 1,y - 1,3,3); M = max(V); i<0 && M>=0?M:i" }
+    +f. "*i(#-2)!=-1?0:i" if iM inpaint... .,0,1 fi rm.
+    warp[slice] ..,0,1,0 rm..
+    sh.. 100% *. .. rm[-2,-1]
+    r. $w,$h,1,100%,2 => $nm rv
+  }
+  rm[coords]
 
 #@gui Plasma : fx_plasma, fx_plasma(0)
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
