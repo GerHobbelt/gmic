@@ -123,13 +123,13 @@
 #          Add a filename parameter (as a filechooser).
 #
 #      _ 'float(default_value,min_value,max_value)':
-#          Add a floating-point parameter (as a float slider).
+#          Add a floating-point value (as a float slider).
 #
 #      _ 'folder(_default_foldername)':
 #          Add a foldername parameter (as a folderchooser).
 #
 #      _ 'int(default_value,min_value,max_value)':
-#          Add an integer parameter (as an integer slider).
+#          Add an integer value (as an integer slider).
 #
 #      _ 'link(_alignment,_label,URL)':
 #          Display a URL (do not add a parameter).
@@ -235,6 +235,7 @@ cli_start :
 #@cli : When enabled, the G'MIC interpreter becomes much more verbose and prints additional messages about its \
 # internal state to the standard output (stdout).
 #@cli : This option is mainly intended for developers and for reporting potential interpreter bugs.
+
 #@cli h : eq. to 'help'.
 h :
   help $"*"
@@ -335,15 +336,15 @@ reference : skip "${2=}"
   _section "Usage"
   _text \
 "~~~\ngmic [command_1 [arg_1_1,arg_1_2,..]] .. [command_N [arg_N_1,arg_N_2,..]]\n~~~"\n\n\
-"`gmic` is the open-source interpreter of the G'MIC language, a scripting programming "\
-"language dedicated to designing potentially complex image processing pipelines and operators."\n\
+"`gmic` is the open-source interpreter of the G'MIC language, a scripting language dedicated "\
+"to designing potentially complex image-processing pipelines and operators."\n\
 "It can be used to convert, manipulate, filter and visualize image datasets consisting of one or "\
 "more 1D, 2D or 3D multi-spectral images."\n\
 \n\
 "This reference documentation describes all the technical aspects of the G'MIC framework, "\
 "in its current version ___"${-strver}"___."\n\
 \n\
-"As a starting point, you may want to visit our detailed tutorial pages, at: <https://gmic.eu/tutorial/>"
+"For a gentler introduction, see the tutorial: <https://gmic.eu/tutorial/>"
 
   _section "Overall Context"
   _text \
@@ -354,20 +355,20 @@ reference : skip "${2=}"
 "* Negative indices are handled periodically: '[-1]' refers to the last image in the list, '[-2]' to the "\
 "penultimate one, etc. Thus, if the list has 4 images, '[1]' and '[-3]' both designate the second image in the list."\n\
 "* A named image can also be designated by '[name]', if 'name' uses the character set `[a-zA-Z0-9_]` and does not "\
-"start with a number. Image names can be set or reassigned at any moment during the processing pipeline "\
+"start with a number. Image names can be set or reassigned at any time during the processing pipeline "\
 "(see command ''name'' for this purpose)."\n\
 "* G'MIC defines a set of commands and substitution mechanisms to allow the design of complex "\
 "pipelines and operators managing this list of images, in a very flexible way: You can insert or remove images "\
 "in the list, rearrange image order, process images (individually or grouped), merge image data together, "\
 "display and output image files, etc."\n\
-"* Such a pipeline can define a new custom G'MIC command (stored in a user command file), and subsequently reused "\
+"* Such a pipeline can define a new custom G'MIC command (stored in a user command file), which can then be reused "\
 "as a regular command within a larger pipeline."
 
   _section "Image Definition and Terminology"
   _text \
 "* In G'MIC, each image is modeled as a 1D, 2D, 3D or 4D array of scalar values, uniformly "\
-"discretized on a rectangular or parallelepipedic domain."\n\
-"* The four dimensions of this array are respectively denoted by:"\n\
+"discretized on a rectangular or parallelepiped domain."\n\
+"* The four dimensions are:"\n\
 "  - `width`, the number of image columns (size along the `x-axis`)."\n\
 "  - `height`, the number of image rows (size along the `y-axis`)."\n\
 "  - `depth`, the number of image slices (size along the `z-axis`). "\
@@ -375,17 +376,17 @@ reference : skip "${2=}"
 "  - `spectrum`, the number of image channels (size along the `c-axis`). "\
 "The spectrum is equal to '3' and '4' for standard `RGB` and `RGBA` color images, respectively."\n\
 \n\
-"* There are no hard limitations on the size of the image along each dimension. For instance, the number of image "\
+"* There are no hard limit on the size of the image along each dimension. For instance, the number of image "\
 "slices or channels can be of arbitrary size within the limits of the available memory."\n\
 "* The `width`, `height` and `depth` of an image are considered as _spatial_ dimensions, while the `spectrum` "\
 "represents the spectral dimension. Thus, a 4D image in G'MIC should be most often regarded as a 3D dataset of "\
 "multi-spectral voxels. Most G'MIC commands adhere to this convention (e.g. by default, command ''blur'' blurs "\
 "4D images only along the three spatial `xyz`-axes)."\n\
 "* G'MIC stores all the image data as buffers of `float` values (32 bits, value range '[-3.4E38,+3.4E38]'). "\
-"It performs all its image processing operations with floating point numbers. Each image pixel then requires "\
+"It performs all its image processing operations with floating-point numbers. Each image pixel then requires "\
 "32 bits per channel (except if double-precision buffers have been enabled during the compilation of the software, "\
 "in which case 64 bits per channel can be the default)."\n\
-"* Using `float`-valued pixels ensures that numerical precision is maintained when executing image processing "\
+"* Using floating-point pixels ensures that numerical precision is maintained when executing image processing "\
 "pipelines. For image input/output operations, you may want to specify a non-float datatype "\
 "(such as `bool`, `char`, `int`, etc.). This is possible by specifying it as a file option when using "\
 "I/O commands (see section ''Input/Output Properties'' to learn more about file options)."
@@ -393,10 +394,10 @@ reference : skip "${2=}"
   _section "Items of a Processing Pipeline"
   _text \
 "* In G'MIC, an image processing pipeline is described as a sequence of items separated by the "\
-"__space__ character. Such items are interpreted and executed from left to right. For instance, "\
+"__space__ character. Such items are parsed and executed from left to right. For instance, "\
 "the expression:"\n\
 "~~~\nfilename.jpg blur 3,0 sharpen 10 resize 200%,200% output file_out.jpg\n~~~\n"\
-"defines a valid pipeline composed of nine G'MIC items."\n\n\
+"is a valid pipeline composed of nine G'MIC items."\n\n\
 "* Each G'MIC item is either a __command__, a list of __command arguments__, "\
 "a __filename__ or a special __input string__."\n\
 "* Escape characters '\\' and double quotes '\"' can be used to define items containing spaces or "\
@@ -405,7 +406,7 @@ reference : skip "${2=}"
 
   _section "Input Data"
   _text \
-"* If a specified G'MIC item appears to be an existing filename, the corresponding image data "\
+"* If a G'MIC item appears to be an existing filename, the corresponding image data "\
 "are loaded and inserted at the end of the image list (which is equivalent to the use of `input filename`). "\n\
 "* Special filenames `-` and `-.ext` stand for the standard input/output (stdin/stdout) streams, optionally "\
 "forced to be in a specific 'ext' file format (e.g. `-.jpg` or `-.png`). "\n\
@@ -414,33 +415,33 @@ reference : skip "${2=}"
 "  - '[selection]' or '[selection]xN': Insert 1 or N copies of already existing images. "\
 "'selection' may represent one or several images (see section ''Command Items and Selections'' to learn more "\
 "about selections)."\n\
-"  - 'width[%],_height[%],_depth[%],_spectrum[%],_values[xN]': Insert one or N images with specified "\
+"  - 'width[%],_height[%],_depth[%],_spectrum[%],_values[xN]': Insert one or `N` new images with specified "\
 "size and values (adding '%' to a dimension means __\"percentage of the size along the same axis\"__, "\
 "taken from the last image '[-1]'). Any specified dimension can be also written as "\
-"'[image]', and is then set to the size (along the same axis) of the existing specified image "\
+"'[image]', and is then set to the size (along the same axis) of the existing image "\
 "'[image]'. 'values' can be either a sequence of numbers separated by commas ',', "\
 "or a mathematical expression, as e.g. in input item '256,256,1,3,[x,y,128]' which "\
 "creates a `256x256` RGB color image with a spatial shading on the red and green channels. "\
 "(see section ''Mathematical Expressions'' to learn more about mathematical expressions). "\n\
-"  - '(v1,v2,..[:delimiter | axis_order])[xN]': Insert one or `N` new images from specified prescribed values. "\
+"  - '(v1,v2,..[:delimiter | axis_order])[xN]': Insert one or `N` new images from explicit values. "\
 "Value separator inside parentheses can be ',' (column separator), ';' (row separator), '/' (slice separator) or "\
 "'^' (channel separator). For instance, expression '(1,2,3;4,5,6;7,8,9)' creates a 3x3 matrix (scalar image), "\
 "with values running from 1 to 9. "\n\
-"  - '(\\'string\\'[:delimiter])[xN]': Insert one or N new images from specified string, by filling "\
-"the images with the character codes composing the string. When specified, 'delimiter' tells about "\
+"  - '(\\'string\\'[:delimiter])[xN]': Insert one or `N` new images from the given string, by filling "\
+"the images with the character codes composing the string. When specified, 'delimiter' defines "\
 "the main orientation of the image. Delimiter can be 'x' (equivalent to ',' which is the default), "\
 "'y' (eq. to ';'), 'z' (eq. to '/') or 'c' (eq. to '^'). "\
 "When specified delimiter is ',', ';', '/' or '^', the expression is actually equivalent to "\
 "'({\\'string\\'[:delimiter]})[xN]' (see section ''Substitution Rules'' for more information on the syntax)."\n\
-"  - '0[xN]': Insert one or N new `empty` images, containing no pixel data. "\
+"  - '0[xN]': Insert one or `N` new `empty` images, containing no pixel data. "\
 "Empty images are used only in rare occasions."\n\
 \n\
 "* Input item 'name=value' declares a new variable 'name', or assigns a new string value to an existing variable. "\
 "Variable names must use the character set `[a-zA-Z0-9_]` and cannot start with a number. "\n\
 "* A variable definition is always local to the current command except:"\n\
-"  - When it starts with an underscore '_'. In that case, it becomes also accessible by any command invoked "\
+"  - When it starts with an underscore '_'. In that case, it also becomes accessible by any command invoked "\
 "outside the current command scope (global variable)."\n\
-"  - When it is defined in a _shared variable_ command, a variable becomes also accessible in the calling "\
+"  - When it is defined in a _shared variable_ command, a variable also becomes accessible in the calling "\
 "(parent) command. A _shared variable_ command is a command whose name starts with `__` (e.g. `__foo`)."\n\
 "* If a variable name starts with two underscores `__`, the global variable is also shared among different threads "\
 "and can be read/set by commands running in parallel (see command ''parallel'' for this purpose). "\
@@ -448,8 +449,8 @@ reference : skip "${2=}"
 "* Numerical variables can be updated using these special operators: "\
 "'+=' (addition), '-=' (subtraction), '*=' (multiplication), '/=' (division), '%=' (modulo), '&=' (bitwise and), "\
 "'|=' (bitwise or), '^=' (power), '<<=' and '>>=' (bitwise left and right shifts). For instance, 'foo=1' 'foo+=3'."\n\
-"* Input item 'name.=string' appends specified `string` at the end of variable 'name'."\n\
-"* Input item 'name..=string' prepends specified `string` at the beginning of variable 'name'."\n\
+"* Input item 'name.=string' appends `string` at the end of variable 'name'."\n\
+"* Input item 'name..=string' prepends `string` at the beginning of variable 'name'."\n\
 "* Multiple variable assignments and updates are allowed, with expressions: 'name1,name2,...,nameN=value' or "\
 "'name1,name2,...,nameN=value1,value2,...,valueN' where assignment operator '=' can be replaced by one of the "\
 "allowed operators (e.g. '+=')."\n\
@@ -588,7 +589,7 @@ reference : skip "${2=}"
 "enabled/disabled by the input expression 'filename.gmic[,add_debug_info]' where 'debug_info' can be "\
 "{ 0:False | 1:True }. "\n\
 "  - Prepending 'ext:' to a filename (e.g. 'jpg:filename') forces G'MIC to "\
-"read/write the file as if it had the specified extension `.ext`."\n\
+"read/write the file as if it had the given extension `.ext`."\n\
 \n\
 "* Some input/output formats and options may not be supported, depending on the configuration "\
 "flags that have been set during the build of the G'MIC software."
@@ -597,7 +598,7 @@ reference : skip "${2=}"
   _text \
 "* G'MIC items containing '$' or '{}' are substituted before being interpreted. Use these "\
 "substituting expressions to access various data from the interpreter environment."\n\
-"* '$name' and '${name}' are both substituted by the value of the specified named variable "\
+"* '$name' and '${name}' are both substituted by the value of the named variable "\
 "(set previously by the item 'name=value'). If this variable has not been already set, the "\
 "expression is substituted by the highest positive index of the named image '[name]'. If no "\
 "image has this name, the expression is substituted by the value of the OS environment variable "\
@@ -629,14 +630,14 @@ reference : skip "${2=}"
 " (e.g. '"$_version"'). "\n\
 "  - '$_vt100': Set to `1` if colored text output is allowed on the console. Otherwise, set to `0`."\n\
 \n\
-"* '$$name' and '$${name}' are both substituted by the G'MIC script code of the specified named "\
+"* '$$name' and '$${name}' are both substituted by the G'MIC script code of the named "\
 "`custom command`, or by an empty string if no custom command with specified name exists. "\n\
-"* '${\"-pipeline\"}' is substituted by the __status value__ after the execution of the specified "\
+"* '${\"-pipeline\"}' is substituted by the __status value__ after the execution of the "\
 "G'MIC pipeline (see command ''status''). Expression '${}' thus stands for the current status value."\n\
-"* '{:string}' is substituted by a double-quoted version of the specified string."\n\
-"* '{/string}' is substituted by the escaped version of the specified string."\n\
+"* '{:string}' is substituted by a double-quoted version of the string."\n\
+"* '{/string}' is substituted by the escaped version of the string."\n\
 "* '{\\'string\\'[:delimiter]}' (between single quotes) is substituted by the sequence of character codes "\
-"that composes the specified string, separated by specified delimiter. Possible delimiters are "\
+"that composes the string, separated by specified delimiter. Possible delimiters are "\
 "',' (default), ';', '/', '^' or ' '. For instance, item '{'foo'}' is substituted by '102,111,111' and "\
 "'{'foo':;}' by '102;111;111'."\n\
 "* '{image,feature[:delimiter]}' is substituted by a specific feature of the image '[image]'. "\
@@ -698,19 +699,18 @@ reference : skip "${2=}"
 
   _section "Mathematical Expressions"
   _text \
-"* G'MIC has an embedded __mathematical parser__, used to evaluate (possibly complex) math expressions "\
+"* G'MIC has an embedded __mathematical parser__, used to evaluate (possibly complex) mathematical expressions "\
 "specified inside braces '{}', or formulas in commands that may take one as an argument (e.g. ''fill'' or ''eval'')."\n\
 "* When the context allows it, a formula is evaluated __for each pixel__ of the selected images "\
 "(e.g. ''fill'' or ''eval'')."\n\
-"* A math expression may return or take as an argument a __scalar__ or a __vector-valued__ result "\
-"(with a fixed number of components)."\n\
-"The mathematical parser understands the following set of functions, operators and variables:"\n\
-"## Usual math operators:"\n\
+"* A mathematical expression may return, or take as arguments, either a __scalar__ or a __fixed-size vector__."\n\
+"The mathematical parser supports the following operators, functions and variables:"\n\
+"## Common mathematical operators:"\n\
 "'||' (logical or), '&&' (logical and), '|' (bitwise or), '&' (bitwise and), "\
 "'!=', '==', '<=', '>=', '<', '>', '<<' (left bitwise shift), '>>' (right bitwise shift), '-', '+', '*', '/', "\
 "'%' (modulo), '^' (power), '!' (logical not), '~' (bitwise not), '++', '--', '+=', '-=', '*=', '/=', '%=', "\
 "'&=', '|=', '^=', '>>', '<<=' (in-place operators)."\n\
-"## Usual math functions:"\n\
+"## Common mathematical functions:"\n\
 "'abs()', 'acos()', 'acosh()', 'arg0()', 'arg1()', 'argkth()', 'argmax()', 'argmaxabs()', "\
 "'argmin()', 'argminabs()', 'asin()', 'asinh()', 'atan()', 'atan2()', 'atanh()', 'avg()', 'bool()', 'cbrt()', "\
 "'ceil()', 'cos()', 'cosh()', 'cut()', 'deg2rad()', 'erf()', 'erfinv()', 'exp()', 'fact()', 'fibo()', 'floor()', "\
@@ -728,7 +728,7 @@ reference : skip "${2=}"
 "* 'gauss(x,_sigma,_is_normalized)' returns `exp(-x^2/(2*s^2))/(is_normalized?sqrt(2*pi*sigma^2):1)`."\n\
 "* 'cut(x,min,_max)' returns 'x' if it is in range '[min,max]', or 'min' or 'max' otherwise."\n\
 "* 'abscut(x,min,_max,_offset)' returns 'cut(abs(x) + offset,min,max)*sign(x)'."\n\
-"* 'narg(a_1,...,a_N)' returns the number of specified arguments (here, 'N')."\n\
+"* 'narg(a_1,...,a_N)' returns the number of given arguments (here, 'N')."\n\
 "* 'arg0(i,a_0,..,a_N)' returns the `i`-th argument 'a_i' (where index `i` goes from '0' to 'N')."\n\
 "* 'arg1(i,a_1,..,a_N)' does the same, but for index `i` going from '1' to 'N'."\n\
 "* 'indexof(ref,a_0,..,a_N)' returns the index `i` of the element `ref` in the list of elements `a_k` "\
@@ -744,65 +744,65 @@ reference : skip "${2=}"
 "* 'isin(v,a_1,...,a_n)' returns '0' (false) or '1' (true) depending on whether the first argument 'v' appears in the "\
 "set of other argument 'a_i'."\n\
 "* 'isint(x,_xmin,_xmax)' returns '1' (true), if 'x' is an integer in range '[xmin,xmax]', otherwise '0' (false)."\n\
-"* 'inrange(value,m,M,include_m,include_M)' returns '0' (false) or '1' (true) depending on whether the specified "\
+"* 'inrange(value,m,M,include_m,include_M)' returns '0' (false) or '1' (true) depending on whether the given "\
 "value lies in range '[m,M]' ('include_m' and 'includeM' tells how boundaries 'm' and 'M' are considered)."\n\
 "* 'argkth()', 'argmin()', 'argmax()', 'argminabs()', 'argmaxabs()', 'avg()', 'kth()', 'min()', 'max()', 'minabs()', "\
 "'maxabs()', 'med()', 'prod()', 'std()', 'sum()' and 'var()' can be called with an arbitrary number of scalar/vector "\
 "arguments."\n\
 "* 'vargkth()', 'vargmin()', 'vargmax()', 'vargminabs()', 'vargmaxabs()', 'vavg()', 'vkth()', 'vmin()', "\
 "'vmax()', 'vminabs()', 'vmaxabs()', 'vmed()', 'vprod()', 'vstd()', 'vsum()' and 'vvar()' are the versions of the "\
-"previous function with vector-valued arguments."\n\
+"previous function with vector arguments."\n\
 "* 'wave(x,type)' defines a periodic function, period 1, with values in [-1,1]. "\
 "'type' sets the waveform. It can be { 0:Square | 1:Triangle | 2:Ascending sawtooth | 3:Descending sawtooth | "\
 "4:Sine }."\n\
 "* 'round(value,rounding_value,direction)' returns a rounded value. 'direction' can be "\
 "{ -1:To-lowest | 0:To-nearest | 1:To-highest }."\n\
-"* 'softmax(V,_temperature)' and 'softmin(V,_temperature)' respectively returns the softmax and softmin of specified "\
+"* 'softmax(V,_temperature)' and 'softmin(V,_temperature)' respectively returns the softmax and softmin of "\
 "vector 'V'. Default value for 'temperature' is 1."\n\
 "* 'softargmax(V,_temperature)' and 'softargmin(V,_temperature)' respectively returns the softargmax and softargmin "\
-"of specified vector 'V'. Default value for 'temperature' is 1."\n\
+"of vector 'V'. Default value for 'temperature' is 1."\n\
 "* 'lerp(a,b,t)' returns 'a*(1-t)+b*t'."\n\
 "* 'swap(a,b)' swaps the values of the given arguments. 'swap(#ind,offset0,offset1,_is_vector)' swaps pixels of image "\
 "'[ind]', located at offsets 'offset0' and 'offset1'."\n\
 "## Predefined variable names:"\n\
 "Variable names below are predefined. They can be overridden though."\n\
-"* 'l': length of the associated list of images."\n\
-"* 'k': index of the associated image, in '[0,l-1]'."\n\
-"* 'w': width of the associated image, if any ('0' otherwise)."\n\
-"* 'h': height of the associated image, if any ('0' otherwise)."\n\
-"* 'd': depth of the associated image, if any ('0' otherwise)."\n\
-"* 's': spectrum of the associated image, if any ('0' otherwise)."\n\
-"* 'r': shared state of the associated image, if any ('0' otherwise)."\n\
+"* 'l': length of the current list of images."\n\
+"* 'k': index of the current image, in '[0,l-1]'."\n\
+"* 'w': width of the current image, if any ('0' otherwise)."\n\
+"* 'h': height of the current image, if any ('0' otherwise)."\n\
+"* 'd': depth of the current image, if any ('0' otherwise)."\n\
+"* 's': spectrum of the current image, if any ('0' otherwise)."\n\
+"* 'r': shared state of the current image, if any ('0' otherwise)."\n\
 "* 'wh': shortcut for 'width*height'."\n\
 "* 'whd': shortcut for 'width*height*depth'."\n\
 "* 'whds': shortcut for 'width*height*depth*spectrum' (i.e. number of image values)."\n\
 "* 'ia', 'ic', 'id', 'im', 'iM', 'in', 'ip', 'is', 'iv': Respectively the average, median, standard deviation, "\
-"minimum, maximum, L2-norm, product, sum and variance of the associated image, if any ('0' otherwise)."\n\
-"* 'xm', 'ym', 'zm', 'cm': The pixel coordinates of the minimum value in the associated image, "\
+"minimum, maximum, L2-norm, product, sum and variance of the current image, if any ('0' otherwise)."\n\
+"* 'xm', 'ym', 'zm', 'cm': The pixel coordinates of the minimum value in the current image, "\
 "if any ('0' otherwise)."\n\
-"* 'xM', 'yM', 'zM', 'cM': The pixel coordinates of the maximum value in the associated image, "\
+"* 'xM', 'yM', 'zM', 'cM': The pixel coordinates of the maximum value in the current image, "\
 "if any ('0' otherwise)."\n\
 "* All these variables are considered as __constant values__ by the math parser (for optimization purposes) "\
 "which is indeed the case most of the time. Anyway, this might not be the case, if function 'resize(#ind,..)' "\
 "is used in the math expression. If so, it is safer to invoke functions 'l()', 'w(_#ind)', 'h(_#ind)', ... 's(_#ind)' "\
 "and 'in(_#ind)' instead of the corresponding named variables."\n\
-"* 'i': current processed pixel value (i.e. value located at `(x,y,z,c)`) in the associated image, "\
+"* 'i': currently processed pixel value (i.e. value located at `(x,y,z,c)`) in the current image, "\
 "if any ('0' otherwise)."\n\
-"* 'iN': N-th channel value of current processed pixel (i.e. value located at `(x,y,z,N)` in the associated image, "\
+"* 'iN': N-th channel value of currently processed pixel (i.e. value located at `(x,y,z,N)` in the current image, "\
 "if any ('0' otherwise). 'N' must be an integer in range '[0,9]'."\n\
 "* 'R', 'G', 'B' and 'A' are equivalent to 'i0', 'i1', 'i2' and 'i3' respectively."\n\
-"* 'I': current vector-valued processed pixel in the associated image, if any ('0' otherwise). "\
+"* 'I': currently processed vector pixel in the current image, if any ('0' otherwise). "\
 "The number of vector components is equal to the number of image channels (e.g. 'I' = `[ R,G,B ]` for a "\
 "`RGB` image)."\n\
-"* '_0' and '_1': Vectors whose dimension is equal to the number of channels of the associated image, "\
+"* '_0' and '_1': Vectors whose dimension is equal to the number of channels of the current image, "\
 "and whose values are all '0' or '1'."\n\
 "* You may add '#ind' to any of the variable name above to retrieve the information for any "\
 "numbered image '[ind]' in the list (when this makes sense). For instance 'ia#0' denotes the average value of the "\
 "first image in the list)."\n\
-"* 'x': current processed column of the associated image, if any ('0' otherwise)."\n\
-"* 'y': current processed row of the associated image, if any ('0' otherwise)."\n\
-"* 'z': current processed slice of the associated image, if any ('0' otherwise)."\n\
-"* 'c': current processed channel of the associated image, if any ('0' otherwise)."\n\
+"* 'x': currently processed column of the image, if any ('0' otherwise)."\n\
+"* 'y': currently processed row of the image, if any ('0' otherwise)."\n\
+"* 'z': currently processed slice of the image, if any ('0' otherwise)."\n\
+"* 'c': currently processed channel of the image, if any ('0' otherwise)."\n\
 "* 't': thread id when an expression is evaluated with multiple threads ('0' means __master thread__)."\n\
 "* 'n': maximum number of threads when expression is evaluated in parallel (so that 't' goes from '0' to 'n-1')."\n\
 "* 'e': value of e, i.e. `2.71828...`."\n\
@@ -819,11 +819,11 @@ reference : skip "${2=}"
 "on pixel access operators). Its initial default value is '0'."\n\
 "* The last image in the list is always associated to the evaluations of 'expressions', e.g. G'MIC sequence "\
 "\n~~~\n256,128 fill {w}\n~~~\n will create a 256x128 image filled with value 256."\n\
-"## Vector-valued functions and operators:"\n\
-"The math evaluator is able to work with vector-valued elements. A math function applied to a vector-valued "\
+"## Vector functions and operators:"\n\
+"The math evaluator is able to work with vector elements. A math function applied to a vector "\
 "argument usually returns a vector with same dimension, where each element of the input vector "\
 "has been passed to the specified function (e.g. 'abs([-1,2,-3])' returns '[1,2,3]')."\n\n\
-"There are specific functions and operators to define or compute vector-valued elements though :"\n\
+"There are specific functions and operators to define or compute vector elements though :"\n\
 "* '[a0,a1,...,aN-1]' defines a 'N'-dimensional vector with scalar coefficients 'ak'."\n\
 "* 'vectorN(a0,a1,,...,aN-1)' does the same, with the 'ak' being repeated periodically if only a few are specified."\n\
 "* 'vector(#N,a0,a1,,...,aN-1)' does the same, and can be used for any constant expression 'N'."\n\
@@ -839,12 +839,12 @@ reference : skip "${2=}"
 "'shift(A,_length,_boundary_conditions)' and 'same(A,B,_nb_vals,_is_case_sensitive)' (vector equality test)."\n\
 "* Function 'normP(u1,...,un)' computes the LP-norm of the specified vector "\
 "('P' being a constant or 'inf', as in e.g. 'norm1()')."\n\
-"* Function 'normp(V,_p)' computes the Lp-norm of the specified vector 'V'. Here, 'p' can be variable. "\
+"* Function 'normp(V,_p)' computes the Lp-norm of the vector 'V'. Here, 'p' can be variable. "\
 "Default value for 'p' is 2."\n\
-"* Function 'unitnorm(V,_p)' returns a normalized version 'V/normp(V)' of specified vector 'V'. "\
+"* Function 'unitnorm(V,_p)' returns a normalized version 'V/normp(V)' of vector 'V'. "\
 "Default value for 'p' is 2."\n\
 "* Function 'resize(A,size,_interpolation,_boundary_conditions)' returns a resized version of a vector 'A' with "\
-"specified interpolation mode. 'interpolation' can be "\
+"given interpolation mode. 'interpolation' can be "\
 "{ -1:None (memory content) | 0:None | 1:Nearest | 2:Average | 3:Linear | 4:Grid | 5:Bicubic | 6:Lanczos }, and "\
 "'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }."\n\
 "* Function 'find(A,B,_starting_index,_search_step)' returns the index where sub-vector 'B' appears in vector 'A', "\
@@ -853,7 +853,7 @@ reference : skip "${2=}"
 "(e.g. 'fill') modifies the whole spectrum range of the processed image(s), for each spatial coordinates `(x,y,z)`. "\
 "The command does not loop over the `c`-axis in this case."\n\
 "## Complex-valued functions:"\n\
-"A `2`-dimensional vector may be seen as a complex number and used in those particular functions/operators: "\
+"A `2`-dimensional vector may be interpreted as a complex number and used in those particular functions/operators: "\
 "'**' (complex multiplication), '//' (complex division), '^^' (complex exponentiation), "\
 "'**=' (complex self-multiplication), '//=' (complex self-division), '^^=' (complex self-exponentiation), "\
 "'cabs()' (complex modulus), 'carg()' (complex argument), 'cconj()' (complex conjugate), "\
@@ -862,7 +862,7 @@ reference : skip "${2=}"
 "'ccosh()' (complex hyperpolic cosine), 'csinh()' (complex hyperbolic sine) and "\
 "'ctanh()' (complex hyperbolic tangent)."\n\
 "## Matrix-valued functions:"\n\
-"A `MN`-dimensional vector may be seen as a `M` x `N` matrix and used in those particular functions/operators: "\
+"A `MN`-dimensional vector may be interpreted as a `M` x `N` matrix and used in those particular functions/operators: "\
 "'*' (matrix-vector multiplication), 'det(A)' (determinant), 'diag(V)' (diagonal matrix from a vector), "\
 "'eig(A)' (eigenvalues/eigenvectors), 'eye(n)' (n x n identity matrix), 'invert(A,_nb_colsA)' "\
 "(matrix inverse), 'mul(A,B,_nb_colsB)' (matrix-matrix multiplication), 'qr(A,_nb_colsA,_is_reduced_form)', "\
@@ -873,55 +873,55 @@ reference : skip "${2=}"
 "## Image-valued functions:"\n\
 "Some functions take vector-valued arguments that represent image data :"\n\
 "* Function 'expr(formula,_w,_h,_d,_s,_A)' outputs a vector of size 'w*h*d*s' with values generated from "\
-"the specified formula, as if one were filling an image with dimensions '(w,h,d,s)'. If 'A' is specified, "\
+"the given formula, as if one were filling an image with dimensions '(w,h,d,s)'. If 'A' is specified, "\
 "it must be a vector of size 'w*h*d*N' ('N' can be different from 's'). "\
-"It is then passed as a reference image (of size 'w' x 'h' x 'd' x 'N') for the specified expression."\n\
+"It is then passed as a reference image (of size 'w' x 'h' x 'd' x 'N') for the given expression."\n\
 "* Function 'resize(A,wA,hA,dA,sA,nwA,_nhA,_ndA,_nsA,_interpolation,_boundary_conditions,_ax,_ay,_az,_ac)' is an "\
-"extended version of the 'resize()' function. It lets you resize the vector 'A', seen as an image of size "\
+"extended version of the 'resize()' function. It lets you resize the vector 'A', treated as an image of size "\
 "'(ow,oh,od,os)' as a new image of size '(nw,nh,nd,ns)', with specified resizing options."\n\
 "* Function 'warp(A,wA,hA,dA,sA,B,wB,hB,dB,sB,_mode,_interpolation,_boundary_conditions)' returns the warped version "\
-"of the image 'A' (of size '(wA,hA,dA,sA)', seen as a vector of size '(wA*hA*dA*sA)' by the warping field 'B' "\
+"of the image 'A' (of size '(wA,hA,dA,sA)', treated as a vector of size '(wA*hA*dA*sA)' by the warping field 'B' "\
 "(of size '(wB,hB,dB,sB)'). The resulting image has size '(wB,hB,dB,sA)'. "\
-"This is the math evaluator analog to command ''warp''."\n\
+"This is the math evaluator equivalent of command ''warp''."\n\
 "* Function 'index(A,P,nb_channelsP,_dithering,_map_colors)' returns the indexed version "\
 "of the image 'A' by the colormap 'P'. "\
-"This is the math evaluator analog to command ''index''."\n\
+"This is the math evaluator equivalent of command ''index''."\n\
 "* Function 'permute(A,wA,hA,dA,sA,permutation)' returns a permuted version of the image 'A' "\
-"(of size '(wA,hA,dA,sA)', seen as a vector of size 'wA*hA*dA*sA'). "\
-"This is the math evaluator analog to command ''permute''."\n\
+"(of size '(wA,hA,dA,sA)', treated as a vector of size 'wA*hA*dA*sA'). "\
+"This is the math evaluator equivalent of command ''permute''."\n\
 "* Function 'mirror(A,wA,hA,dA,sA,axes_string)' returns a mirrored version of the image 'A' "\
-"(of size '(wA,hA,dA,sA)', seen as a vector of size 'wA*hA*dA*sA'). "\
-"This is the math evaluator analog to command ''mirror''."\n\
+"(of size '(wA,hA,dA,sA)', treated as a vector of size 'wA*hA*dA*sA'). "\
+"This is the math evaluator equivalent of command ''mirror''."\n\
 "* Function 'cumulate(A,wA,hA,dA,sA,_axes_string)' returns a cumulated version of the image 'A' "\
-"(of size '(wA,hA,dA,sA)', seen as a vector of size 'wA*hA*dA*sA'). "\
-"This is the math evaluator analog to command ''cumulate''."\n\
+"(of size '(wA,hA,dA,sA)', treated as a vector of size 'wA*hA*dA*sA'). "\
+"This is the math evaluator equivalent of command ''cumulate''."\n\
 "* Function 'histogram(A,nb_levels,_min_value,_max_value)' returns the histogram of the vector 'A'. "\
-"This is the math evaluator analog to command ''histogram''."\n\
+"This is the math evaluator equivalent of command ''histogram''."\n\
 "* Function 'equalize(A,nb_levels,_min_value,_max_value)' returns the equalized version of the vector 'A'. "\
-"This is the math evaluator analog to command ''equalize''."\n\
+"This is the math evaluator equivalent of command ''equalize''."\n\
 "* Function 'normalize(A,_min_value,_max_value)' returns the normalized version of the vector 'A'. "\
-"This is the math evaluator analog to command ''normalize''."\n\
+"This is the math evaluator equivalent of command ''normalize''."\n\
 "* Function 'mproj(S,nb_colsS,D,nb_colsD,method,max_iter,max_residual)' projects a matrix 'S' onto a dictionary "\
-"(matrix) 'D'. This is the math evaluator analog to command ''mproj''."\n\
-"* Functions 'fft(R,I,w,h,d,s,_'axis')' computes the Fast Fourier Transform of the complex pair '[R,I]', seen as "\
+"(matrix) 'D'. This is the math evaluator equivalent of command ''mproj''."\n\
+"* Functions 'fft(R,I,w,h,d,s,_'axis')' computes the Fast Fourier Transform of the complex pair '[R,I]', treated as "\
 "images of size '(w,h,d,s)'. Inverse fft is computed with similar function 'ifft()'. These functions replace the "\
 "content of 'R' and 'I' in-place."\n\
-"This is the math evaluator analog to commands ''fft'' and ''ifft''."\n\
+"This is the math evaluator equivalent of commands ''fft'' and ''ifft''."\n\
 "* Function 'shift(A,wA,hA,dA,sA,_dx,_dy,_dz,_dc,_boundary_conditions)' returns a shifted version of the vector 'A', "\
-"seen as an image of size '(wA,hA,dA,sA)'. This is the math evaluator analog to command ''shift''."\n\
+"treated as an image of size '(wA,hA,dA,sA)'. This is the math evaluator equivalent of command ''shift''."\n\
 "* Function 'noise(A,amplitude,_noise_type)' returns the noisy version of the vector 'A'. "\
-"This is the math evaluator analog to command ''noise''."\n\
+"This is the math evaluator equivalent of command ''noise''."\n\
 "* Function 'rand(#size,_min_value,_max_value,_pdf,_precision)' returns a vector of 'size' random values. "\
-"This is the math evaluator analog to command ''rand''."\n\
+"This is the math evaluator equivalent of command ''rand''."\n\
 "## String manipulation:"\n\
 "Character strings are defined as vector objects and can then be managed as such. "\
 "Dedicated functions and initializers to manage strings exist:"\n\
 "* `['string']` and `'string'` define a vector whose values are the character codes of the "\
-"specified `character string` (e.g. `'foo'` is equal to `[ 102,111,111 ]`)."\n\
-"* `_'character'` returns the (scalar) byte code of the specified character (e.g. `_'A'` is equal to '65')."\n\
+"given `character string` (e.g. `'foo'` is equal to `[ 102,111,111 ]`)."\n\
+"* `_'character'` returns the ASCII code of the given character (e.g. `_'A'` is equal to '65')."\n\
 "* A special case happens for __empty__ strings: Values of both expressions `['']` and `''` are '0'."\n\
 "* Functions 'lowercase()' and 'uppercase()' return string with all string characters lowercased or uppercased."\n\
-"* Function 's2v(str,_starting_index,_is_strict)' parses specified string 'str' and returns the value contained "\
+"* Function 's2v(str,_starting_index,_is_strict)' parses string 'str' and returns the value contained "\
 "in it."\n\
 "* Function 'v2s(expr,_nb_digits,_siz)' returns a vector of size 'siz' which contains the character representation "\
 "of values described by expression 'expr'. "\
@@ -935,8 +935,8 @@ reference : skip "${2=}"
 "(which is actually the number of channels of image '[ind]'). "\
 "Dynamic arrays adapt their size to the number of elements they contain."\n\n\
 "A dynamic array can be manipulated in a math expression, with the following functions:"\n\
-"* 'da_size(_#ind)': Return the number of elements in dynamic array '[ind]'."\n\
-"* 'da_back(_#ind)': Return the last element of the dynamic array '[ind]'."\n\
+"* 'da_size(_#ind)': Returns the number of elements in dynamic array '[ind]'."\n\
+"* 'da_back(_#ind)': Returns the last element of the dynamic array '[ind]'."\n\
 "* 'da_insert(_#ind,pos,elt_1,_elt_2,...,_elt_N)': Insert 'N' new elements 'elt_k' starting from index 'pos' "\
 "in dynamic array '[ind]'."\n\
 "* 'da_push(_#ind,elt1,_elt2,...,_eltN)': Insert 'N' new elements 'elt_k' at the end of dynamic array '[ind]'."\n\
@@ -944,8 +944,8 @@ reference : skip "${2=}"
 "* 'da_push_heap(_#ind,elt1,_elt2,...,_eltN)' and 'da_pop_heap(_#ind)' do the same but for a dynamic array seen "\
 "as a min-heap structure."\n\
 "* 'da_insert_n(_#ind,n,pos,elt_1,_elt_2,...,_elt_N)', 'da_push_n(_#ind,n,elt1,_elt2,...,_eltN)' and "\
-"'da_push_heap_n(_#ind,n,elt1,_elt2,...,_eltN)' are variants that insert the specified elements consecutively, "\
-"'n' times. If no elements are specified, they insert 'n' empty elements."\n\
+"'da_push_heap_n(_#ind,n,elt1,_elt2,...,_eltN)' are variants that insert the given elements consecutively, "\
+"'n' times. If no elements are given, they insert 'n' empty elements."\n\
 "* 'da_remove(_#ind,_start,_end)': Remove elements located between indices 'start' and 'end' (included) "\
 "in dynamic array '[ind]'."\n\
 "* 'da_freeze(_#ind)': Convert a dynamic array into a 1-column image with height 'da_size(#ind)'."\n\
@@ -961,25 +961,25 @@ reference : skip "${2=}"
 "These variables remain __local__ to the mathematical parser and cannot be accessed outside the evaluated "\
 "expression."\n\
 "* Variables defined in math parser may have a __constant__ property, by specifying keyword 'const' before the "\
-"variable name (e.g. 'const foo = pi/4;'). The value set to such a variable must be indeed a __constant scalar__. "\
+"variable name (e.g. 'const foo = pi/4;'). The value assigned to such a variable must be a __constant scalar__. "\
 "Constant variables allow certain types of optimizations in the math JIT compiler."\n\
 \
 "## Specific functions:"\n\
-"* 'addr(expr)': return the pointer address to the specified expression 'expr'. "\n\
+"* 'addr(expr)': returns the pointer address to the given expression 'expr'. "\n\
 "* 'o2c(_#ind,offset,_boundary_conditions)' and 'c2o(_#ind,x,_y,_z,_c,_boundary_conditions)': Convert image offset to "\
 "image coordinates and vice-versa. Argument 'boundary_conditions' can be { 0:None | 1:Return -1 if out-of-range }."\n\
-"* 'fill(target,expr)' or 'fill(target,index_name,expr)' fills the vector-valued variable 'target', "\
-"using the specified expression, e.g. `V = vector16(); fill(V,k,k^2 + k + 1);`. This is basically equivalent to: "\
+"* 'fill(target,expr)' or 'fill(target,index_name,expr)' fills the vector variable 'target', "\
+"using the given expression, e.g. `V = vector16(); fill(V,k,k^2 + k + 1);`. This is basically equivalent to: "\
 "`for (index_name = 0, index_name<size(target), ++index_name, target[index_name] = expr);`."\n\
-"* 'fill(target,w,h,d,s,'expr')' fills the vector-valued variable 'target', seen as an image "\
-"of size `(w,h,d,s)`, using the specified expression."\n\
-"* 'u(max)' or 'u(min,max,_include_min,_include_max)': return a random value in range '0...max' or 'min...max', "\
+"* 'fill(target,w,h,d,s,'expr')' fills the vector variable 'target', treated as an image "\
+"of size `(w,h,d,s)`, using the given expression."\n\
+"* 'u(max)' or 'u(min,max,_include_min,_include_max)': returns a random value in range '0...max' or 'min...max', "\
 "following a uniform distribution. Each range extremum can be included (default) in the distribution or not."\n\
 "* 'v(max)' or 'v(min,max,_include_min,_include_max)' do the same but returns an integer in specified range."\n\
-"* 'f2ui(value)' and 'ui2f(value)': Convert a large unsigned integer as a negative floating point value "\
+"* 'f2ui(value)' and 'ui2f(value)': Convert a large unsigned integer as a negative floating-point value "\
 "(and vice-versa), so that 32-bit floats can be used to store large integers while keeping a unitary precision."\n\
-"* 'i(_a,_b,_c,_d,_interpolation_type,_boundary_conditions)': return the value of the pixel located at position "\
-"`(a,b,c,d)` in the associated image, if any ('0' otherwise). "\
+"* 'i(_a,_b,_c,_d,_interpolation_type,_boundary_conditions)': returns the value of the pixel located at position "\
+"`(a,b,c,d)` in the current image, if any ('0' otherwise). "\
 "'interpolation_type' can be { 0:Nearest neighbor | 1:Linear | 2:Cubic }. "\
 "'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }. "\
 "Omitted coordinates are replaced by their default values which are respectively 'x', 'y', 'z', 'c', 'interpolation' "\
@@ -987,7 +987,7 @@ reference : skip "${2=}"
 "image with a classical finite difference scheme."\n\
 "* 'j(_dx,_dy,_dz,_dc,_interpolation_type,_boundary_conditions)' does the same for the pixel located at position "\
 "`(x+dx,y+dy,z+dz,c+dc)` (pixel access relative to the current coordinates)."\n\
-"* 'i[offset,_boundary_conditions]' returns the value of the pixel located at specified 'offset' in the associated "\
+"* 'i[offset,_boundary_conditions]' returns the value of the pixel located at 'offset' in the associated "\
 "image buffer (or '0' if offset is out-of-bounds)."\n\
 "* 'j[offset,_boundary_conditions]' does the same for an offset relative to the current pixel coordinates "\
 "`(x,y,z,c)`."\n\
@@ -1003,28 +1003,28 @@ reference : skip "${2=}"
 "from point `(x,y,z,c)` and has a size of `(dx,dy,dz,dc)`. Arguments for coordinates and sizes can be omitted "\
 "if they are not ambiguous (e.g. 'crop(#ind,x,y,dx,dy)' is a valid invocation of this function)."\n\
 " * 'crop(S,w,h,d,s,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_boundary_conditions)' does the same but extracts the cropped data "\
-"from a vector 'S', seen as an image of size `(w,h,d,s)`."\n\
+"from a vector 'S', treated as an image of size `(w,h,d,s)`."\n\
 "* 'draw(_#ind,S,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_opacity,_opacity_mask,_max_opacity_mask)' draws a sprite 'S' in image "\
 "'[ind]' (or in default image selected if 'ind' is not specified) at coordinates `(x,y,z,c)`."\n\
 "* 'draw(D,w,h,s,d,S,_x,_y,_z,_c,_dx,_dy,_dz,_dc,_opacity,_M,_max_M)' does the same but draw the sprite 'S' in "\
-"the vector 'D', seen as an image of size `(w,h,d,s)`."\n\
+"the vector 'D', treated as an image of size `(w,h,d,s)`."\n\
 "* 'polygon(_#ind,nb_vertices,coords,_opacity,_color)' draws a filled polygon in image '[ind]' (or in default image "\
-"selected if 'ind' is not specified) at specified coordinates. It draws a single line if 'nb_vertices' is set to 2."\n\
+"selected if 'ind' is not specified) at given coordinates. It draws a single line if 'nb_vertices' is set to 2."\n\
 "* 'polygon(_#ind,-nb_vertices,coords,_opacity,_pattern,_color)' draws an outlined polygon in image '[ind]' (or in "\
-"default image selected if 'ind' is not specified) at specified coordinates and with specified line pattern. "\
+"default image selected if 'ind' is not specified) at given coordinates and with line pattern. "\
 "It draws a single line if 'nb_vertices' is set to 2."\n\
 "* 'ellipse(_#ind,xc,yc,radius1,_radius2,_angle,_opacity,_color)' draws a filled ellipse in image '[ind]' "\
-"(or in default image selected if 'ind' is not specified) with specified coordinates."\n\
+"(or in default image selected if 'ind' is not specified) with given coordinates."\n\
 "* 'ellipse(_#ind,xc,yc,-radius1,-_radius2,_angle,_opacity,_pattern,_color)' draws an outlined ellipse in image "\
 "'[ind]' (or in default image selected if 'ind' is not specified)."\n\
 "* 'flood(_#ind,_x,_y,_z,_tolerance,_is_high_connectivity,_opacity,_color)' performs a flood fill in image '[ind]' "\
-"(or in default image selected if 'ind' is not specified) with specified coordinates. "\
-"This is the math evaluator analog to command ''flood''."\n\
+"(or in default image selected if 'ind' is not specified) with given coordinates. "\
+"This is the math evaluator equivalent of command ''flood''."\n\
 "* 'resize(#ind,w,_h,_d,_s,_interp,_boundary_conditions,_cx,_cy,_cz,_cc)' resizes an image of the associated list "\
-"with specified dimension and interpolation method. When using this function, you should consider retrieving the "\
+"with given dimension and interpolation method. When using this function, you should consider retrieving the "\
 "(non-constant) image dimensions using the dynamic functions 'w(_#ind)', 'h(_#ind)', 'd(_#ind)', 's(_#ind)', "\
 "'wh(_#ind)', 'whd(_#ind)' and 'whds(_#ind)' instead of the corresponding constant variables."\n\
-"* 'if(condition,expr_then,_expr_else)': return value of 'expr_then' or 'expr_else', depending on the value of "\
+"* 'if(condition,expr_then,_expr_else)': returns value of 'expr_then' or 'expr_else', depending on the value of "\
 "'condition' { 0:False | other:True }. 'expr_else' can be omitted in which case '0' is returned if the condition "\
 "does not hold. Using the ternary operator 'condition?expr_then[:expr_else]' gives an equivalent expression. "\
 "For instance, G'MIC commands \n~~~\nfill if(!(x%10),255,i)\n~~~\n and \n~~~\nfill x%10?i:255\n~~~\n both draw blank "\
@@ -1032,7 +1032,7 @@ reference : skip "${2=}"
 "* 'do(expression,_condition)' repeats the evaluation of 'expression' until 'condition' vanishes "\
 "(or until a 'break()' instruction is encountered if no 'condition' is specified). For instance, the expression: "\
 "\n~~~\nif(N<2,N,n=N-1;F0=0;F1=1;do(F2=F0+F1;F0=F1;F1=F2,n=n-1))\n~~~\n returns the N-th value of the Fibonacci "\
-"sequence, for 'N>=0' (e.g., '46368' for 'N=24'). 'do(expression,condition)' always evaluates the specified "\
+"sequence, for 'N>=0' (e.g., '46368' for 'N=24'). 'do(expression,condition)' always evaluates the "\
 "expression at least once, then checks for the loop condition. When done, it returns the last value of 'expression'."\n\
 "* 'for(init,condition,_procedure,body)' first evaluates the expression 'init', then iteratively evaluates 'body' "\
 "(followed by 'procedure' if specified) while 'condition' holds (i.e. not zero). It may happen that no iterations are "\
@@ -1041,29 +1041,29 @@ reference : skip "${2=}"
 "returns the 'N'-th value of the Fibonacci sequence, for 'N>=0' (e.g., '46368' for 'N=24')."\n\
 "* 'while(condition,expression)' is exactly the same as 'for(init,condition,expression)' without the specification of "\
 "an initializing expression."\n\
-"* 'repeat(nb_iters,expr)' or 'fill(nb_iters,iter_name,expr)' run 'nb_iters' iterations of the specified expression "\
+"* 'repeat(nb_iters,expr)' or 'fill(nb_iters,iter_name,expr)' run 'nb_iters' iterations of the given expression "\
 "'expr', e.g. `V = vector16(); repeat(16,k,V[k] = k^2 + k + 1);`. "\
 "It is basically equivalent to: "\
 "`for (iter_name = 0, iter_name<nb_iters, ++iter_name, expr);`."\n\
-"* 'break()' and 'continue()' respectively breaks and continues the current running block."\n\
-"* 'fsize('filename')' returns the size of the specified 'filename' (or '-1' if file does not exist)."\n\
+"* 'break()' and 'continue()' respectively terminate or continue execution of the current loop or block."\n\
+"* 'fsize('filename')' returns the size of the given 'filename' (or '-1' if file does not exist)."\n\
 "* 'date(attr,'path')' returns the date attribute for the given 'path' (file or directory), "\
 "with 'attr' being { 0:Year | 1:Month | 2:Day | 3:Day of week | 4:Hour | 5:Minute | 6:Second }, or a vector "\
 "of those values."\n\
-"* 'date(_attr)' returns the specified attribute for the current (locale) date (attributes being "\
+"* 'date(_attr)' returns the given attribute for the current (locale) date (attributes being "\
 "{ 0...6:Same meaning as above | 7:Milliseconds })."\n\
-"* 'epoch(_year,_month,_day,_hour,_minute,_second)' converts the specified date into Epoch. If no arguments, "\
+"* 'epoch(_year,_month,_day,_hour,_minute,_second)' converts a date into Epoch. If no arguments "\
 "are specified, current Epoch is returned."\n\
-"* 'print(expr1,expr2,...)' or 'print(#ind)' prints the value of the specified expressions (or image information) "\
+"* 'print(expr1,expr2,...)' or 'print(#ind)' prints the value of the given expressions (or image information) "\
 "on the console, and returns the value of the last expression (or 'nan' in case of an image). "\
 "Function 'prints(expr)' also prints the string composed of the character codes defined by the vector-valued "\
 "expression (e.g. 'prints('Hello')')."\n\
 "* 'debug(expression)' prints detailed debug info about the sequence of operations done by the math parser to "\
 "evaluate the expression (and returns its value)."\n\
-"* 'display(_X,_w,_h,_d,_s)' or 'display(#ind)' display the contents of the vector 'X' (or specified image) and "\
-"wait for user events. if no arguments are provided, a memory snapshot of the math parser environment is displayed "\
+"* 'display(_X,_w,_h,_d,_s)' or 'display(#ind)' displays the contents of the vector 'X' (or given image) and "\
+"wait for user events. If no arguments are given, a memory snapshot of the math parser environment is displayed "\
 "instead."\n\
-"* 'begin(expression)' and 'end(expression)' evaluate the specified expressions only once, respectively at the "\
+"* 'begin(expression)' and 'end(expression)' evaluate the given expressions only once, respectively at the "\
 "beginning and end of the evaluation procedure, and this, even when multiple evaluations are required "\
 "(e.g. in 'fill \">begin(foo = 0); ++foo\"')."\n\
 "* 'copy(dest,src,_nb_elts,_inc_d,_inc_s,_opacity)' copies an entire memory block of 'nb_elts' elements starting "\
@@ -1071,19 +1071,19 @@ reference : skip "${2=}"
 "respectively for the destination and source pointers."\n\
 "* 'stats(_#ind)' returns the statistics vector of the running image '[ind]', i.e the vector "\
 "`[ im,iM,ia,iv,xm,ym,zm,cm,xM,yM,zM,cM,is,ip,in ]` (15 values)."\n\
-"* 'stats(X,w,h,d,s)' returns the statistics vector of the vector 'X', seen as an image of size '(w,h,d,s)'."\n\
-"* 'ref(expr,a)' references specified expression 'expr' as variable name 'a'."\n\
+"* 'stats(X,w,h,d,s)' returns the statistics vector of the vector 'X', treated as an image of size '(w,h,d,s)'."\n\
+"* 'ref(expr,a)' references given expression 'expr' as variable name 'a'."\n\
 "* 'unref(a,b,...)' destroys references to the named variable given as arguments."\n\
 "* 'breakpoint()' inserts a possible computation breakpoint (useless with the cli interface)."\n\
 "* '_(comment) expr' just returns expression 'expr' (useful for inserting inline comments in math expressions)."\n\
-"* 'run('pipeline')' executes the specified G'MIC pipeline as if it was called outside the currently evaluated "\
+"* 'run('pipeline')' executes the G'MIC pipeline as if it was called outside the currently evaluated "\
 "expression."\n\
 "* 'set(\\'variable_name\\',A)' sets the G'MIC variable '$variable_name' with the value of expression 'A'. If 'A' is"\
-" a vector-valued variable, it is assumed to encode a string."\n\
+" a vector variable, it is assumed to encode a string."\n\
 "* 'store(\\'variable_name\\',A,_w,_h,_d,_s,_is_compressed)' transfers the data of vector 'A' as a "\
 "`(w,h,d,s)` image to the G'MIC variable '$variable_name'. Thus, the data becomes available outside the math "\
 "expression (that is equivalent to using the regular command ''store'', but directly in the math expression)."\n\
-"* 'get(\\'variable_name\\',_size,_return_as_string)' returns the value of the specified variable, as a vector of "\
+"* 'get(\\'variable_name\\',_size,_return_as_string)' returns the value of the variable, as a vector of "\
 "'size' values, or as a scalar (if 'size' is zero or not specified)."\n\
 "* 'name(_#ind,size)' returns a vector of size 'size', whose values are the characters codes of the name of image "\
 "'[ind]' (or default image selected if 'ind' is not specified)."\n\
@@ -1128,15 +1128,15 @@ reference : skip "${2=}"
 "  - '<': Evaluate expression in a *single thread*, but *in-place* (in *reverse scanline* order)."\n\
 "* Beware, depending on the amount of data to process, parallel evaluations may be slower "\
 "than using single-thread evaluations (e.g. for small images)."\n\
-"* For parallel evaluations, function 'critical(expr)' forces the execution of the given sub-expression 'expr' in a "\
+"* For parallel evaluations, function 'critical(expr)' serializes execution of the given sub-expression 'expr' in a "\
 "single thread at a time."\n\
-"* 'begin_t(expr)' and 'end_t(expr)' evaluate the specified expression once for each running thread "\
+"* 'begin_t(expr)' and 'end_t(expr)' evaluate the given expression once for each running thread "\
 "(so possibly several times) at the beginning and the end of the evaluation procedure."\n\
-"* 'merge(variable,operator)' tells to merge the local variable value computed by threads, with the specified "\
+"* 'merge(variable,operator)' specifies that the local thread values requests merging, with the given "\
 "operator, when all threads have finished computing."\n\
 "* Expressions 'i(_#ind,x,_y,_z,_c)=value', 'j(_#ind,x,_y,_z,_c)=value', 'i[_#ind,offset]=value' and "\
 "'j[_#ind,offset]=value' set a pixel value at a different location than the running one in the image '[ind]' "\
-"(or in the associated image if argument '#ind' is omitted), either with global coordinates/offsets "\
+"(or in the current image if argument '#ind' is omitted), either with global coordinates/offsets "\
 "(with 'i(...)' and 'i[...]'), or relatively to the current position `(x,y,z,c)` (with 'j(...)' and 'j[...]'). "\
 "These expressions always return 'value'."
 
@@ -1152,21 +1152,21 @@ reference : skip "${2=}"
 "* Any `# comment` expression found in a custom commands file is discarded by the G'MIC parser, "\
 "wherever it is located in a line."\n\
 "* In a custom command, the following '$-expressions' are recognized and substituted:"\n\
-"  - '$""\*' is substituted by a verbatim copy of the specified string of arguments "\
+"  - '$""\*' is substituted by a verbatim copy of the given string of arguments "\
 "(do not include arguments set to default values)."\n\
-"  - '$\"*\"' is substituted by the sequence of specified arguments, separated by commas ',', "\
+"  - '$\"*\"' is substituted by the sequence of given arguments, separated by commas ',', "\
 "each being double-quoted (include arguments set to default values)."\n\
 "  - '$""#' is substituted by the maximum index of known arguments (either specified by the user or set to a default "\
 "value in the custom command)."\n\
 "  - '$""[]' is substituted by the list of selected image indices that have been specified in the command "\
 "invocation."\n\
 "  - '$""?' is substituted by a printable version of '$""[]' to be used in command descriptions."\n\
-"  - '$i' and '${i}' are both substituted by the `i`-th specified argument. Negative indices such as '${-j}' are "\
+"  - '$i' and '${i}' are both substituted by the `i`-th argument. Negative indices such as '${-j}' are "\
 "allowed and refer to the `j`-th latest argument. '$""0' is substituted by the custom command name."\n\
 "  - '${i=default}' is substituted by the value of '$i' (if defined) or by its new value set to 'default' otherwise "\
 "('default' may be a `$-expression` as well)."\n\
-"  - '${subset}' is substituted by the argument values (separated by commas ',') of a specified argument subset. "\
-"For instance expression '$""{2--2}' is substituted by all specified command arguments except the first and the last "\
+"  - '${subset}' is substituted by the argument values (separated by commas ',') of an argument subset. "\
+"For instance expression '$""{2--2}' is substituted by all command arguments except the first and the last "\
 "one. Expression '$""{^0}' is then substituted by all arguments of the invoked command (eq. to '$""*' if all "\
 "arguments have been indeed specified)."\n\
 "  - '$""=var' is substituted by the set of instructions that will assign each argument '$i' to the named variable "\
@@ -2064,7 +2064,7 @@ d :
 # 'Z': Switch zoom factor - '0'-'9': Set zoom factor.
 #@cli : \n- **3D mesh view:**
 #@cli : 'LMB': Mesh rotation - 'CTRL+LMB' or 'MMB': Mesh pan - 'RMB': Mesh zoom -  \
-# 'A': Toggle axes - 'D': Switch face side mode - 'F': Change focale length - 'J': Start/stop animation - \
+# 'A': Toggle axes - 'D': Switch face side mode - 'F': Change focal length - 'J': Start/stop animation - \
 # 'K': Switch background - 'O': Switch outline mode - 'P': Print 3D pose matrix on 'stdout' - \
 # 'R': Switch rendering mode - 'T': Switch motion rendering mode - 'X': Show/hide bounding-box - \
 # 'U': Switch animation mode - 'Z': Toggle z-buffer.
@@ -2101,7 +2101,7 @@ d :
 #@cli :   - '_display_3d_side_mode' can be { 0:Single-sided | 1:Double-sided | 2:Single-sided (flipped) } \
 # (default value: '0').
 #@cli :   - '_display_3d_is_zbuffer' can be { 0:Off | 1:On } (default value: '1').
-#@cli :   - '_display_3d_focale' can be { <0:Perspective projection w/o sprite zooming, 0:Parallel projection | \
+#@cli :   - '_display_3d_focal' can be { <0:Perspective projection w/o sprite zooming, 0:Parallel projection | \
 # >0:Perspective projection } (default value: 1.5).
 #@cli :   - '_display_3d_is_axes' can be { 0:Off | 1:On } (default value: '1').
 #@cli :   - '_display_3d_is_bounding_box' can be { 0:Off | 1:On } (default value: '0').
@@ -2151,7 +2151,7 @@ _display : skip ${1=},${3=}
   setting_3d_side_mode:=narg($_display_3d_side_mode)?cut(int(0$_display_3d_side_mode),0,2):\
                         narg($_double3d)?$_double3d:1
   setting_3d_is_zbuffer:=narg($_display_3d_is_zbuffer)?cut(int(0$_display_3d_is_zbuffer),0,1):1
-  setting_3d_focale:=narg($_display_3d_focale)?0$_display_3d_focale:1.5
+  setting_3d_focal:=narg($_display_3d_focal)?0$_display_3d_focal:1.5
   setting_3d_is_axes:=narg($_display_3d_is_axes)?cut(int(0$_display_3d_is_axes),0,1):1
   setting_3d_is_bounding_box:=narg($_display_3d_is_bounding_box)?cut(int(0$_display_3d_is_bounding_box),0,1):0
   setting_3d_background:=narg($_display_3d_background)?cut(int(0$_display_3d_background),0,12):11
@@ -2780,13 +2780,13 @@ _display : skip ${1=},${3=}
                                                                       $setting_3d_rendering_mode,\
                                                $setting_3d_side_mode==1,\
                                                $setting_3d_is_zbuffer,\
-                                               $setting_3d_focale*$fact]},\
+                                               $setting_3d_focal*$fact]},\
             $setting_3d_light,$_specl3d,$_specs3d,{$is_mesh3d" && "$area_3d_is_motion}
           if $setting_3d_outline_mode" && "!$is_volumetric" && "$setting_3d_rendering_mode>1 # Draw primitive outlines
             +z. 0,8,0,{7+3*$nbv} j[area_3d_mesh_notexture] .,0,8 rm.
             [area_3d_view],[area_3d_view],1,1,-1
             j3d. [area_3d_mesh_notexture],50%,50%,0,1,2,{$setting_3d_side_mode==1},1,\
-                 {$setting_3d_focale*$fact},$setting_3d_light,$_specl3d,$_specs3d,$area_3d_is_motion
+                 {$setting_3d_focal*$fact},$setting_3d_light,$_specl3d,$_specs3d,$area_3d_is_motion
             g. xy,1 !=[-2,-1] 0 or[-2,-1]
             100%,100%,1,3
             fc. ${arg1\ $setting_3d_outline_mode,\
@@ -3848,13 +3848,13 @@ _display : skip ${1=},${3=}
                                          "Single-sided,Double-sided,\"Single-sided (flipped)\""}
           $0_rmn area_3d_view,canvas_label_notification
           skip {*,-D}
-        elif !$is_CTRL" && "{*,F} # F: Change 3D focale
-          setting_3d_focale:="_const f = $setting_3d_focale;
+        elif !$is_CTRL" && "{*,F} # F: Change 3D focal length
+          setting_3d_focal:="_const f = $setting_3d_focal;
             lof = [ 0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1,1.5,2,3,4,6,8,10 ];
             for (k = 0, k<size(lof) && lof[k]<=f, ++k);
             lof[k%size(lof)]"
-          if $setting_3d_focale
-            notification="Focale: x"$setting_3d_focale
+          if $setting_3d_focal
+            notification="Focal: x"$setting_3d_focal
           else
             notification="Parallel projection"
           fi
@@ -5738,6 +5738,21 @@ _input_text :
   i raw:"$*",uint8
   if i[0]==239" && "i[1]==187" && "i[2]==191 rows. 3,100% fi # Remove BOM
   discard. {'\r'} # Remove CR
+
+# Isolate '#@cli' comments in a .gmic file.
+isolate_cli_comments :
+  merge_multiline_comments
+  foreach {
+    nm={n}
+    0
+    f.. ">begin(is_comment = crop(0,0,1,5)=='#@cli');
+      !is_comment && crop(0,y,1,6)=='\n#@cli'?(is_comment = 1):
+      is_comment && i=='\n' && crop(0,y,1,6)!='\n#@cli'?(is_comment = 0; da_push(_'\n'));
+      is_comment?(da_push(i); 0):i;
+      end(da_freeze())"
+    discard.. 0
+    => $nm,$nm" [comments]"
+  }
 
 #@cli lorem : _width>0,_height>0
 #@cli : Input random image of specified size, retrieved from Internet.
@@ -12954,7 +12969,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=400,$_version
+  versions=400,401,402,403,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -13011,6 +13026,19 @@ upload_filters :
     fi
     ('"\n#@gui _________________\n"':y) a y
   } }
+  a y
+
+  # Reorganize '#@cli' comments so that stdlib commands come first in global help.
+  isolate_cli_comments rm. # Remove all '#@cli' comments from working version
+  l[] {
+    files $HOME/work/src/gmic-community/include/*.gmic
+    files=$HOME/work/src/gmic/src/gmic_stdlib.gmic,${}
+    repeat narg($files) {
+      file=${"arg0 $>,"$files}
+      it[] $file
+    }
+    i[^] ('\n\n':y) a y isolate_cli_comments rm..
+  }
   a y
 
   # Create update files.
@@ -17726,7 +17754,7 @@ yuv82rgb :
 #@cli : 'centering_x' and 'centering_y' tells about the centering of tiles when they have different sizes.
 #@cli : Default values: 'M=0', 'N=0', 'centering_x=centering_y=0.5'.
 #@cli : $ image.jpg split xy,4 append_tiles ,
-append_tiles : check "isint(${1=0},0) && isint(${2=0},0) && inrange(${3=0},0,1) && inrange(${4=$3},0,1)"
+append_tiles : check "isint(${1=0},0) && isint(${2=0},0) && inrange(${3=0.5},0,1) && inrange(${4=$3},0,1)"
   if !$!
     e[0--3] "Append image$? as a 0x0-tiled image."
     return
@@ -17743,11 +17771,20 @@ append_tiles : check "isint(${1=0},0) && isint(${2=0},0) && inrange(${3=0},0,1) 
     e[0--3] "Append image$?, as $1x$2-tiled images."
     M=$1 N=$2
   fi
-  W,H=${-max_wh} rs $W,$H,2,1
-  MN:=$M*$N if $!%$MN 0x{$MN-($!%$MN)} fi
-  repeat $!/$MN { l[$>-{$>+$MN-1}] {
-    repeat $!/$M { a[$>-{$>+$M-1}] x,$3 }
-    a y,$4
+  MN:=$M*$N
+  repeat ceil($!/$MN) { l[$>-{min($!,$>+$MN)-1}] {
+    d,s:=${-max_ds} $M,$N,1,2,"k = x + y*w; k<l?[ w#k,h#k ]:[ 0,0 ]"
+    +l. { channels 1 s x max } l.. { channels 0 s y max } +cumulate[-2,-1] => sizx,sizy,csizx,csizy
+    {-2,i[-1,2]},{i[-1,2]},$d,$s
+    $M,$N,1,1,">
+      ind = c2o(x,y);
+      ind<l - 5?(
+        sw = i[#-5,x]; sh = i[#-4,y]; sx = i[#-3,x] - sw; sy = i[#-2,y] - sh;
+        ix = round(lerp(sx,sx + sw - w#ind,cut($3,0,1)));
+        iy = round(lerp(sy,sy + sh - h#ind,cut($4,0,1)));
+        run('j. [',ind,'],',ix,',',iy);
+      )"
+    k..
   } }
 
 #@cli apply_scales : "command",number_of_scales>0,_min_scale[%]>=0,_max_scale[%]>=0,_scale_gamma>0,_interpolation
@@ -19088,6 +19125,11 @@ closing_circ : check "$1>=0 && isbool(${2=0})"
 #@cli : Convolve selected images by specified mask.
 #@cli : 'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }.
 #@cli : 'channel_mode' can be { 0:All | 1:One-for-one | 2:Partial sum | 3:Full sum }.
+#@cli : \n__Note:__ For each of the parameter groups `center` ('xcenter','ycenter','zcenter'), `stride` \
+# ('xstride','ystride','zstride'), `dilation` ('xdilation','ydilation','zdilation'), `offset` \
+# ('xoffset','yoffset','zoffset') and `size` ('xsize','ysize','zsize'), either all three components \
+# must be specified, or none of them. It is not allowed to set only one or two components of a given group \
+# (e.g. specifying 'xoffset' without also specifying 'yoffset' and 'zoffset' is invalid).
 #@cli : Default values: 'boundary_conditions=1', 'is_normalized=0', 'channel_mode=1', \
 # 'xcenter=ycenter=zcenter=(undefined)', 'xstride=ystride=zstride=1', 'xdilation=ydilation=zdilation=1',\
 # 'xoffset=yoffset=zoffset=0' and 'xsize=ysize=zsize=(input_size/stride)'.
@@ -19122,6 +19164,11 @@ convolve_fft : check ${is_image_arg\ $1}" && isin(${2=2},0,1,2,3)"
 #@cli : Correlate selected images by specified mask.
 #@cli : 'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }.
 #@cli : 'channel_mode' can be { 0:All | 1:One-for-one | 2:Partial sum | 3:Full sum }.
+#@cli : \n__Note:__ For each of the parameter groups `center` ('xcenter','ycenter','zcenter'), `stride` \
+# ('xstride','ystride','zstride'), `dilation` ('xdilation','ydilation','zdilation'), `offset` \
+# ('xoffset','yoffset','zoffset') and `size` ('xsize','ysize','zsize'), either all three components \
+# must be specified, or none of them. It is not allowed to set only one or two components of a given group \
+# (e.g. specifying 'xoffset' without also specifying 'yoffset' and 'zoffset' is invalid).
 #@cli : Default values: 'boundary_conditions=1', 'is_normalized=0', 'channel_mode=1', \
 # 'xcenter=ycenter=zcenter=-1', 'xstride=ystride=zstride=1', 'xdilation=ydilation=zdilation=1',\
 # 'xoffset=yoffset=zoffset=0' and 'xsize=ysize=zsize=(input_size/stride)'.
@@ -23738,7 +23785,7 @@ close_binary :
 #@cli : * '[xy_coordinates]' is the set of XY-coordinates of the curve, specified as a 2-channels image.
 #@cli : * 'thickness' is the thickness of the drawing, specified in pixels.
 #@cli : * 'tilt' is an angle, specified in degrees.
-#@cli : * 'tilt_strength' must be a float value in [0,1] (or in [0,100] if specified as a percentage).
+#@cli : * 'tilt_strength' must be a floating-point in [0,1] (or in [0,100] if specified as a percentage).
 #@cli : * 'is_closed' is a boolean which indicates whether the curve is closed.
 #@cli : Default values: 'thickness=0', 'tilt=45'
 #@cli : $ image.jpg srand 3 16,1,1,4,u s. c,2 rbf[-2,-1] 1000,0,1 n[-2] 10,{w#0-10} n[-1] 10,{h#0-10} a[-2,-1] c \
@@ -25239,7 +25286,7 @@ animate3d : check "isint($1,1) && isnum(${2=0}) && isnum(${3=5}) && isnum(${4=0}
   else 3,2,1,1,"32,32,64,64,116,96" permute. cyzx r. 800,800,1,3,3 round.
   fi
   => anim3d_bg
-  repeat {$!-1} { l[$>,-1] {
+  repeat $!-1 { l[$>,-1] {
     check ${-is_mesh3d..} nm={0,n} bn={0,b}
     e "  * Object '"$bn"': 0/$1"
     c3d[0] n3d[0] *3d[0] {1,$5*min(w,h)/2}
@@ -25777,7 +25824,7 @@ _delaunay3d :
       i!=A && i!=B && A!=B?kth(1+c,i,A,B):0"
   discard. 0 r. {h/3},3,1,1,-1
 
-#@cli depthmap3d : [object3d],_x[%],_y[%],_z_,is_double_sided={ 0:No | 1:Yes },_is_zbuffer={ 0:No | 1:Yes },_focale
+#@cli depthmap3d : [object3d],_x[%],_y[%],_z_,is_double_sided={ 0:No | 1:Yes },_is_zbuffer={ 0:No | 1:Yes },_focal
 #@cli : Draw depth map of specified 3D object on selected images.
 #@cli : Default values: 'x=y=50%', 'z=0' and 'is_zbuffer=1'. \
 # All other arguments take their default values from the 3D environment variables.
@@ -25787,7 +25834,7 @@ depthmap3d : check ${"is_image_arg $1"}" && isnum(${4=0}) && (!narg(${5=}) || is
   pass$1 2
   if !i[6]" || "!i[7] rm. return fi
   is_double_sided:=narg($5)?$5:narg($_double3d)?$_double3d:1
-  focale:=narg($7)?$7:narg($_focale3d)?$_focale3d:700
+  focal:=narg($7)?$7:narg($_focal3d)?$_focal3d:700
 
   foreach[^-1] {
     pass. 0
@@ -25853,7 +25900,7 @@ depthmap3d : check ${"is_image_arg $1"}" && isnum(${4=0}) && (!narg(${5=}) || is
       end(da_freeze(#3); da_freeze(#4); set('ind',ind))" rm.
     1,$nbp,1,1,1
 
-    a[-4--1] y j3d[0] .,${2-4},1,2,$is_double_sided,$6,$focale k[0]
+    a[-4--1] y j3d[0] .,${2-4},1,2,$is_double_sided,$6,$focal k[0]
   }
   rm.
 
@@ -26015,33 +26062,33 @@ extrude3d : check "${1=16}>0 && ${2=1024}>0 && ${3=0.5%}>=0"
     isosurface3d 50% *3d 1,1,$fact rv3d => $nm
   }
 
-#@cli f3d : eq. to 'focale3d'.
+#@cli f3d : eq. to 'focal3d'.
 f3d :
-  l[] { check "isnum(${1=700})" focale=$1 onfail noarg focale=700 }
-  v + _focale3d $focale
+  l[] { check "isnum(${1=700})" focal=$1 onfail noarg focal=700 }
+  v + _focal3d $focal
 
-#@cli focale3d : focale
-#@cli : Set 3D focale.
+#@cli focal3d : focal
+#@cli : Set 3D focal.
 #@cli : (eq. to 'f3d').\n
-#@cli : Set 'focale' to 0 to enable parallel projection (instead of perspective).
-#@cli : Set negative 'focale' will disable 3D sprite zooming.
-#@cli : Default value: 'focale=700'.
-#@cli : $ repeat 5 { torus3d 100,30 rotate3d[-1] 1,1,0,60 focale3d {$<*90} snapshot3d[-1] 400 } remove[0]
-focale3d :
-  l[] { check "isnum(${1=700})" focale=$1 onfail noarg focale=700 }
-  v + _$0 $focale
+#@cli : Set 'focal' to 0 to enable parallel projection (instead of perspective).
+#@cli : Set negative 'focal' will disable 3D sprite zooming.
+#@cli : Default value: 'focal=700'.
+#@cli : $ repeat 5 { torus3d 100,30 rotate3d[-1] 1,1,0,60 focal3d {$<*90} snapshot3d[-1] 400 } remove[0]
+focal3d :
+  l[] { check "isnum(${1=700})" focal=$1 onfail noarg focal=700 }
+  v + _$0 $focal
 
-_focale3d :
-  e[0--3] "Set 3D focale to $1."
-  _focale3d=$1
+_focal3d :
+  e[0--3] "Set 3D focal to $1."
+  _focal3d=$1
 
 #@cli fov3d : fov_angle>=0,_image_resolution>0
-#@cli : Set 3D focale to match specified field of vision angle (in degree) for rendering a 3D object in an image \
+#@cli : Set 3D focal to match specified field of vision angle (in degree) for rendering a 3D object in an image \
 # with specified resolution.
-#@cli : Return corresponding value of the focale in status.
+#@cli : Return corresponding value of the focal in status.
 #@cli : Default value: 'fov_angle=45' and 'image_size=max(w,h)' (max size of the latest image).
 fov3d : check "${1=45}>=0 && isint(${2=max(w,h)},1)"
-  e[^-1] "Set 3D focale to have FOV angle of $1 for image size $2."
+  e[^-1] "Set 3D focal to have FOV angle of $1 for image size $2."
   if !$1 f3d=0 else f3d:=($2)/2/tan(($1)°/2) fi
   f3d $f3d u $f3d
 
@@ -26537,7 +26584,7 @@ _normalize3d :
     fi
   }
 
-#@cli normalmap3d : [object3d],_x[%],_y[%],_z_,is_double_sided={ 0:No | 1:Yes },_is_zbuffer={ 0:No | 1:Yes },_focale
+#@cli normalmap3d : [object3d],_x[%],_y[%],_z_,is_double_sided={ 0:No | 1:Yes },_is_zbuffer={ 0:No | 1:Yes },_focal
 #@cli : Draw normal map of specified 3D object on selected images.
 #@cli : Default values: 'x=y=50%', 'z=0' and 'is_zbuffer=1'. \
 # All other arguments take their default values from the 3D environment variables.
@@ -26547,11 +26594,11 @@ normalmap3d : check ${"is_image_arg $1"}" && isnum(${4=0}) && (!narg(${5=}) || i
   pass$1 0 p3d. 2
   if !i[6]" || "!i[7] rm. return fi
   is_double_sided:=narg($5)?$5:narg($_double3d)?$_double3d:1
-  focale:=narg($7)?$7:narg($_focale3d)?$_focale3d:700
+  focal:=narg($7)?$7:narg($_focal3d)?$_focal3d:700
   +normals3d. 1 channels. 3,5 permute. cyzx y.
   s3d.. rv[-3,-1] rm.
   a[-6--1] y
-  j3d[^-1] .,${2-4},1,2,$is_double_sided,$6,$focale rm.
+  j3d[^-1] .,${2-4},1,2,$is_double_sided,$6,$focal rm.
 
 #@cli normals3d : output_mode={ 0:vertices | 1:primitives | 2:vertices+primitives }.
 #@cli : Estimate normals of selected 3D meshes, for vertices, primitives, or both.
@@ -26640,7 +26687,7 @@ o3d :
 #@cli j3d : eq. to 'object3d'. : (+)
 
 #@cli object3d : [object3d],_x[%],_y[%],_z,_opacity,_rendering_mode,_is_double_sided={ 0:No | 1:Yes },\
-# _is_zbuffer={ 0:No | 1:Yes },_focale,_light_x,_light_y,_light_z,_specular_lightness,_specular_shininess,\
+# _is_zbuffer={ 0:No | 1:Yes },_focal,_light_x,_light_y,_light_z,_specular_lightness,_specular_shininess,\
 # _is_multithreaded_rendering={ 0:No | 1:Yes } : (+)
 #@cli : Draw specified 3D object on selected images.
 #@cli : (eq. to 'j3d').\n
@@ -27277,7 +27324,7 @@ snapshot3d : check "("${"is_image_arg $1"}" || isint(${1=1024},1)) && ${2=1}>=0 
     16,16,1,1,48 +f. 64 a[-2,-1] x +mirror. x a[-2,-1] y r. {-2,[w,h]},1,3,0,2 +[-2,-1] /. 2 round.
   fi
 
-  ofocale3d=$_focale3d
+  ofocal3d=$_focal3d
   fov3d $fov
   foreach[^-1] {
     pass. 0
@@ -27291,7 +27338,7 @@ snapshot3d : check "("${"is_image_arg $1"}" || isint(${1=1024},1)) && ${2=1}>=0 
     fi
     =>[1] {0,n} k.
   } rm.
-  _focale3d=$ofocale3d
+  _focal3d=$ofocal3d
 
 #@cli sl3d : eq. to 'specl3d'.
 sl3d :
@@ -38857,6 +38904,11 @@ max_s :
 max_wh :
   _minmax_whds max,0,2
 
+#@cli max_ds
+#@cli : Return the maximal dxs size of selected images.
+max_ds :
+  _minmax_whds max,2,2
+
 #@cli max_whd
 #@cli : Return the maximal wxhxd size of selected images.
 max_whd :
@@ -38896,6 +38948,11 @@ min_s :
 #@cli : Return the minimal wxh size of selected images.
 min_wh :
   _minmax_whds min,0,2
+
+#@cli min_ds
+#@cli : Return the minimal dxs size of selected images.
+min_ds :
+  _minmax_whds min,2,2
 
 #@cli min_whd
 #@cli : Return the minimal wxhxd size of selected images.
@@ -45602,8 +45659,9 @@ fx_gmicky_preview :
 #@gui : - <b>2024/12/31</b> : version <i>3.5.0</i>.\n
 #@gui : - <b>2025/08/21</b> : version <i>3.6.0</i>.\n
 #@gui : - <b>2026/02/13</b> : version <i>3.7.0</i>.\n
-#@gui : - <span foreground="#EE5500"><b>2026/07/01</b> : version <i>4.0.0</i> (Current stable).</span>\n
-##@gui : - <b>2026/XX/XX</b> : version <i>4.0.1</i> (Current pre-release).\n
+#@gui : - <b>2026/07/01</b> : version <i>4.0.0</i>.\n
+#@gui : - <span foreground="#EE5500"><b>2026/07/05</b> : version <i>4.0.2</i> (Current stable).</span>\n
+##@gui : - <b>2026/XX/XX</b> : version <i>4.0.3</i> (Current pre-release).\n
 #@gui : "}
 #@gui : sep = separator()
 ##@gui : url = link{"View changelog for next major version (4.1)","https://discuss.pixls.us/t/on-the-road-to-gmic-4-1"}
@@ -47595,7 +47653,7 @@ fx_lylejk_painting :
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
 # Generates a marker drawing effect.
 #@gui : "}, sep = separator()
-#@gui : Length (px) = int(70,0,256)
+#@gui : Length (px) = int(70,1,256)
 #@gui : Radius (px) = float(4,1,32)
 #@gui : Opacity (%) = float(10,0,100)
 #@gui : Inertia (%) = float(15,0,100)
@@ -54164,7 +54222,7 @@ fx_flower_preview :
 #@gui : sep = separator()
 #@gui : note = note("<span color="#EE5500"><small><b>3D Parameters:</b></small></span>")
 #@gui : Align Camera Center = bool(1)
-#@gui : Focale = float(1.5,0.5,10)
+#@gui : Focal Length = float(1.5,0.5,10)
 #@gui : Light On/Off = point(80,20,-1,1,255,255,0,128,2%)
 #@gui : Ambient Light (%) = float(50,0,100)_1
 #@gui : Diffuse Shadows (%) = float(20,0,100)_1
@@ -54180,7 +54238,7 @@ fx_flower_preview :
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/02/03</i>.</small>")
 fx_heightfield_warp : skip "${2=}"
-  heightfield_type,heightfield_formula,heightfield_factor,heightfield_smoothness,align_camera_center,focale,\
+  heightfield_type,heightfield_formula,heightfield_factor,heightfield_smoothness,align_camera_center,focal,\
     light_x,light_y,ambient_light,diffuse_shadows,diffuse_highlights,specular_light,specular_material,\
     preview_grid_overlay,preview_resolution,ocenter_x,ocenter_y,center_x,center_y,size_x,size_y=$1,"$2",${3-20}
   is_preview,is_light:=0$_is_preview,!isnan($light_x);
@@ -54220,7 +54278,7 @@ fx_heightfield_warp : skip "${2=}"
       const mwh = min(w,h);
       const xc = $align_camera_center?w*$center_x%:w/2;
       const yc = $align_camera_center?h*$center_y%:h/2;
-      const f = $focale*mwh;
+      const f = $focal*mwh;
       Z = (mwh*$heightfield_factor%)*i(#$heightfield);
       Zpf = Z + f;
       X = xc + f*(x - xc)/Zpf;
@@ -54322,7 +54380,7 @@ fx_heightfield_warp : skip "${2=}"
     "{"$heightfield_factor"}"\
     "{"$heightfield_smoothness"}"\
     "{"$align_camera_center"}"\
-    "{"$focale"}"\
+    "{"$focal"}"\
     "{"$light_x,$light_y"}"\
     "{"$ambient_light"}_"$visibility_light\
     "{"$diffuse_shadows"}_"$visibility_light\
@@ -54605,7 +54663,7 @@ fx_quadrangle_preview :
 #@gui : Waves Smoothness = float(1.5,0,4)
 #@gui : X-Angle = float(0,-10,10)
 #@gui : Y-Angle = float(-3.30,-10,10)
-#@gui : Focale = float(7,0,10)
+#@gui : Focal Length = float(7,0,10)
 #@gui : Zoom = float(1.5,1,5)
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -60509,7 +60567,7 @@ fx_color_ellipses :
 #@gui : "}, sep = separator()
 #@gui : Size = _int(1024,16,8192)
 #@gui : Min Detail Level = float(2,0,20)
-#@gui : Seed = float(4038,0,100000)
+#@gui : Seed = float(51078,0,100000)
 #@gui : Randomize Seed = button()
 #@gui : sep = separator()
 #@gui : Brightness (%) = float(0,-100,100)
@@ -61645,7 +61703,7 @@ fx_lathing3d_preview :
 #@gui : Face Orientation = choice("Normal","Reverted","Double-Sided")
 #@gui : Materials = choice(2,"Discard Colors","Discard Textures","Keep Textures")
 #@gui : Recovery Color = color(200,200,200)
-#@gui : Focale (%) = float(100,0,500)
+#@gui : Focal (%) = float(100,0,500)
 #@gui : Anti-aliasing = _choice(1,"None","x1.5","x2","x3","x4")
 #@gui : Custom Light = point(50,50,-1,1,255,255,0,-100,3%)
 #@gui : Reset 3D Position = button()
@@ -61659,7 +61717,7 @@ fx_mesh3d : skip "${1=},${2=}"
   old_filename="$2"
   xx,xy,yx,yy,sx,sy,cx,cy,ocx,ocy,\
   rotx,roty,rotz,rendering_mode,face_orientation,materials,\
-  recR,recG,recB,focale,antialias,lx,ly,reset_pos=${3-26}
+  recR,recG,recB,focal,antialias,lx,ly,reset_pos=${3-26}
 
   R=30 # Radii (in %) of the virtual ellipse
   show_bb:=!$rendering_mode
@@ -61718,7 +61776,7 @@ fx_mesh3d : skip "${1=},${2=}"
   pose3d. $Ux,$Vx,$Wx,0,$Uy,$Vy,$Wy,0,$Uz,$Vz,$Wz,0
   is_double:=$face_orientation==2
   if $face_orientation==1 rv3d. fi
-  foc:=$fact*$focale%
+  foc:=$fact*$focal%
   if $materials<2 p3d. 2 if !$materials col3d. $recR,$recG,$recB fi fi
   nlx,nly,nlz:=isnan($lx)?[$W*$cx%,$H*$cy%,-5e8]:[$W*($cx+4*($lx-$cx))%,$H*($cy+4*($ly-$cy))%,-10*$foc]
   if 0$_is_preview
@@ -61746,7 +61804,7 @@ fx_mesh3d : skip "${1=},${2=}"
   u "{"$filename"}{"$filename"}"\
     "{"{[$cx+$ux,$cy+$uy]}"}{"{[$cx+$vx,$cy+$vy]}"}{"{[$cx+$sx,$cy+$sy]}"}{"$cx,$cy"}{"$cx"}{"$cy"}"\
     "{"$rotx"}{"$roty"}{"$rotz"}{"$rendering_mode"}{"$face_orientation"}{"$materials"}"\
-    "{"$recR,$recG,$recB"}{"$focale"}{"$antialias"}{"$lx,$ly"}{"$reset_pos"}"
+    "{"$recR,$recG,$recB"}{"$focal"}{"$antialias"}{"$lx,$ly"}{"$reset_pos"}"
 
 fx_mesh3d_preview : skip "${1=},${2=}"
   if !$! $_preview_area_width,$_preview_area_height,1,4
@@ -63376,7 +63434,7 @@ fx_shadebobs :
 #@gui : Y-Angle (deg.) = float(0,-180,180)_0
 #@gui : Z-Angle (deg.) = float(0,-180,180)_0
 #@gui : Zoom = float(1,0,10)_0
-#@gui : Focale = int(8,1,20)_0
+#@gui : Focal Length = int(8,1,20)_0
 #@gui : sep = separator()
 #@gui : note = note("<span color="#EE5500"><b>Rendering parameters:</b></span>")
 #@gui : Center = point(50,50,0,1,0,238,85,-170,10)_0
@@ -63405,7 +63463,7 @@ fx_sine_curve :
   oxa,oya,oza,oxb,oyb,ozb,\
   pxa,pya,pza,pxb,pyb,pzb,\
   sxa,sya,sza,sxb,syb,szb,\
-  rotx,roty,rotz,zoom,focale,\
+  rotx,roty,rotz,zoom,focal,\
   xc,yc,prev_xc,prev_yc,xr,yr,xa,ya,prev_xa,prev_ya,\
   radius1,radius2,opacity,\
   colR,colG,colB,\
@@ -63439,7 +63497,7 @@ fx_sine_curve :
     oxa,oxb,oya,oyb,oza,ozb=90,90,0,0,0,0
     pxa,pxb,pya,pyb,pza,pzb=1
     sxa,sxb,sya,syb,sza,szb=0
-    rotx,roty,rotz,zoom,focale=0,0,0,2,8
+    rotx,roty,rotz,zoom,focal=0,0,0,2,8
 
     # Set specific values for each preset.
 
@@ -63460,7 +63518,7 @@ fx_sine_curve :
       mxa,mxb,mya,myb=80,1,80,1 pxa,pxb,pya,pyb=1,3,1,3
     # Flower
     elif $preset==5
-      ratz=0.8 mza,mzb=7,1024 pza,pzb=1.6,2 rotz=45 zoom=1 focale=4
+      ratz=0.8 mza,mzb=7,1024 pza,pzb=1.6,2 rotz=45 zoom=1 focal=4
     # Flower Cushion
     elif $preset==6
       mxa,mxb,mya,myb=80,1,1,80 pxa,pxb,pya,pyb=1,3,1,3
@@ -63506,7 +63564,7 @@ fx_sine_curve :
   # Change unit for some variables.
   W,H:=w#0?[w#0,h#0]:0$_is_preview" && "0$_preview_area_width?[0$_preview_area_width,0$_preview_area_height]:[1024,1024]
   nresolution:=max(1,round($periods*1000000*($resolution%)^2))
-  nfocale:=arg1($focale,0.05,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,3,4,8,16,32,128,1024,16384)
+  nfocal:=arg1($focal,0.05,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,3,4,8,16,32,128,1024,16384)
   noxa,noxb,noya,noyb,noza,nozb:=[$oxa,$oxb,$oya,$oyb,$oza,$ozb]*pi/180
   nantialiasing:=arg0($antialiasing,1,1.25,1.5,2,3)
   rW,rH:=[$W,$H]*$nantialiasing # Size of the non-antialiased rendering
@@ -63560,9 +63618,9 @@ fx_sine_curve :
       is_rot?(P = R*[ X,Y,Z ]; X = P[0]; Y = P[1]; Z = P[2]);
 
       # 2D projection.
-      X*="$nfocale";
-      Y*="$nfocale";
-      Z = max(1e-5,Z + 1 + "$nfocale");
+      X*="$nfocal";
+      Y*="$nfocal";
+      Z = max(1e-5,Z + 1 + "$nfocal");
       pX = X/Z;
       pY = -Y/Z;
 
@@ -63620,7 +63678,7 @@ fx_sine_curve :
     "{"$oxa"}_"$o"{"$oya"}_"$o"{"$oza"}_"$o"{"$oxb"}_"$o"{"$oyb"}_"$o"{"$ozb"}_"$o\
     "{"$pxa"}_"$p"{"$pya"}_"$p"{"$pza"}_"$p"{"$pxb"}_"$p"{"$pyb"}_"$p"{"$pzb"}_"$p\
     "{"$sxa"}_"$s"{"$sya"}_"$s"{"$sza"}_"$s"{"$sxb"}_"$s"{"$syb"}_"$s"{"$szb"}_"$s\
-    "{"$rotx"}_"$a"{"$roty"}_"$a"{"$rotz"}_"$a"{"$zoom"}_"$a"{"$focale"}_"$a\
+    "{"$rotx"}_"$a"{"$roty"}_"$a"{"$rotz"}_"$a"{"$zoom"}_"$a"{"$focal"}_"$a\
     "{"$xc,$yc"}{"$xc"}{"$yc"}{"$xr,$yr"}{"$xa,$ya"}{"$xa"}{"$ya"}{"$radius1"}{"$radius2"}{"$opacity"}"\
     "{"$colR,$colG,$colB"}{"$antialiasing"}"\
     "{"$preview_background"}"
@@ -64139,11 +64197,11 @@ fx_turbulence :
 # ?do=findComment&comment=614424"><i>Frio </i></a>.
 #@gui :       Latest Update: <i>2023/10/24</i>.</small>")
 fx_twisted_rays :
-  xcenter,ycenter,branches,angle,twist,focale,R,G,B,A,is_antialias=${1-11}
+  xcenter,ycenter,branches,angle,twist,focal,R,G,B,A,is_antialias=${1-11}
   foreach {
     Mwh,offx,offy:="const Mwh = max(w,h); [ Mwh,(Mwh - w)/2,(Mwh - h)/2 ]"
     xc,yc:=[$xcenter,$ycenter]%*[w,h]+[$offx,$offy]
-    +shape_rays $Mwh,$xc,$yc,$branches,$angle%,{$twist%},{$focale%},$is_antialias r. ..,..,1,100%,0,0,0.5,0.5
+    +shape_rays $Mwh,$xc,$yc,$branches,$angle%,{$twist%},{$focal%},$is_antialias r. ..,..,1,100%,0,0,0.5,0.5
     100%,100%,1,4 fc. $R,$G,$B,$A sh. 100% *. ... rm[-3,-1]
     blend alpha
   }
@@ -65223,7 +65281,7 @@ fx_text_pointcloud3d_preview :
 #@gui : X-Rotation = text("1")
 #@gui : Y-Rotation = text("1")
 #@gui : Z-Rotation = text("0")
-#@gui : Focale = float(800,100,2000)
+#@gui : Focal Length = float(800,100,2000)
 #@gui : Enable Antialiasing = bool(1)
 #@gui : sep = separator()
 #@gui : note = note{"<small><b>Note:</b>
