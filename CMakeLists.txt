@@ -55,6 +55,8 @@
 
 cmake_minimum_required(VERSION 3.14.0)
 
+project(gmic CXX C)
+
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
   message("Build directory is equal to source directory. Binaries will be put in the src directory.")
   message("")
@@ -66,19 +68,16 @@ else()
 endif()
 
 set(CMAKE_CXX_STANDARD 11)
-set(CXX_STANDARD_REQUIRED ON)
-
-project(gmic CXX C)
-
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(PkgConfig)
 include(FeatureSummary)
 include(GNUInstallDirs)
 
 find_package(CImg REQUIRED)
 find_package(GMicStdlib REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(PkgConfig REQUIRED)
 
 find_package(PNG)
 find_package(JPEG)
@@ -161,7 +160,7 @@ endif()
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 if (${CMAKE_BUILD_TYPE_LOWER} STREQUAL "debug")
-    list(PREPEND GMIC_CXX_COMPILE_FLAGS -g -ansi -Wall -Wextra -pedantic -Dcimg_verbosity=3)
+    list(PREPEND GMIC_CXX_COMPILE_FLAGS -g -Wall -Wextra -pedantic -Dcimg_verbosity=3)
 endif()
 if (${CMAKE_BUILD_TYPE_LOWER} STREQUAL "relwithdebinfo")
     list(PREPEND GMIC_CXX_COMPILE_FLAGS -g)
@@ -207,26 +206,33 @@ endif()
 if(FFTW_FOUND)
   message(STATUS "fftw3 found — enabling FFT support (-Dcimg_use_fftw3)")
   list(APPEND GMIC_OPTIONAL_COMPILE_FLAGS -Dcimg_use_fftw3)
-  # fftw3_threads est lié séparément (comme dans le Makefile : -lfftw3_threads)
-  list(APPEND GMIC_OPTIONAL_LIBS ${FFTW_LIBRARIES} fftw3_threads)
+  find_library(FFTW3_THREADS_LIB fftw3_threads)
+  if(FFTW3_THREADS_LIB)
+    list(APPEND GMIC_OPTIONAL_LIBS ${FFTW_LIBRARIES} ${FFTW3_THREADS_LIB})
+  else()
+    list(APPEND GMIC_OPTIONAL_LIBS ${FFTW_LIBRARIES})
+  endif()
+  list(APPEND GMIC_OPTIONAL_INCLUDE_DIRS ${FFTW_INCLUDE_DIRS})
 endif()
 
 if(CURL_FOUND)
   message(STATUS "libcurl found — enabling network download support (-Dcimg_use_curl)")
   list(APPEND GMIC_OPTIONAL_COMPILE_FLAGS -Dcimg_use_curl)
   list(APPEND GMIC_OPTIONAL_LIBS ${CURL_LIBRARIES})
+  list(APPEND GMIC_OPTIONAL_INCLUDE_DIRS ${CURL_INCLUDE_DIRS})
 endif()
 
 if(X11_FOUND)
   message(STATUS "X11 found — enabling display support (-Dcimg_display=1)")
   list(APPEND GMIC_OPTIONAL_COMPILE_FLAGS -Dcimg_display=1)
   list(APPEND GMIC_OPTIONAL_LIBS ${X11_LIBRARIES})
+  list(APPEND GMIC_OPTIONAL_INCLUDE_DIRS ${X11_INCLUDE_DIRS})
 endif()
 
 # source files
-set(CLI_Sources src/gmic.cpp)
+set(GMIC_LIB_SOURCES src/gmic.cpp)
 
-macro(gmic_apply_common_deps target_name)
+function(gmic_apply_common_deps target_name)
   target_link_libraries(${target_name} PRIVATE ZLIB::ZLIB)
 
   if(OpenMP_CXX_FOUND)
@@ -240,10 +246,15 @@ macro(gmic_apply_common_deps target_name)
   if(GMIC_OPTIONAL_COMPILE_FLAGS)
     target_compile_options(${target_name} PRIVATE ${GMIC_OPTIONAL_COMPILE_FLAGS})
   endif()
-endmacro()
+
+  if(GMIC_OPTIONAL_INCLUDE_DIRS)
+    target_include_directories(${target_name} PRIVATE ${GMIC_OPTIONAL_INCLUDE_DIRS})
+  endif()
+
+endfunction()
 
 if(BUILD_LIB)
-  add_library(libgmic SHARED ${CLI_Sources})
+  add_library(libgmic SHARED ${GMIC_LIB_SOURCES})
   target_compile_options(libgmic PRIVATE ${GMIC_CXX_COMPILE_FLAGS} -Dgmic_core)
   set_target_properties(libgmic PROPERTIES SOVERSION "1" OUTPUT_NAME "gmic")
   target_link_libraries(libgmic
@@ -260,17 +271,16 @@ if(BUILD_LIB)
   gmic_apply_common_deps(libgmic)
 
   install(TARGETS libgmic EXPORT GmicTargets
-    PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   )
-  install(FILES src/gmic.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif()
 
 
 if(BUILD_LIB_STATIC)
-  add_library(libgmicstatic STATIC ${CLI_Sources})
+  add_library(libgmicstatic STATIC ${GMIC_LIB_SOURCES})
   target_compile_options(libgmicstatic PRIVATE ${GMIC_CXX_COMPILE_FLAGS} -Dgmic_core)
   set_target_properties(libgmicstatic PROPERTIES OUTPUT_NAME "gmic")
   target_link_libraries(libgmicstatic
@@ -287,10 +297,16 @@ if(BUILD_LIB_STATIC)
   gmic_apply_common_deps(libgmicstatic)
 
   install(TARGETS libgmicstatic EXPORT GmicTargets ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+if(BUILD_LIB OR BUILD_LIB_STATIC)
   install(FILES src/gmic.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif()
 
 if(BUILD_CLI)
+  if(NOT ENABLE_DYNAMIC_LINKING AND NOT BUILD_LIB_STATIC)
+    message(FATAL_ERROR "BUILD_CLI requires either BUILD_LIB_STATIC=ON or ENABLE_DYNAMIC_LINKING=ON")
+  endif()
   add_executable(gmic src/gmic_cli.cpp)
   target_compile_options(gmic PRIVATE ${GMIC_CXX_COMPILE_FLAGS})
   if(ENABLE_DYNAMIC_LINKING)
@@ -316,7 +332,16 @@ if(BUILD_CLI)
     endif()
   endif()
 
-  install(TARGETS gmic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
+  install(TARGETS gmic
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  )
+endif()
+
+if(BUILD_MAN OR BUILD_BASH_COMPLETION)
+  if(NOT BUILD_CLI)
+    message(FATAL_ERROR "BUILD_MAN and BUILD_BASH_COMPLETION require BUILD_CLI=ON")
+  endif()
 endif()
 
 if(BUILD_MAN)
@@ -324,7 +349,13 @@ if(BUILD_MAN)
   add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/man/gmic.1
     DEPENDS gmic
-    COMMAND LD_LIBRARY_PATH=${GMIC_BINARIES_PATH} ${GMIC_BINARIES_PATH}/gmic ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic it ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic reference man > ${CMAKE_BINARY_DIR}/man/gmic.1
+    COMMAND ${CMAKE_COMMAND} -E env
+      "LD_LIBRARY_PATH=${GMIC_BINARIES_PATH}"
+      "DYLD_LIBRARY_PATH=${GMIC_BINARIES_PATH}"
+      ${GMIC_BINARIES_PATH}/gmic
+        ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic
+        it ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic
+        reference man > ${CMAKE_BINARY_DIR}/man/gmic.1
   )
   add_custom_target(man ALL DEPENDS ${CMAKE_BINARY_DIR}/man/gmic.1)
   install(FILES ${CMAKE_BINARY_DIR}/man/gmic.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1/)
@@ -335,7 +366,14 @@ if(BUILD_BASH_COMPLETION)
   add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/resources/gmic_bashcompletion.sh
     DEPENDS gmic
-    COMMAND LD_LIBRARY_PATH=${GMIC_BINARIES_PATH} ${GMIC_BINARIES_PATH}/gmic ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic it ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic parse_cli bashcompletion > ${CMAKE_BINARY_DIR}/resources/gmic_bashcompletion.sh
+    COMMAND ${CMAKE_COMMAND} -E env
+      "LD_LIBRARY_PATH=${GMIC_BINARIES_PATH}"
+      "DYLD_LIBRARY_PATH=${GMIC_BINARIES_PATH}"
+      ${GMIC_BINARIES_PATH}/gmic
+        ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic
+        it ${CMAKE_SOURCE_DIR}/src/gmic_stdlib.gmic
+        parse_cli bashcompletion
+        > ${CMAKE_BINARY_DIR}/resources/gmic_bashcompletion.sh
   )
   add_custom_target(bashcompletion ALL DEPENDS ${CMAKE_BINARY_DIR}/resources/gmic_bashcompletion.sh)
   install(FILES ${CMAKE_BINARY_DIR}/resources/gmic_bashcompletion.sh

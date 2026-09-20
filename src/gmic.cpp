@@ -6918,26 +6918,31 @@ gmic& gmic::_run(const CImgList<char>& command_line, unsigned int& position,
               (ind=selection2cimg(indices,images.size(),image_names,"displacement")).height()==1 &&
               precision>=0 && nb_scales>=0 && nb_iterations>=0 && is_forward<=1 &&
               (!*argx || (ind0=selection2cimg(argx,images.size(),image_names,"displacement")).height()==1)) {
-            nb_scales = cimg::round(nb_scales);
-            nb_iterations = cimg::round(nb_iterations);
+            nb_scales = (double)(unsigned int)nb_scales;
+            if (!cimg::type<double>::is_inf(nb_iterations)) nb_iterations = (double)(unsigned int)nb_iterations;
             if (nb_scales) cimg_snprintf(argx,_argx.width(),"%g ",nb_scales); else std::strcpy(argx,"auto-");
-            if (ind0) { gmic_use_argy; cimg_snprintf(argy,_argy.width()," with guide [%u]",*ind0); } else *argy = 0;
+            if (ind0) {
+              gmic_use_argy; cimg_snprintf(argy,_argy.width()," with guide [%u]",*ind0);
+            } else *argy = 0;
 
             print(0,"Estimate displacement field from reference image [%u] to image%s, with "
-                  "%s smoothness %g, precision %g, %sscales, %g iteration%s, in %s direction%s.",
+                  "%s regularization, smoothness %g, precision %g, %sscales, %g iteration%s, in %s direction%s.",
                   *ind,
                   gmic_selection.data(),
-                  smoothness>=0?"isotropic":"anisotropic",cimg::abs(smoothness),
+                  smoothness>=0?"Tikhonov":"TV",cimg::abs(smoothness),
                   precision,
                   argx,
                   nb_iterations,nb_iterations!=1?"s":"",
                   is_forward?"forward":"backward",
                   argy);
+
             const CImg<T> reference = gmic_image_arg(*ind);
             const CImg<T> constraints = ind0?gmic_image_arg(*ind0):CImg<T>::empty();
-            cimg_forY(selection,l) gmic_apply(displacement(reference,smoothness,precision,(unsigned int)nb_scales,
-                                                           (unsigned int)nb_iterations,(bool)is_forward,
-                                                           constraints),false);
+            cimg_forY(selection,l)
+              gmic_apply(displacement(reference,smoothness,precision,(unsigned int)nb_scales,
+                                      cimg::type<double>::is_inf(nb_iterations)?~0U:(unsigned int)nb_iterations,
+                                      (bool)is_forward,
+                                      constraints),false);
           } else arg_error(builtin_command);
           is_change = true;
           ++position;
