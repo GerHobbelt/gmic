@@ -1092,6 +1092,9 @@ reference : skip "${2=}"
 "_xsize,_ysize,_zsize)' returns the correlation, unrolled as a vector, of the `(wI,hI,dI,sI)`-sized image 'I' "\
 "with the `(wK,hK,dK,sK)`-sized kernel 'K' (the meaning of the other arguments are the same as in command "\
 "'correlate'). Similar function 'convolve(...)' is also defined for computing the convolution between 'I' and 'K'."\n\
+"* Functions '_cumulate()', '_equalize()', '_mirror()', '_noise()', '_normalize()', '_permute()', '_reverse()', "\
+"'_shift()' and '_sort()' are in-place versions of their equivalent functions (whose names do not begin with an "\
+"underscore)."\n\
 \
 "## User-defined macros:"\n\
 "* Custom macro functions can be defined in a math expression, using the assignment operator "\
@@ -1112,7 +1115,7 @@ reference : skip "${2=}"
 "* Macros with variadic arguments can be defined, by specifying a single argument name followed by `...`. "\
 "For instance,\n~~~\nfoo(args...) = sum([ args ]^2);\n~~~\n "\
 "defines a macro that returns the sum of its squared arguments, so `foo(1,2,3)` returns `14` and "\
-"`foo(4,5)` returns `41`.\n"\
+"`foo(4,5)` returns `41`."\n\
 \
 "## Multi-threaded and in-place evaluation:"\n\
 "* If your images are large enough and you have several CPU cores available, it is possible that the math "\
@@ -5219,58 +5222,52 @@ _input_bytes :
   e[0--3] "Input file '"{/"$*"}"' as a 1D array of bytes."
   i raw:"$*",uint8
 
-#@cli input_csv : "filename",_read_data_as={ 0:Numbers | 1:Strings | _Variable_name }
-#@cli : Insert number of string array from specified .csv file.
-#@cli : If 'variable_name' is provided, the string of each cell is stored in a numbered variable '_variable_name_x_y', \
-# where 'x' and 'y' are the indices of the cell column and row respectively (starting from '0').
-#@cli : Otherwise, a 'WxH' image is inserted at the end of the list, with each vector-valued pixel 'I(x,y)' encoding \
-# the number or the string of each cell.
-#@cli : This command returns the 'W,H' dimension of the read array, as the status.
-#@cli : Default value: 'read_data_as=1'.
-+input_csv : check "isvarname('${2=1}') || isin($2,0,1,2)"
-  l[] {
-    is_var:="s = ['$2']; s!='0' && s!='1'"
-    if $is_var # Read data as new variables
-      e[0--4] "Input string array from file '"{/"$1"}"', in variable '$2'."
-      it "$1" replace {'" "'},255 s -,{'\n'}
-      W,H=0,$!
-      repeat $! { _input_csv_var[] $2,$>,${u\ {$>,t}} W:=max($W,${}) }
-      rm u $W,$H
-    else # Read data as a new image
-      s0,s1="number","string"
-      e[0--4] "Input "${s$2}" array from file '"{/"$1"}"'."
-      it "$1" s -,{'\n'} replace {'" "'},255
-      if $2 repeat $! { _input_csv_str[] ${u\ {$>,t}} rv[$>,-1] rm. } a y replace 255,{'" "'} # Read as strings
-      else repeat $! { _input_csv_val[] ${u\ {$>,t}} rv[$>,-1] rm. } a y # Read as values
-      fi
-      => "$1" u {[w,h]}
-    fi
-  }
+#@cli input_csv : "filename",_delimiter,_read_data_as={ 0:Numbers | 1:Strings }
+#@cli : Insert array of strings or numbers, read from specified .csv file.
+#@cli : A 'WxH' image is inserted at the end of the list, with each vector-valued pixel 'I(x,y)' encoding \
+# the content (number or string) of each cell.
+#@cli : Default values: 'delimiter=,' and 'read_data_as=1'.
++input_csv : skip "${2=,}" check "isbool(${3=1})"
+  s0,s1=number,string
+  e[^-1] "Input .csv file '"{/"$1"}"' as a "${s$3}" array$?, with delimiter '$2'."
+  it "$1"
 
-_input_csv_var :
-  $=arg
-  W:=$#-2
-  repeat $W {
-   arg=${arg{3+$>}}
-   if ['$arg']!=0 ({'${arg{3+$>}}'}) replace. 255,{'" "'} $1_$>_$2={t} rm. else $1_$>_$2= fi
-  }
-  u $W
+  # Determine table size and maximum cell length (excluding double quotes).
+  eval. ">begin(is_quoted = x = y = l = W = L = 0); i = i;
+    new_cell() = (
+      l>0?(j[-l]==_'\"' && j[-1]==_'\"'?(l-=2); L = max(L,l));
+      l = is_quoted = 0;
+    );
+    i==_'$2' && !is_quoted?(new_cell(); ++x):
+    i==_'\n'?(new_cell(); W = max(W,++x); ++y; x = 0):
+    i=='\"' && j[-1]!=_'\\'?(is_quoted = !is_quoted; ++l):++l;
+    end(
+      i!=_'\n'?(new_cell(); W = max(W,++x); ++y);
+      set('width',W); set('height',y); set('length',L)
+    )"
 
-_input_csv_str :
-  $=arg
-  repeat $# {
-    arg=${arg{1+$>}}
-    if ['$arg']!=0 ({'$arg'}:c) else (0) fi
-  }
-  a x
-
-_input_csv_val :
-  $=arg
-  repeat $# {
-    arg=${arg{1+$>}}
-    if ['$arg']!=0 ({s2v(['$arg'])}) else (nan) fi
-  }
-  a x
+  # Fill table.
+  $width,$height,1,{$3?$length:1}
+  eval.. ">begin(is_quoted = x = y = l = 0; str = vector32()); i = i;
+    new_cell() = (
+      l>0?(
+        off = -l;
+        j[-l]==_'\"' && j[-1]==_'\"'?(++off; l-=2);
+        l>0?(
+          $3?copy(i(#-1,x,y),j[off],l,wh#-1):(
+            nl = min(size(str),l); copy(str,j[off],nl); str[nl] = 0; i(#-1,x,y) = s2v(str);
+          );
+        );
+      );
+      l = is_quoted = 0;
+    );
+    i==_'$2' && !is_quoted?(new_cell(); ++x):
+    i==_'\n'?(new_cell(); x = 0; ++y):
+    i=='\"' && j[-1]!=_'\\'?(is_quoted = !is_quoted; ++l):++l;
+    end(
+      i!=_'\n'?new_cell();
+    )"
+  rm..
 
 #@cli input_cube : "filename",_convert_1d_cluts_to_3d={ 0:No | 1:Yes }.
 #@cli : Insert CLUT data from a .cube filename (Adobe CLUT file format).
@@ -5782,17 +5779,20 @@ output_565 : check "isbool(${2=0})"
   }
   is_change 0
 
-#@cli output_csv : "filename",_column_separator
+#@cli output_csv : "filename",_delimiter,_write_data_as={ 0:Numbers | 1:Strings }
 #@cli : Output selected ascii-encoded arrays as .csv files.
-#@cli : Default value: 'column_separator=,'.
-output_csv : skip "${2=,}"
-  e[^-1] "Output ascii-encoded array$? as file '"{/"$1"}"', with column separator '$2'."
+#@cli : Default values: 'delimiter=,' and 'write_data_as=1'.
+output_csv : skip "${2=,}" check "isbool(${3=1})"
+  s0,s1=number,string
+  e[^-1] "Output "${s$3}" array$? as file '"{/"$1"}"', with delimiter '$2'."
   N=$! +foreach {
     if $N>1 fn=${"filename \"$1\",$>"} else fn="$1" fi
-    0 eval.. ">
-      str = I; for (k = 0, k<s && str[k], ++k, da_push(str[k]));
+    0
+    eval.. ">begin($3?(ret = I):(ret = 0));
+      $3?(str = I):(str = v2s(i));
+      for (k = 0, k<size(str) && str[k], ++k, da_push(str[k]));
       da_push(x==w-1?_'\n':_'$2');
-      end(da_freeze()); str"
+      end(da_freeze()); ret"
     ot. $fn rm
   }
   is_change 0
@@ -6949,6 +6949,7 @@ parse_cli_images :
                 else o ${_parse_cli_images_path}t_$basename,75 fi
                 rm
               fi
+
             # onfail
             #   rm gui_error_preview "Unable to generate preview image"
             #   o ${_parse_cli_images_path}f_$basename,85
@@ -6972,7 +6973,7 @@ parse_cli_images :
 
 # Generate a single image from a list of images, for the reference documentation.
 # $1 : boolean that tells if the image name is inserted at the bottom of the generated image.
-_parse_cli_images : l[] { check "isbool(${1=1})" is_arg=1 arg1=$1 onfail is_arg=0 arg1=1 }
+_parse_cli_images : l[] { check "isnum(${1=1}) && isbool($1)" is_arg=1 arg1=$1 onfail is_arg=0 arg1=1 }
   if !$is_arg noarg fi
   if !$! rm return fi
   W,H=640,480
@@ -8821,7 +8822,7 @@ parse_gui_images :
       gui_merge_layers
     } fi
     if !$! $_input_image gui_no_preview , fi
-    c. 0,255 r. 100%,100%,1,{min(s,4)} to_rgba.
+    c. 0,255 r. 100%,100%,1,{cut(s,1,4)} to_rgba.
     if {*} w. ${"fitscreen ."} fi
     o. $file_out rm.
   fi }
@@ -11041,7 +11042,7 @@ update_deprecate : check "isint($1,1,999)"
 
 # update_download_html.
 # Update file versions on G'MIC download page, with specified version number.
-# $1 = version number (e.g. '3.7.3').
+# $1 = version number (e.g. '3.7.5').
 update_download_html : check "
     is_digit(c)=(c>=_'0' && c<=_'9');
     ver = ['${1=undefined}'];
@@ -12945,7 +12946,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=371,372,373,$_version
+  versions=371,372,373,374,375,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -13073,20 +13074,20 @@ _upload : skip "${2=""}","${3=0}"
 upload_binaries : check "isbool(${2=1})"
   is_pre=${"strcontains $1,_pre"}
   N=0
-  file$N=gmic_$1_gimp3.0_win64.exe                      N+=1
+  file$N=gmic_$1_gimp3.2_win64.exe                      N+=1
   file$N=gmic_$1_gimp2.10_win64.exe                     N+=1
-  file$N=gmic_$1_gimp3.0_win64.zip                      N+=1
+  file$N=gmic_$1_gimp3.2_win64.zip                      N+=1
   file$N=gmic_$1_gimp2.10_win64.zip                     N+=1
   file$N=gmic_$1_cli_win64.zip                          N+=1
   file$N=gmic_$1_qt_win64.zip                           N+=1
   file$N=gmic_$1_lib_win64.zip                          N+=1
 
-  file$N=gmic_$1_gimp3.0_ubuntu25-04_plucky_amd64.zip   N+=1
+  file$N=gmic_$1_gimp3.0_ubuntu26-04_resolute_amd64.zip N+=1
   file$N=gmic_$1_gimp2.10_ubuntu24-04_noble_amd64.zip   N+=1
   file$N=gmic_$1_gimp2.10_ubuntu22-04_jammy_amd64.zip   N+=1
   file$N=gmic_$1_gimp2.10_ubuntu20-04_focal_amd64.zip   N+=1
 
-  file$N=gmic_$1_ubuntu25-04_plucky_amd64.deb           N+=1
+  file$N=gmic_$1_ubuntu26-04_resolute_amd64.deb         N+=1
   file$N=gmic_$1_ubuntu24-04_noble_amd64.deb            N+=1
   file$N=gmic_$1_ubuntu22-04_jammy_amd64.deb            N+=1
   file$N=gmic_$1_ubuntu20-04_focal_amd64.deb            N+=1
@@ -13310,7 +13311,7 @@ remove_duplicates :
     base=$> off=0
     repeat $!-$>-1 {
       comp:=$base+1+$>-$off
-      if $comp>=$!" || "[{$base,[w,h,d,s]}]!=[{$comp,[w,h,d,s]}] break fi
+      if $comp>=$!" || "[{$base,[w,h,d,s]}]!=[{$comp,[w,h,d,s]}] continue fi
       +-[$base,$comp] abs. is_duplicate:=!is rm.
       if $is_duplicate rm[$comp] off+=1 fi
     }
@@ -17352,31 +17353,24 @@ solarize :
   e[^-1] "Solarize image$?."
   luminance n 0,128 map 1
 
-#@cli split_colors : _tolerance>=0,_max_nb_outputs>0,_min_area>0
-#@cli : Split selected images as several image containing a single color.
+#@cli split_colors : _max_nb_outputs>=0
+#@cli : Split selected images as several single-colored outputs.
 #@cli : One selected image can be split as at most 'max_nb_outputs' images.
-#@cli : Output images are sorted by decreasing area of extracted color regions and have an additional alpha-channel.
-#@cli : Default values: 'tolerance=0', 'max_nb_outputs=256' and 'min_area=8'.
+#@cli : Output images are sorted by decreasing color occurence and have an additional alpha-channel.
+#@cli : If 'max_nb_outputs==0', there are as many outputs as different colors in the input images.
+#@cli : Default values: 'max_nb_outputs=0'.
 #@cli : $ image.jpg quantize 5 +split_colors , display_rgba
-split_colors : check "${1=0}>=0 && isint(${2=256},1) && ${3=8}>=1"
-  e[^-1] "Split image$? as single color outputs, with tolerance $1, $2 maximal outputs and minimal color area $3."
-  foreach {
-    +label 0,1 norm. area. 0,1
-
-    # Loop over biggest color regions.
-    repeat $2-1 {
-      coordsM={1,[xM,yM,zM,cM]}
-      if {1,i($coordsM)<$3} break fi
-      color={0,I($coordsM)}
-      +select_color[0] $1,$color
-      ==. 0 *[1] . ==. 0
-    }
-    if iM#1 !=[1] 0 mv[1] $! # Residual mask, if any
-    else rm[1] fi
-    r[^0] [0],[0],[0],{0,s+1}
-    N:=$!-1
-    sh[^0] 0,{s-2} *[-$N--1] [0] rm[-$N--1]
-    sh[^0] 100% *[-$N--1] 255 rm[0,-$N--1]
+split_colors : check "isint(${1=0},0)"
+  s0,s1=,", with $1 maximum outputs"
+  e[^-1] "Split image$? as single-colored outputs"${s{!!$1}}"."
+  foreach { nm={n}
+    if w
+      +colormap 0,0,2 index.. .,0,0 to_rgba.
+      N:=min($1?$1:inf,w)
+      ..,..,..,100% => $nm if $N>1 .x{$N-1} fi
+      eval[0] "i = i; i<$N?copy(i(#2 + i,x,y,z),i[#1,i],s#1,whd#2,whd#1)"
+      rm[0,1]
+    fi
   }
 
 #@cli split_opacity
@@ -25287,7 +25281,8 @@ array3d : check "isint($1,1) && isint(${2=1},1) && isint(${3=1},1)"
   R:=ispercentage($7)?$7*$L:$7
   l:=ispercentage($8)?$8*$L:$8
   r:=ispercentage($9)?$9*$L:$9
-  L-=$l cylinder3d $R,$L cone3d $r,$l +3d. 0,0,$L +3d[-2,-1]
+  L-=$l cylinder3d $R,$L cone3d $r,$l
+  +3d. 0,0,$L +3d[-2,-1]
 
   # Compute rotation matrix for arrow orientation.
   ({$4-$1}^{$5-$2}^{$6-$3}) (0.01^-0.02^0.03) orientation[-2,-1]
@@ -41530,9 +41525,10 @@ x_hough : check_display $0
   }
   rm
 
-#@cli x_jawbreaker : 0<_width<20,0<_height<20,0<_balls<=8
+#@cli x_jawbreaker : 0<_width<20,0<_height<20,0<_nb_colors<=8
 #@cli : Launch the Jawbreaker game.
-x_jawbreaker : check "${1=12}>0 && $1<20 && ${2=13}>0 && $2<20 && ${3=5}>0 && $3<=8" check_display $0
+#@cli : Default values: 'width=12', 'height=13' and 'nb_colors=5'.
+x_jawbreaker : check "isint(${1=12},1,19) && isint(${2=13},1,19) && isint(${3=5},1,8)" check_display $0
   use_vt100 g=$_vt100_g c=$_vt100_c n=$_vt100_n r=$_vt100_r
   e "\n
 ------ "${g}"Jawbreaker"$n" --------------------------------------------\n
@@ -41816,7 +41812,7 @@ x_life : check_display $0
     if {*,x}>0" && "{*,b}==1" && "$stock>0 # Add random cells to the game if mouse button pressed
       nb:=u*7
       repeat $nb {
-        x,y={0,[{*,x,y}]*[w,h]/[{*,w,h}]+u(-4,4)}
+        x,y={0,[{*,x,y}]*[w,h]/[{*,w,h}]+u([-4,-4],[4,4])}
         =[0] 1,$x,$y
         =[1] $iteration,$x,$y
         point[2] {$x*{2,w}/{0,w}},{$y*{2,h}/{0,h}},0,0.8,255
@@ -45125,6 +45121,12 @@ gui_check_version :
   else u 1
   fi
 
+gui_check_x11_gdi32 :
+  if '$_host'!='cli'" && "find('$_flags','x11')<0" && "find('$_flags','gdi32')<0
+    str="This filter requires the X11 or GDI32 graphic library to work properly."
+    if $1 gui_error_preview $str q else error $str fi
+  fi
+
 # Function to auto-crop layers and set their positions.
 gui_autocrop_layers :
   foreach {
@@ -45259,7 +45261,7 @@ fx_logo : skip "${1= }"
 # Jq/T7fScubEzCCJPMNs8qtXD3zzMCBWAjoqwMBAgQc7c/80QolMpLH0Y5Uo2PO+POZEedX9e6tKfe+t7axKTrw9Vbq2pZL/wqbIdqvnCg204jgFvvJ5dj\
 # Q6ZULh64uiGuLRBBKJEnVlktWMrAOePWfVL19LJwydps6/fWSpKS3kz49Yvll1gklT+bOTuAZzJNQxAPOsjFAQqxQk4gpPadC0LwAECx6oq8t9IRPxnn3\
 # fPRWUnWkq51Ue+tkiQmvqr+LP/TrueslO2y7XLgt9wpHhx0cCBiUmBrwAxGhEIEyGrBw+WRduk4+5yEVZL1lavOLHZeJZEmvlp3vn/2qa9zWbOvXCsDgC\
-# dfOwz6OWgJZZallnS+j+eitqBABHTjvTWVTlTGH/5VIUZ4CClbAAAAAElFTkSuQmCC" >   David Tschumperlé</a>     and    
+# dfOwz6OWgJZZallnS+j+eitqBABHTjvTWVTlTGH/5VIUZ4CClbAAAAAElFTkSuQmCC" >   David Tschumperlé</a>     and
 #@gui : <a href="https://foureys.users.greyc.fr/"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAM\
 # AAACdt4HsAAAC/VBMVEW3xMQAAADUqJoDAwEICALFmozFqIwGBQG1jYA7O0EfICUdHiMPDAoODASth3svLzYFBQQoKS8LCQM1NTwaGx0SDg0bHSEHBgYJ\
 # DQTRpZfCmIpuVk4XFxh5XlU3N0C+lIemgnaif3OPcGZ2XFM/P0clJSoXHAoUFQfAloi4kINrVE0QFAgJCAece3BZRj9WQz03LCYODw8UFRjNo5WXdmuEa\
@@ -45343,7 +45345,7 @@ fx_logo : skip "${1= }"
 # ME23qByNrmPS9cuHj10qX8s23k558+c/1tT6DLgNCYhISECxcvXj1z+hTGaRwBPmPelJaihvaChG4JDEpLSt78JtjUHYHW+5KS0vaC03Uf13dHYJr34MH\
 # 7Syh1dXX5aJSFCEdmDHa9Hp5hHH7P7RzCaQfiNqYbJ3C7dy0cE7Tn3PpuNJAXfi3c4zeBLK/LLeh6GF8rf+Dh2VGA8GaDXbxDD/QE5fWJMk5HZG5dHIUR\
 # HvXh5d/ceMhvAuTcvC7Va5BGuIWXG2MRdKS3E9g1gQagMyLPLVGGdCzXhYBuAGk59G5fba9FALoL0WKLk6mDg4OprpYOEfgPPj8AH7GtomieWx8AAAAAS\
-# UVORK5CYII=" >  <a href="https://gmic.eu/">https://gmic.eu</a>     and    
+# UVORK5CYII=" >  <a href="https://gmic.eu/">https://gmic.eu</a>     and
 #@gui : <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA/CAMAAABnwz74AAADAFBMVEUAAAD8+/v77u/9+/v8/Pz47\
 # vT25Of04+aYbXL03eD+/fzx2tz89/v99/n98PHDn6ns4OnQtLqshov88PP/8/T51NT46evz4evguLmlYWn56PDgwMK7govXp6u0YG/CjZWUd5Dt1tqTXG\
 # WIWWLx0eLl0NrAcnnIeYDw4Onlxtf54e3z1+Xs0d/rzNvz5+704ev33ejt2ePdv87vt7ngqqyoconZpqSoUlpwPFndxdHgsbTGorHDm6zMg4XBbHPPaGq\
@@ -45487,6 +45489,8 @@ _gui_download_all_data :
 #@gui : url = link("Mahvelous Mahvin","http://www.mahvin.com/")
 #@gui : note = note{"and"}
 #@gui : url = link{"David Revoy (Deevad)","http://www.davidrevoy.com/"}
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/03/16</i>.</small>")
 fx_gmicky : check "isint(${1=0},0)"
   rm
   if !$1 sp gmicky => "name(Gmicky)"
@@ -45507,7 +45511,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.0 - Linux 64 bits - 3.7.3</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.2 - Linux 64 bits - 3.7.5</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -45539,8 +45543,8 @@ fx_gmicky_preview :
 #@gui : - <b>2024/12/31</b> : version <i>3.5.0</i>.\n
 #@gui : - <b>2025/08/21</b> : version <i>3.6.0</i>.\n
 #@gui : - <b>2026/02/13</b> : version <i>3.7.0</i>.\n
-#@gui : - <span foreground="#EE5500"><b>2026/02/26</b> : version <i>3.7.2</i> (Current stable).</span>\n
-#@gui : - <b>2026/03/07</b> : version <i>3.7.3</i> (Current pre-release).\n
+#@gui : - <span foreground="#EE5500"><b>2026/03/18</b> : version <i>3.7.4</i> (Current stable).</span>\n
+#@gui : - <b>2026/03/20</b> : version <i>3.7.5</i> (Current pre-release).\n
 #@gui : "}
 #@gui : sep = separator()
 #@gui : url = link{"View changelog for next major version (3.8)","https://discuss.pixls.us/t/on-the-road-to-gmic-3-8"}
@@ -48760,7 +48764,7 @@ fx_charcoal :
 #@gui : "http://www.davidrevoy.com/article240/gmic-line-art-colorization")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2016/07/12</i>.</small>")
-fx_colorize_interactive : skip "${4=},${5=},${6=}"
+fx_colorize_interactive : skip "${4=},${5=},${6=}" gui_check_x11_gdi32 0
   N=$! nm={n}
   resolution:=arg0($3,512,1024,2048,0)
   => "[G'MIC] Colorize"
@@ -48802,7 +48806,7 @@ fx_colorize_interactive : skip "${4=},${5=},${6=}"
   if !narg($status) status=-1 fi
   u \{$1\}\{$2\}\{$3\}\{"$4"\}\{"$5"\}\{"$6"\}\{0\}\{{w},{h}\}\{$status\}
 
-fx_colorize_interactive_preview : skip "${4=},${5=},${6=}"
+fx_colorize_interactive_preview : skip "${4=},${5=},${6=}" gui_check_x11_gdi32 1
   if $7 # Clear control points
     gui_print_preview "No preview\n  available",,"(Control points cleared)"
     u \{$1\}\{$2\}\{$3\}\{"$4"\}\{"$5"\}\{"$6"\}\{0\}\{{w},{h}\}\{-1\}
@@ -49839,7 +49843,7 @@ fx_channels2layers_preview :
 #@gui : re-apply on a bunch of other images.
 #@gui : "}
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.
 #@gui : Latest Update: <i>2019/08/27</i>.</small>")
 fx_clut_from_ab : skip "${4=},${5=}"
   if $!<2 error "At least two input layers are needed to run this filter." fi
@@ -51295,7 +51299,7 @@ fx_colormap_preview :
 #@gui : </small>"}
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>01/20/2017</i>.</small>")
-fx_mask_color :
+fx_mask_color : gui_check_x11_gdi32 0
   cs=rgb,rgb_r,rgb_g,rgb_b,lrgb,lrgb_r,lrgb_g,lrgb_b,ycbcr_y,ycbcr_cbcr,ycbcr_cb,ycbcr_cr,ycbcr_cg,\
      lab,lab_l,lab_ab,lab_a,lab_b,lch,lch_c,lch_h,hsv,hsv_h,hsv_s,hsv_v,hsi,hsi_i,hsl,hsl_l,\
      cmyk_c,cmyk_m,cmyk_y,cmyk_k,yiq_y,yiq_iq
@@ -51340,7 +51344,7 @@ fx_mask_color :
 #@gui : </small>"}
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>09/28/2014</i>.</small>")
-fx_curves_interactive :
+fx_curves_interactive : gui_check_x11_gdi32 0
   => "Color curves"
   repeat 5 { __xcc_C$>=0,0,100,100 }
   if $4==$1 l[] { ($5) s -,-1 repeat $! { __xcc_C$>={$>,^} } rm } fi
@@ -51358,7 +51362,7 @@ fx_curves_interactive :
     x_color_curves. last
   fi
 
-fx_curves_interactive_preview :
+fx_curves_interactive_preview : gui_check_x11_gdi32 1
   fx_curves_interactive $1,0,1,$4,"$5"
 
 #@gui Customize CLUT : fx_customize_clut,fx_customize_clut_preview(1)+
@@ -53302,7 +53306,7 @@ fx_edge_offsets :
 #@gui : </small>"}
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2014/09/29</i>.</small>")
-fx_extract_foreground :
+fx_extract_foreground : gui_check_x11_gdi32 0
   if !$! return fi
   resolution:=arg0($3,512,1024,2048,0)
   foreach {
@@ -54279,7 +54283,7 @@ fx_symmetrizoscope :
 #@gui : "}
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2019/04/16</i>.</small>")
-fx_morph_interactive :
+fx_morph_interactive : gui_check_x11_gdi32 0
   if [$3][0]!=-1 __x_morph_keypoints=$3 fi
   rv
   x_morph $1,$2
@@ -54287,7 +54291,7 @@ fx_morph_interactive :
   rv
   u "{$1}{$2}{"$__x_morph_keypoints"}"
 
-fx_morph_interactive_preview :
+fx_morph_interactive_preview : gui_check_x11_gdi32 1
   if $!<2 gui_warning_preview "This filter requires at least two input layers!" return fi
   rs ${-max_wh},3 + n 0,255
   if [$3][0]!=-1 gui_warning_preview "No preview available\n\nKeypoints from previous\nrun have been saved"
@@ -54888,12 +54892,12 @@ fx_twirl :
 #@gui : "}
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2019/04/08</i>.</small>")
-fx_warp_interactive :
+fx_warp_interactive : gui_check_x11_gdi32 0
   if [$4][0]!=-1 __x_warp_keypoints=$4 fi
   x_warp $2,$2,$3,$1
   u "{$1}{$2}{$3}{"$__x_warp_keypoints"}"
 
-fx_warp_interactive_preview :
+fx_warp_interactive_preview : gui_check_x11_gdi32 1
   if [$4][0]!=-1 __x_warp_keypoints=$4 fi
   foreach {
     rs $_preview_area_width,$_preview_area_height,3 to_color drgba

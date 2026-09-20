@@ -52,7 +52,7 @@
 */
 
 #ifndef gmic_version
-#define gmic_version 373
+#define gmic_version 375
 
 #ifndef gmic_pixel_type
 #define gmic_pixel_type float
@@ -207,10 +207,6 @@ namespace gmic_library {
 #define cimg_appname "gmic"
 #endif
 
-#ifdef gmic_is_parallel
-#include <pthread.h>
-#endif
-
 #define cimg_library gmic_library
 #define CImg gmic_image
 #define CImgList gmic_list
@@ -273,6 +269,11 @@ inline double gmic_mp_store(const double *const ptrs, const unsigned int siz,
 #include <signal.h>
 
 #endif // #if cimg_OS==2
+
+#if defined(gmic_is_parallel) && cimg_OS!=2
+#include <pthread.h>
+#define gmic_parallel_use_pthread
+#endif
 
 #endif // #ifndef gmic_core
 
