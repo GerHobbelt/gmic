@@ -847,8 +847,8 @@ reference : skip "${2=}"
 "given interpolation mode. 'interpolation' can be "\
 "{ -1:None (memory content) | 0:None | 1:Nearest | 2:Average | 3:Linear | 4:Grid | 5:Bicubic | 6:Lanczos }, and "\
 "'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }."\n\
-"* Function 'find(A,B,_starting_index,_search_step)' returns the index where sub-vector 'B' appears in vector 'A', "\
-"(or '-1' if 'B' is not contained in 'A'). Argument 'A' can be also replaced by an image index '#ind'."\n\
+"* Function 'find(A,B,_starting_index,_search_step,_max_iterations)' returns the index where sub-vector 'B' appears "\
+"in vector 'A' (or '-1' if 'B' is not contained in 'A'). Argument 'A' can be also replaced by an image index '#ind'."\n\
 "* Specifying a vector-valued math expression as an argument of a command that operates on image values "\
 "(e.g. 'fill') modifies the whole spectrum range of the processed image(s), for each spatial coordinates `(x,y,z)`. "\
 "The command does not loop over the `c`-axis in this case."\n\
@@ -12520,11 +12520,14 @@ update_reference_html : check "isbool(${1=0})"
                 "should be '"$path_ok"'."
   fi
   x "rm -f *.pdf"
+  x "ln -fs "$HOME/work/src/gmic-community/reference/Reptorian/Combinatorics/Main.gmd" "\
+    $HOME/work/src/gmic-community/reference/"\"Reptorian's Combinatorics Library.gmd\""
 
   rm
   e[^-1] "Generate reference documentation pages for the G'MIC website."
   it $HOME/work/src/gmic/src/gmic_stdlib.gmic
-  a y
+  it $HOME/work/src/gmic-community/include/reptorian.gmic
+  i[1--1] ('\n') a y
 
   # Generate image of examples.
   if $1 _prerelease= fi
@@ -12539,6 +12542,26 @@ update_reference_html : check "isbool(${1=0})"
   x "ln -fs "$HOME/work/src/gmic/html/footer.html" ."
   x "cp -rf "$HOME/work/src/gmic-community/reference/images" ."
   reference html,$HOME/work/src/gmic-community/reference
+
+  # Generate reference pages for Reptorian's Combinatorics Library.
+  e "\n > Generate reference pages for Reptorian's Combinatorics Library."
+  PATH=$HOME/work/src/gmic-community/reference/Reptorian/Combinatorics/
+  files 0,${PATH}*.gmd files=${}
+  repeat narg($files) {
+    arg0 $>,$files file=${} 0 => $file strvar {b} url=rcl_${}.html rm.
+    l[] {
+      it ${PATH}$file
+      replace_str "Permutations.html","rcl_permutations.html"
+      replace_str "Combinations.html","rcl_combinations.html"
+      replace_str "Cartesian_Product.html","rcl_cartesian_product.html"
+      replace_str "Sum_Combinatorics.html","rcl_sum_combinatorics.html"
+      replace_str "Incremental_Combination.html","rcl_incremental_combination.html"
+      replace_str "RDE.html","rcl_rde.html"
+      gmd2html 1
+      ot $url rm
+    }
+  }
+  x "ln -fs rcl_main.html reptorian_s_combinatorics_library.html"
 
   # Upload to G'MIC server.
   if $1
@@ -13020,7 +13043,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=400,401,402,403,404,$_version
+  versions=400,401,402,403,404,405,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -14521,8 +14544,8 @@ ir : check "isbool(${3=1}) && isbool(${4=$3})"
 #@cli : Each output image has 'M*N' channels, where 'M' and 'N' are the numbers of channels of, respectively, \
 # the corresponding input image and the 'palette' image.
 #@cli : 'palette_name' can be { default | hsv | lines | hot | cool | jet | flag | cube | rainbow | algae | amp | \
-# balance | curl | deep | delta | dense | diff | gray | haline | ice | matter | oxy | phase | rain | solar | speed | \
-# tarn | tempo | thermal | topo | turbid | aurora | hocuspocus | srb2 | uzebox }
+# balance | curl | deep | delta | dense | diff | gray | haline | ice | matter | oxy | phase | rain | random | solar | \
+# speed | tarn | tempo | thermal | topo | turbid | aurora | hocuspocus | srb2 | uzebox }
 #@cli : 'boundary_conditions' can be { 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }.
 #@cli : Default value: 'boundary_conditions=0'.
 #@cli : $ image.jpg +luminance map[-1] 3
@@ -14534,7 +14557,11 @@ map : check "isint(${2=0},0,3)"
   names=${-_palette_names} N:=narg($names)
   l[] { if isint("$1") name=${"arg0 ($1%"$N"),"$names} else name="$1" fi onfail name="$1" }
   e[^-1] "Map color LUT '"$name"' to image$?, with "$boundary" boundary conditions."
-  palette $1 map[^-1] .,$2 rm.
+  if ['$1']=='random' foreach {
+    n 0,16383 round 16384,1,1,{s==1?3:1} rand. 1,254 round. point. 0,0,0,1,0 point. 100%,0,0,1,255 map.. . rm.
+  }
+  else palette $1 map[^-1] .,$2 rm.
+  fi
 
 #@cli mix_channels : (a00,...,aMN) : [matrix]
 #@cli : Apply specified matrix to channels of selected images.
@@ -15626,63 +15653,42 @@ colormap : check "isint($1,0) && isbool(${2=1}) && isint(${3=1},0,2)"
 
     # Always extract full colormap first (avoid working on duplicated colors).
     eval "begin(is_int = 1); is_int&=isint(i); end(merge(is_int,&); set('is_int',is_int))"
-    if $is_int" && "s<=3 repeat s { sh. $> im$>,siz$>:=im,iM-im+1 rm. } fi
-    if $is_int" && "s<=3" && "((s==1" && "$siz0<=16777216)" || "(s==2" && "$siz0*$siz1<=16777216))
+    if $is_int" && "s<=2 repeat s { sh. $> im$>,siz$>:=im,iM-im+1 rm. } fi
+    if $is_int" && "s<=2" && "\
+       ((s==1" && "$siz0<=16777216)" || "\
+        (s==2" && "$siz0*$siz1<=16777216))
       # Optimized case when only relatively small integers are used for pixel values.
       if s==1 $siz0 else $siz0,$siz1 fi
-      eval.. ">begin(const im0 = $im0; const im1 = $im1); s==1?++i[#-1,i - im0]:++i(#-1,i0 - im0,i1 - im1); _0"
+      eval.. ":begin(const im0 = $im0; const im1 = $im1); s==1?(i[#-1,i - im0] = 1):(i(#-1,i0 - im0,i1 - im1) = 1); _0"
       1,1,1,{-2,s}
-      eval.. "begin(const im0 = $im0; const im1 = $im1); i?(s#-3==1?da_push(x + im0):da_push([ x + im0,y + im1 ]));
+      eval.. "begin(const im0 = $im0; const im1 = $im1);
+        i?(s#-3==1?da_push(x + im0):da_push([ x + im0,y + im1 ]));
         end(da_freeze())"
       permute. yxzc rm..
 
-    elif $is_int # More generic case, with larger integers -> use integer hashes
-      +n 0,255 100%,100%,100%,1,"H = 0; repeat (s#-1,c,(H*=31)+=j(#-1,0,0,0,c)); H%2048" # Compute hashcode map
-      rm.. equalize. 2048 n. 0,2047 round. 1
-      0x2048 eval[0] "> # Find single occurrence of each color/vector
-        begin(size = vector2048());
-        I = I; H = i#1; indH = H + 2; sizH = size[H];
-        !sizH || find(#indH,I,s#0*(sizH - 1),-s#0)<0?( # Color not found
-          sizH>=h(#indH)?resize(#indH,s#0,max(8,2*h#indH),1,1,0);
-          copy(i(#indH,0,sizH,0,0),I);
-          ++size[H];
+    else # More generic case -> use hashes
+      N=1024 # Number of buckets
+      100%,100%,100%,1,": # Compute color hashes
+        H = 1; repeat (s#0,c,i = j(#0,0,0,0,c); ((H*=2654435761)+=2246822519*(isnan(i)?0:i))%=$N); int(H)"
+      +%. {;n} histogram. {[n,0,n-1]} M:=iM rm. # Retrieve max number of colors per thread
+
+      $M,{;n},1,4,-1 # Dispatch colors to each thread
+      eval[1] ">begin(size = vector(#n)); H = i; m = H%n; I(#2,size[m]++,m) = [ H,x,y,z ]" rm..
+
+      0x$N
+      eval[1] ": # Find single occurrence of each color/vector
+        begin(size = vector(#$N));
+        H = i;
+        H>=0?(
+          indH = H + 2; sizH = size[H]; C = I(#0,i1,i2,i3);
+          !sizH || find(#indH,C,s#0*(sizH - 1),-s#0)<0?( # Color not found
+            sizH>=h(#indH)?resize(#indH,s#0,max(8,2*h#indH),1,1,0);
+            copy(i(#indH,0,sizH,0,0),C);
+            ++size[H];
+          );
         );
-        end(fill(size,k,resize(#k + 2,s#0,size[k],1,1,0))); _0"
+        end(merge(size,+); fill(size,k,resize(#k + 2,s#0,size[k],1,1,0))); _0"
       a[2--1] y permute. yzcx rm..
-
-    else # Most generic case -> use float32 hashes
-      100%,100%,100%,4,":
-        hash_f32(C) = (
-          const A = 2654435761;
-          const B = 2246822519;
-          const M = 16777213;
-          H = 1;
-          repeat (size(C),i,
-            X = isnan(C[i])?0:((C[i]*8192)%M);
-            H = (H*A + X*B + 1)%M;
-          );
-          H;
-        );
-        C = I(#-1);
-        [ hash_f32(C),x,y,z ]"
-      r. {whd},1,1,100%,-1 sort. +,x
-
-      1,1,1,{s-1}x2
-      eval... ">begin(hash = -1); # Extract unique colors.
-        color = I(#-4,i1,i2,i3);
-        hash!=i0?(
-          hash = i0;
-          i(#-2,0,h(#-2) - 1) = 0; # Empty dynamic array
-          da_push(#-2,color); da_push(#-1,color);
-        ):( # Check that color doesn't already exist in dynamic array
-          already_exist = 0;
-          repeat(da_size(#-2),k,I[#-2,k]==color?(already_exist = 1; break()));
-          !already_exist?(
-            da_push(#-2,color); da_push(#-1,color);
-          );
-        );
-        end(da_freeze(#-1)); _0"
-      rm[-3,-2] permute. yxzc
     fi
 
     # Quantize colors in 'nb_levels'.
@@ -45865,11 +45871,11 @@ fx_gmicky_preview :
 #@gui : - <b>2025/08/21</b> : version <i>3.6.0</i>.\n
 #@gui : - <b>2026/02/13</b> : version <i>3.7.0</i>.\n
 #@gui : - <b>2026/07/01</b> : version <i>4.0.0</i>.\n
-#@gui : - <span foreground="#EE5500"><b>2026/07/20</b> : version <i>4.0.3</i> (Current stable).</span>\n
-##@gui : - <b>2026/XX/XX</b> : version <i>4.0.4</i> (Current pre-release).\n
+#@gui : - <span foreground="#EE5500"><b>2026/08/19</b> : version <i>4.0.4</i> (Current stable).</span>\n
+#@gui : - <b>2026/08/20</b> : version <i>4.0.5</i> (Current pre-release).\n
 #@gui : "}
 #@gui : sep = separator()
-##@gui : url = link{"View changelog for next major version (4.1)","https://discuss.pixls.us/t/on-the-road-to-gmic-4-1"}
+#@gui : url = link{"View changelog for next major version (4.1)","https://discuss.pixls.us/t/on-the-road-to-gmic-4-1"}
 #@gui : url = link{"View changelog for current major version (4.0)","https://discuss.pixls.us/t/release-of-gmic-4-0"}
 
 #@gui Send Feedback : _none_,fx_send_feedback
@@ -55554,7 +55560,7 @@ _fx_zoom_v2 :
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
 # Adds film grain noise to the image.
 #@gui : "}, sep = separator()
-#@gui : Preset = choice{"Orwo NP20-GDR","Kodak TMAX 400","Kodak TMAX 3200","Kodak TRI-X 1600","Unknown"}
+#@gui : Preset = choice{"Orwo NP20-GDR","Kodak TMAX 400","Kodak TMAX 3200","Kodak TRI-X 1600"}
 #@gui : Blend Mode = choice(1,"Alpha","Grain Merge","Hard Light","Overlay","Soft Light","Grain Only")
 #@gui : Opacity = float(0.2,0,1)
 #@gui : Scale = float(100,30,800)
@@ -55577,7 +55583,7 @@ fx_simulate_grain :
   __fx_simulate_grain ${arg0\ $1,${-_fx_simulate_grain}},${2-11},0,0
 
 _fx_simulate_grain :
-  u orwo_np20,kodak_tmax400,kodak_tmax3200,kodak_trix1600,unknown
+  u orwo_np20,kodak_tmax400,kodak_tmax3200,kodak_trix1600
 
 fx_simulate_grain_preview :
   gui_split_preview "_fx_simulate_grain_preview $*",$-2
@@ -55587,11 +55593,10 @@ _fx_simulate_grain_preview :
 
 __fx_simulate_grain :
   bm0=alpha bm1=grainmerge bm2=hardlight bm3=overlay bm4=softlight bm5=alpha
-  input_cached data_film_presets/grain_$1.cimgz
+  l[] { input_cached gmic_grain.gmz k[$1] }
   r. $4%,$4%,1,1,6
   if $4>100 b. 1 fi
   sharpen. $5 c. 0,255
-
   repeat $!-1 { l[$>,-1] {
     split_opacity[0]
     +syntexturize. {0,[w,h]}
@@ -64406,7 +64411,8 @@ fx_twisted_rays :
 
 #@gui Variable-Density Hilbert Curve : fx_vdhc,fx_vdhc_preview(0)
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
-# Draw a single variable-density Hilbert Curve that reproduces an image.
+# Draw a single variable-density Hilbert Curve that reproduces an image. \
+# Works better with square images.
 #@gui : "}, sep = separator()
 #@gui : Brightness (%) = float(0,-100,100)
 #@gui : Contrast (%) = float(0,-100,100)
@@ -64425,11 +64431,15 @@ fx_twisted_rays :
 #@gui : Curve Thickness = float(2,0,10)
 #@gui : Anti-Aliasing = choice(1,"None","x1.5","x2","x3")
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/08/03</i>.</small>")
-fx_vdhc :
+#@gui : Description = note{"<span color="#EE5500"><b>SVG Export:</span>"}
+#@gui : Output SVG File = _fileout("")
+#@gui : Stroke Thickness = float(0.25,0,1)
+#@gui : sep = separator()
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/09/03</i>.</small>")
+fx_vdhc : skip "${13=}"
   image_brightness,image_contrast,image_gamma,image_smoothness,\
   curve_orientation,level_coarsest,level_finest,level_switching_step,\
-  color_mode,curve_smoothness,curve_thickness,antialiasing=${1-12}
+  color_mode,curve_smoothness,curve_thickness,antialiasing,svg_out,svg_thickness=${1-12},"$13",$14
 
   foreach {
     w,h:=w,h adjust_colors $image_brightness,$image_contrast,$image_gamma => img
@@ -64457,9 +64467,9 @@ fx_vdhc :
     mv[0] $!
 
     # Quantize image to reproduce.
-    luminance[img] b. $image_smoothness if $color_mode negate. fi
-    quantize. $nb_levels,0,1
-    => levelmap
+    luminance[img] b[img] $image_smoothness if $color_mode negate[img] fi
+    quantize[img] $nb_levels,0,1
+    =>[img] levelmap
 
     # Generate variable-density Hilbert Curve.
     1,1,1,2
@@ -64478,6 +64488,35 @@ fx_vdhc :
     => coords
     k[$nb_levels--1]
     if $curve_smoothness r[coords] 1,400%,1,2,3 b[coords] y,$curve_smoothness fi
+
+    # Generate SVG output.
+    if !0$_is_preview" && ['"$svg_out"']!=0"
+      if $color_mode bg_color,fg_color=white,black else bg_color,fg_color=black,white fi
+      ('"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 "{levelmap,w}" "{levelmap,h}"\" "\
+        "width=\"100%\" height=\"100%\">"\n\
+        "<style>"\n\
+        "  .background {"\n\
+        "    fill: "$bg_color";"\n\
+        "  }"\n\
+        "  .hilbert-curve {"\n\
+        "    fill: none;"\n\
+        "    stroke: "$fg_color";"\n\
+        "    stroke-width: "$svg_thickness";"\n\
+        "  }"\n\
+        "</style>"\n\n\
+        "<!-- Background -->"\n\
+        "<rect class=\"background\" width=\"100%\" height=\"100%\" />"\n\n\
+        "<!-- Variable-Density Hilbert Curve ("{coords,h}" Points) -->"\n\
+        "<path class=\"hilbert-curve\" d=\""':y)
+
+      0 eval[coords] ">begin(L = [ _' ',_'L',_' ' ]; M = [ _'M',_' ',0 ]);
+        item = string(y?L:M,v2s(i0*w#$levelmap,-1),' ',v2s(i1*h#$levelmap,-1));
+        l = find(item,0); l<0?(l = size(item));
+        s = da_size(); da_push_n(l); copy(i[#-1,s],item,l);
+        end(da_freeze())"
+
+      ('"\" />"\n"</svg>"\n':y) a[-3--1] y ot. $svg_out
+    fi
 
     # Draw curve.
     fact:=arg0($antialiasing,1,1.5,2,3)
@@ -66402,7 +66441,7 @@ fx_output_565 :
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
 # Launches interactive G'MIC demos and mini-games.
 #@gui : "}, sep = separator()
-#@gui : Selection = choice("2048","Blobs Editor","Bouncing Balls","Connect-Four","Fire Effect","Fireworks",
+#@gui : Selection = choice(19,"2048","Blobs Editor","Bouncing Balls","Connect-Four","Fire Effect","Fireworks",
 #@gui : "Fish-Eye Effect","Fourier Filtering","Hanoi Tower",
 #@gui : "Histogram","Hough Transform","Jawbreaker","Virtual Landscape","The Game of Life","Light Effect",
 #@gui : "Mandelbrot Explorer","3D Metaballs","Minesweeper",
