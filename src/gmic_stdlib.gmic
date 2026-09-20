@@ -776,8 +776,8 @@ reference : skip "${2=}"
 "* 'wh': shortcut for 'width*height'."\n\
 "* 'whd': shortcut for 'width*height*depth'."\n\
 "* 'whds': shortcut for 'width*height*depth*spectrum' (i.e. number of image values)."\n\
-"* 'im', 'iM', 'ia', 'iv', 'id', 'is', 'ip', 'ic', 'in': Respectively the minimum, maximum, average, variance, "\
-"standard deviation, sum, product, median value and L2-norm of the associated image, if any ('0' otherwise)."\n\
+"* 'ia', 'ic', 'id', 'im', 'iM', 'in', 'ip', 'is', 'iv': Respectively the average, median, standard deviation, "\
+"minimum, maximum, L2-norm, product, sum and variance of the associated image, if any ('0' otherwise)."\n\
 "* 'xm', 'ym', 'zm', 'cm': The pixel coordinates of the minimum value in the associated image, "\
 "if any ('0' otherwise)."\n\
 "* 'xM', 'yM', 'zM', 'cM': The pixel coordinates of the maximum value in the associated image, "\
@@ -1070,7 +1070,7 @@ reference : skip "${2=}"
 "from a source value 'src' to a specified destination 'dest', with increments defined by 'inc_d' and 'inc_s' "\
 "respectively for the destination and source pointers."\n\
 "* 'stats(_#ind)' returns the statistics vector of the running image '[ind]', i.e the vector "\
-"`[ im,iM,ia,iv,xm,ym,zm,cm,xM,yM,zM,cM,is,ip ]` (14 values)."\n\
+"`[ im,iM,ia,iv,xm,ym,zm,cm,xM,yM,zM,cM,is,ip,in ]` (15 values)."\n\
 "* 'stats(X,w,h,d,s)' returns the statistics vector of the vector 'X', seen as an image of size '(w,h,d,s)'."\n\
 "* 'ref(expr,a)' references specified expression 'expr' as variable name 'a'."\n\
 "* 'unref(a,b,...)' destroys references to the named variable given as arguments."\n\
@@ -4732,7 +4732,10 @@ _display_tensors : check "${1=16}>0 && ${2=1.5}>=0 && isint(${3=2},0,2) && ${4=2
       begin(C = resize([255],s#1,1); Co = resize([0],s#1,1); Co[s#1 - 1] = $3?255:0);
       "${-math_lib}"
       X = ([ x,y ]+=0.5)*$1;
-      T = [ R, G, G, B ];
+      T = s==1?[ i0,0,0,i0 ]:
+          s==3?[ i0,i1,i1,i2 ]:
+          s==4?[ i0,i1,i2,i3 ]:
+          [ nan,nan,nan,nan ];
       E = eig(T);
       r1 = E[0];
       r2 = E[1];
@@ -9992,12 +9995,13 @@ _print : skip ${1=},${3=}
                       s_vale = v2s(vale,-1); put_sep(s_vale,whds - 63);
                       string(s_vals,', ... ,',s_vale);
                     )"`}).
-      im,iM,ia,id,xm,ym,zm,cm,xM,yM,zM,cM={$>,_[im,iM,ia,id,xm,ym,zm,cm,xM,yM,zM,cM]}
+      im,iM,ia,id,in,xm,ym,zm,cm,xM,yM,zM,cM={$>,_[im,iM,ia,id,in,xm,ym,zm,cm,xM,yM,zM,cM]}
       s_stats="  "\
               ${_vt100_b}"min"$_vt100_n" = "$im", "\
               ${_vt100_b}"max"$_vt100_n" = "$iM", "\
               ${_vt100_b}"mean"$_vt100_n" = "$ia", "\
               ${_vt100_b}"std"$_vt100_n" = "$id", "\
+              ${_vt100_b}"norm"$_vt100_n" = "$in", "\
               ${_vt100_b}"coords_min"$_vt100_n" = ("$xm,$ym,$zm,$cm"), "\
               ${_vt100_b}"coords_max"$_vt100_n" = ("$xM,$yM,$zM,$cM")."
       is_stats=1
@@ -11042,7 +11046,7 @@ update_deprecate : check "isint($1,1,999)"
 
 # update_download_html.
 # Update file versions on G'MIC download page, with specified version number.
-# $1 = version number (e.g. '3.7.5').
+# $1 = version number (e.g. '3.7.6').
 update_download_html : check "
     is_digit(c)=(c>=_'0' && c<=_'9');
     ver = ['${1=undefined}'];
@@ -12946,7 +12950,7 @@ upload_filters :
   x "cd "$HOME"/work/src/gmic-community && git pull"
 
   # Define the list of compatible versions.
-  versions=371,372,373,374,375,$_version
+  versions=371,372,373,374,375,376,$_version
 
   # Import filters from stdlib and community.
   files $HOME/work/src/gmic-community/include/*.gmic
@@ -13042,8 +13046,8 @@ upload_filters :
     e "** Upload JSON filters."
     repeat narg($versions) {
       ver:=arg0($>,$versions)
-      ot ${_path_rc}/update$_version.json
-      _upload[] ${_path_rc}/update$ver.json,update$ver.json,1
+      ot ${_path_rc}update$_version.json
+      _upload[] ${_path_rc}update$ver.json,update$ver.json,1
     }
     rm
   }
@@ -13065,7 +13069,7 @@ _upload : skip "${2=""}","${3=0}"
   fi
   if narg($GMIC_LOGIN)
     x $3,"lftp sftp://"$GMIC_LOGIN":@ovh -e \"put -O /home/"$GMIC_LOGIN"/www/gmic/ "\
-         "\\\"$1\\\" -o \\\""$out"\\\"; quit\" >/dev/null"
+         "\\\"$1\\\" -o \\\""$out"\\\"; quit\""
   fi
 
 # Upload or list released binaries on the G'MIC web server.
@@ -32642,7 +32646,7 @@ nn_network : check "s=['${1=}']; s==0 || isvarname(s)"
 # normalize_l2 | normalize_l2_x | normalize_l2_y | normalize_l2_z | normalize_l2_c | \
 # relu | sigmoid | sin | sinc | \
 # softmax | softmax_x | softmax_y | softmax_z | softmax_c | \
-# msqr | sqrt | swish | tanh | z2 | z3 }.
+# sqr | sqrt | swish | tanh | z2 | z3 }.
 #@cli : Default value: 'activation=leakyrelu'.
 nn_nl : check "isvarname(['$1']) && # out
                (s2 = ['$2']; isvarname(s2) || s2=='.') && # in
@@ -36034,14 +36038,22 @@ wave : skip ${1=4},${2=0.4},${3=50},${4=50}
 #@cli : Default values: 'amplitude=20', 'angle=0', 'attenuation=0.7' and 'threshold=20'.
 #@cli : $ image.jpg +wind ,
 wind : check "isint(${1=20},0) && ${3=0.7}>=0 && $3<=1" skip "${2=0},${4=20}"
-  e[^-1] "Apply wind effect on image$?, with amplitude $1, angle $2 deg., attenuation $3 and threshold $4."
+  e[^-1] "Apply wind effect on image$?, with amplitude $1, angle $2 deg., attenuation $3 and contour threshold $4."
   if !$1 return fi
-  dx,dy,fact:=[cexp([0,$2°]),(1-$3)^(1/$1)]
   foreach {
-    +gradient_norm >=. $4% M:=iM
-    r. 100%,100%,1,.. *. ..
-    repeat $1 { +shift. {round($>*[$dx,$dy])} max[0,-1] *. $fact remove_pixels. {100/$1}% }
-    rm.
+    +gradient_norm. >=. $4 distance. 0 +max_patch. 3 *[-2,-1]
+    100%,100%,1,{-2,s+1}
+    eval.. ":begin(U = cexp([0,$2°]); U/=abs(maxabs(U)));
+      i?(
+        I = I(#-3); X = [ x,y ]; N = v($1/2,$1);
+        repeat (N,k,
+          iX = round(X); cI = I(#-3,iX);
+          I(#-1,iX) = vmax(I(#-1,iX),[ vmax(I,cI),lerp(1,1 - $3,(k/N)^0.25) ]);
+          X-=U;
+          !min(inrange(X,[0,0],[w,h]))?break();
+        );
+      )"
+    rm.. s. c,-{s-1} j... ..,0,0,0,0,1,. rm[-2,-1]
   }
 
 #@cli zoom : _factor,_cx,_cy,_cz,_boundary_conditions={ 0:Dirichlet | 1:Neumann | 2:Periodic | 3:Mirror }
@@ -45511,7 +45523,7 @@ fx_gmicky_preview :
 #@gui : from the server logs: <i>IP address of the client; date and time of the request;</i>
 #@gui : as well as a short string, supplied through the HTTP protocol <i>"User Agent"</i> header
 #@gui : field, which describes the full plugin version as shown in the window title
-#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.2 - Linux 64 bits - 3.7.5</i>").\n\n
+#@gui : (e.g. "<i>G'MIC-Qt for GIMP 3.2 - Linux 64 bits - 3.7.6</i>").\n\n
 #@gui : Note that this information may solely be used for purely anonymous
 #@gui : statistical purposes.
 #@gui : "}
@@ -45543,8 +45555,8 @@ fx_gmicky_preview :
 #@gui : - <b>2024/12/31</b> : version <i>3.5.0</i>.\n
 #@gui : - <b>2025/08/21</b> : version <i>3.6.0</i>.\n
 #@gui : - <b>2026/02/13</b> : version <i>3.7.0</i>.\n
-#@gui : - <span foreground="#EE5500"><b>2026/03/18</b> : version <i>3.7.4</i> (Current stable).</span>\n
-#@gui : - <b>2026/03/20</b> : version <i>3.7.5</i> (Current pre-release).\n
+#@gui : - <span foreground="#EE5500"><b>2026/04/30</b> : version <i>3.7.5</i> (Current stable).</span>\n
+#@gui : - <b>2026/05/01</b> : version <i>3.7.6</i> (Current pre-release).\n
 #@gui : "}
 #@gui : sep = separator()
 #@gui : url = link{"View changelog for next major version (3.8)","https://discuss.pixls.us/t/on-the-road-to-gmic-3-8"}
@@ -53371,7 +53383,7 @@ fx_gradient2rgb :
 # Draws lines connecting points of equal brightness.
 #@gui : "}, sep = separator()
 #@gui : Levels = ~int(8,1,256)
-#@gui : Smoothness = ~float(0,0,5)
+#@gui : Smoothness = ~float(4,0,10)
 #@gui : Filling = choice(1,"Transparent","Colors")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
@@ -55101,10 +55113,10 @@ fx_warp_rbf_preview :
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
 # Smears the image to simulate a wind effect.
 #@gui : "}, sep = separator()
-#@gui : Amplitude = ~int(20,0,500)
-#@gui : Angle = ~float(0,0,360)
+#@gui : Amplitude (px) = ~int(20,0,512)
+#@gui : Angle (deg) = ~float(0,0,360)
 #@gui : Attenuation = ~float(0.7,0,1)
-#@gui : Threshold = ~float(20,0,100)
+#@gui : Threshold (%) = ~float(20,0,100)
 #@gui : Mode = ~choice(1,"Darker","Brighter")
 #@gui : sep = separator()
 #@gui : Channel(s) = ~choice("All","RGBA [All]","RGBA [Red-Green-Blue]","RGBA [Red]","RGBA [Green]","RGBA [Blue]",\
@@ -55120,7 +55132,7 @@ fx_warp_rbf_preview :
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2023/05/26</i>.</small>")
 fx_wind :
   if !$5 negate fi
-  ac "wind ${1-4}",$6,$7
+  ac "wind ${1-3},$4%",$6,$7
   if !$5 negate fi
 
 #@gui Zoom : fx_zoom_v2, fx_zoom_v2_preview
@@ -55315,7 +55327,7 @@ fx_blur_dof_preview :
 
 _fx_blur_dof :
   if !$3 # Gaussian DOF
-    foreach {
+    foreach { nm={n}
       if $11 drgba fi
       split_opacity l[0] {
         rmax:=(w*w+h*h)^0.5 R:=$7*$rmax/100 r:=$8*$rmax/100
@@ -55329,20 +55341,20 @@ _fx_blur_dof :
           +isoline3d[1] {0.1*$1} col3d. 255,255,0
           +isoline3d[1] {0.5*$1} col3d. 255,128,0
           +3d[-2--1]
-          __fx_dof_blur[0,1] $2,$ms,$Ms,$4
+          __fx_blur_dof[0,1] $2,$ms,$Ms,$4
           [0],[0],1,3 j3d. ..,0,0,0,1,1,0,0 rm..
           circle. $5%,$6%,3,1,255,255,255
           +compose_channels. + !=. 0 dilate. 3
           j[0] ..,0,0,0,0,0.5,.,1 rm[-2,-1]
-        else __fx_dof_blur[0,1] $2,$ms,$Ms,$4 # Without preview
+        else __fx_blur_dof[0,1] $2,$ms,$Ms,$4 # Without preview
         fi
       }
-      if $11 k[0] fi a c
+      if $11 k[0] fi a c => $nm
     }
   elif $!>1 # User-defined DOF (as bottom layer)
     luminance. n. 0,1 ^. {10^$12}
-    repeat $!-1 { +r. {$>,w},{$>,h},1,1,3 l[$>,-1] {
-      split_opacity[0] __fx_dof_blur[0,-1] $2,0,$1,$4 a c
+    repeat $!-1 { +r. {$>,w},{$>,h},1,1,3 l[$>,-1] { nm={0,n}
+      split_opacity[0] __fx_blur_dof[0,-1] $2,0,$1,$4 a c => $nm
     } } rm.
   else drgba to "Depth-of-field (bottom layer) is missing !",2,2,13,2,1,255
   fi
@@ -55354,7 +55366,7 @@ _fx_blur_dof :
 # $2 = minimal blur level.
 # $3 = maximal blur level.
 # $4 = invert blur.
-__fx_dof_blur :
+__fx_blur_dof :
   n[1] 0,{$1-1} round[1]
   [0],[0],1,{0,s+1}
   s=0
@@ -57850,10 +57862,16 @@ fx_frame :
 #@gui : Radius (%) = float(20,0,100)
 #@gui : Smoothness = float(0.1,0,15)
 #@gui : Color = color(0,0,0,255)
+#@gui : Anti-alias = bool(1)
 #@gui : sep = separator()
-#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2010/12/29</i>.</small>")
+#@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/05/03</i>.</small>")
 fx_frame_round :
-  to_rgba frame_round $1%,$2%,$3%,${4-7}
+  foreach {
+    to_rgba w,h:=w,h
+    if $9 r 150%,150%,1,100%,1 fi
+    frame_round $1%,$2%,$3%,${4-8}
+    if $9 r $w,$h,1,100%,2 fi
+  }
 
 #@gui Frame [Smooth] : fx_frame_smooth, fx_frame_smooth(1)
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
