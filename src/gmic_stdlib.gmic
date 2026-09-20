@@ -10695,11 +10695,11 @@ _select :
 
 
 #@cli shape_hilbert : _size>=0,_nb_recursions>=0
-#@cli : Input a 2D hilbert curve with specified size.
+#@cli : Input a 2D image of the Hilbert curve.
 #@cli : Default values: 'size=512' and 'nb_recursions=5'.
 #@cli : $ shape_hilbert ,
 shape_hilbert : check "${1=512}>=0 && isint(${2=4},0)"
-  e[^-1] "Input a $1x$1 hilbert curve shape."
+  e[^-1] "Input a $1x$1 image of the Hilbert curve."
   ir:=round($1)
   if !$ir 0
   else l[] {
@@ -10719,7 +10719,7 @@ shape_hilbert : check "${1=512}>=0 && isint(${2=4},0)"
         px = x; py = y;
       )"
   } fi
-  => "[2D hilbert curve]"
+  => "[Hilbert curve]"
 
 #@cli shape_menger : _nb_iterations>=0
 #@cli : Input a 3D voxelized representation of the Menger sponge.
@@ -10744,6 +10744,45 @@ shape_hilbert : check "${1=512}>=0 && isint(${2=4},0)"
     repeat $nbi { r. {3*[w,h,d]},1,0,2 +ri[0] . *[-2,-1] }
     k.
   } => "[3D Mosely Snowflake]"
+
+#@cli shape_peano : _size>=0,_nb_recursions>=0
+#@cli : Input a 2D image of the Peano curve.
+#@cli : Default values: 'size=512' and 'nb_recursions=3'.
+#@cli : $ shape_peano ,
+shape_peano : check "${1=512}>=0 && isint(${2=3},0)"
+  e[^-1] "Input a $1x$1 image of the Peano curve."
+
+  # Generate curve vertices.
+  0 eval "
+    x = y = 0; dy = 1; dx = 0;
+    turn_left() = ( swap(dx,dy); dx=-dx; );
+    turn_right() = ( swap(dx,dy); dy=-dy; );
+    forward() = ( x+=dx; y+=dy; da_push([x,y]); );
+    L(n) = (
+      n>0?(
+        L(n - 1); forward(); R(n - 1); forward(); L(n - 1);
+        turn_right(); forward(); turn_right();
+        R(n - 1); forward(); L(n - 1); forward(); R(n - 1);
+        turn_left(); forward(); turn_left();
+        L(n - 1); forward(); R(n - 1); forward(); L(n - 1);
+      );
+    );
+    R(n) = (
+      n>0?(
+        R(n - 1); forward(); L(n - 1); forward(); R(n - 1);
+        turn_left(); forward(); turn_left();
+        L(n - 1); forward(); R(n - 1); forward(); L(n - 1);
+        turn_right(); forward(); turn_right();
+        R(n - 1); forward(); L(n - 1); forward(); R(n - 1);
+      );
+    );
+    da_push([0,0]); L(1 + $2);
+    da_freeze()"
+
+  # Draw curve.
+  repeat 2 { sh. $> n. 0,{$1-1} rm. } round. permute. cyxz
+  $1,$1 polygon. ..,1,-0xFFFFFFFF,1
+  rm.. => "[Peano curve]"
 
 #@cli shape_polygon : _size>=0,_nb_vertices>=3,_angle
 #@cli : Input a 2D polygonal binary shape with specified geometry.
@@ -15585,20 +15624,68 @@ colormap : check "isint($1,0) && isbool(${2=1}) && isint(${3=1},0,2)"
 
   foreach { nm={n}
 
-    # Always extract full colormap (avoid working on duplicated colors).
-    +n 0,255 100%,100%,100%,1,"H = 0; repeat (s#-1,c,(H*=31)+=j(#-1,0,0,0,c)); H%2048" # Compute hashcode map
-    rm.. equalize. 2048 n. 0,2047 round. 1
-    0x2048 eval[0] "> # Find single occurrence of each color/vector
-      begin(size = vector2048());
-      I = I; H = i#1; indH = H + 2; sizH = size[H];
-      !sizH || find(#indH,I,s#0*(sizH - 1),-s#0)<0?( # Color not found
-        sizH>=h(#indH)?resize(#indH,s#0,max(8,2*h#indH),1,1,0);
-        copy(i(#indH,0,sizH,0,0),I);
-        ++size[H];
-      );
-      end(fill(size,k,resize(#k + 2,s#0,size[k],1,1,0))); _0"
-    a[2--1] y permute. yzcx rm..
+    # Always extract full colormap first (avoid working on duplicated colors).
+    eval "begin(is_int = 1); is_int&=isint(i); end(merge(is_int,&); set('is_int',is_int))"
+    if $is_int" && "s<=3 repeat s { sh. $> im$>,siz$>:=im,iM-im+1 rm. } fi
+    if $is_int" && "s<=3" && "((s==1" && "$siz0<=16777216)" || "(s==2" && "$siz0*$siz1<=16777216))
+      # Optimized case when only relatively small integers are used for pixel values.
+      if s==1 $siz0 else $siz0,$siz1 fi
+      eval.. ">begin(const im0 = $im0; const im1 = $im1); s==1?++i[#-1,i - im0]:++i(#-1,i0 - im0,i1 - im1); _0"
+      1,1,1,{-2,s}
+      eval.. "begin(const im0 = $im0; const im1 = $im1); i?(s#-3==1?da_push(x + im0):da_push([ x + im0,y + im1 ]));
+        end(da_freeze())"
+      permute. yxzc rm..
 
+    elif $is_int # More generic case, with larger integers -> use integer hashes
+      +n 0,255 100%,100%,100%,1,"H = 0; repeat (s#-1,c,(H*=31)+=j(#-1,0,0,0,c)); H%2048" # Compute hashcode map
+      rm.. equalize. 2048 n. 0,2047 round. 1
+      0x2048 eval[0] "> # Find single occurrence of each color/vector
+        begin(size = vector2048());
+        I = I; H = i#1; indH = H + 2; sizH = size[H];
+        !sizH || find(#indH,I,s#0*(sizH - 1),-s#0)<0?( # Color not found
+          sizH>=h(#indH)?resize(#indH,s#0,max(8,2*h#indH),1,1,0);
+          copy(i(#indH,0,sizH,0,0),I);
+          ++size[H];
+        );
+        end(fill(size,k,resize(#k + 2,s#0,size[k],1,1,0))); _0"
+      a[2--1] y permute. yzcx rm..
+
+    else # Most generic case -> use float32 hashes
+      100%,100%,100%,4,":
+        hash_f32(C) = (
+          const A = 2654435761;
+          const B = 2246822519;
+          const M = 16777213;
+          H = 1;
+          repeat (size(C),i,
+            X = isnan(C[i])?0:((C[i]*8192)%M);
+            H = (H*A + X*B + 1)%M;
+          );
+          H;
+        );
+        C = I(#-1);
+        [ hash_f32(C),x,y,z ]"
+      r. {whd},1,1,100%,-1 sort. +,x
+
+      1,1,1,{s-1}x2
+      eval... ">begin(hash = -1); # Extract unique colors.
+        color = I(#-4,i1,i2,i3);
+        hash!=i0?(
+          hash = i0;
+          i(#-2,0,h(#-2) - 1) = 0; # Empty dynamic array
+          da_push(#-2,color); da_push(#-1,color);
+        ):( # Check that color doesn't already exist in dynamic array
+          already_exist = 0;
+          repeat(da_size(#-2),k,I[#-2,k]==color?(already_exist = 1; break()));
+          !already_exist?(
+            da_push(#-2,color); da_push(#-1,color);
+          );
+        );
+        end(da_freeze(#-1)); _0"
+      rm[-3,-2] permute. yxzc
+    fi
+
+    # Quantize colors in 'nb_levels'.
     if $1" && "$1<w
 
       # Median-cut algorithm.
@@ -17902,8 +17989,8 @@ arrange : skip "${1=AH}" check "inrange(${2=0.5},-1,1) && isint(${3=0},0,2)" ski
     ({'"$1"'}) 0
     eval.. ">i = i; # Replace random transformations with their values
       i==_'M'?da_push(v?_'V':_'H'):
-      i==_'F'?((r = v(3))?r<3?da_push(r - 1?_'Y':_'X'):da_push(_'X',_'Y')):
-      i==_'Q'?((r = v(3))?r<3?da_push(r - 1?_'L':_'R'):da_push(_'R',_'R')):
+      i==_'F'?((r = v(3))?(r<3?da_push(r - 1?_'Y':_'X'):da_push(_'X',_'Y')):da_push(_':')):
+      i==_'Q'?((r = v(3))?(r<3?da_push(r - 1?_'L':_'R'):da_push(_'R',_'R')):da_push(_':')):
       i==_'?'?(ind = v($nb_images - 1); str = v2s(ind); for (k = 0, str[k], da_push(str[k++]))):
       da_push(i);
       end(da_freeze())" layout={t} rm[-2,-1]
@@ -24296,7 +24383,7 @@ thickpolygon : check "(isnum($1) && isint($1,1)) || "${"is_image_arg $1"}
   if isnum($1) # Coordinates explicitly set in arguments
     N=$1 x0,y0=${2,3} k,ind=1,4 repeat $N-1 { x$k,y$k=${arg$ind},${arg{$ind+1}} k+=1 ind+=2 } vertices=
   else # Coordinates specified as an image
-    pass$1 N:=int(whds/2) r. 2,$N,1,1,-1 permute. yzcx round. store. vertices ind=2
+    pass$1 0 N:=int(whds/2) r. 2,$N,1,1,-1 permute. yzcx round. store. vertices ind=2
   fi
   thickness,is_open,opacity,color=3,0,1,0
   if $ind<=$#
@@ -24341,53 +24428,6 @@ thickpolygon : check "(isnum($1) && isint($1,1)) || "${"is_image_arg $1"}
     100%,100%,1,{0,s} fc. $color j[0] .,$xm,$ym,0,0,$opacity,..
     k[0]
   }
-
-#@cli thickpolyline : [coords],thickness>=0,_is_closed={ 0:No, 1:Yes },opacity,_pattern,_color1,...
-#@cli : Draw a thick polyline on selected images.
-#@cli : '[coords]' is the image of vertex coordinates (2D vector-valued pixels).
-#@cli : 'pattern' is an hexadecimal number starting with '0x' which can be omitted
-#@cli : even if a color is specified. If a pattern is specified, the thickness is assumed to be '0'.
-#@cli : Default values: 'thickness=1', 'is_closed=0', 'opacity=1', 'pattern=(undefined)' and 'color1=0'.
-#@cli : $ 1024,1024,1,3 10,1,1,2 repeat 10 { rand. 0,1023 thickpolyline.. .,18,0,0.5,${-RGB} } rm. rs 50%
-thickpolyline : check ${"is_image_arg $1"}" && ${2=0}>=0 && isbool(${3=0}) && isnum(${4=1})" skip ${5=0},${6=0}
-  s0,s1="","closed "
-  if ${"is_pattern \"$5\""}
-    e[0--3] "Draw a thick "${s$3}"polyline on image$?, with thickness $2, opacity $4, pattern $5 and color (${6--1})."
-    pattern=$5 color=${6--1}
-  else
-    e[0--3] "Draw a thick "${s$3}"polyline on image$?, with thickness $2, opacity $4 and color (${5--1})."
-    pattern= color=${5--1}
-  fi
-  pass$1 0 if s<2 channels. 0,1 fi
-  foreach[^-1] {
-    pass. 1
-    if $4!=1 # Transparent drawing: Draw polyline in a temporary binary image
-      sh. 0 xm,xM:=floor(im-$2),ceil(iM+$2) rm.
-      sh. 1 ym,yM:=floor(im-$2),ceil(iM+$2) rm.
-      . sh. 0 -. $xm rm. sh. 1 -. $ym rm.
-      {[$xM-$xm+1,$yM-$ym+1]}
-      thickpolyline. ..,${2,3},1,1
-      100%,100%,1,{0,s} fc. $color
-      j[0] .,$xm,$ym,0,0,$4,..
-    elif $2>1 # Thick line: draw it with polygons
-      1,{whd},1,10
-      eval.. "begin(off = 0; const t = $2/2 - 0.5);
-        P0 = I; P1 = J[1,$3?2:1];
-        T = unitnorm(P1 - P0); N = [ -T[1], T[0] ]*t;
-        I[#-1,off++] = round([ P0, P0 - N, P0 + N, P1 + N, P1 - N ]);
-        _0"
-      eval. "
-        S0 = I; S1 = J[1,$3?2:3];
-        polygon(#0,4,S0[2,8],1,"$color");
-        polygon(#0,3,S0[8,2],S1[2,2],S1[0,2],1,"$color");
-        polygon(#0,3,S0[6,2],S1[0,2],S1[4,2],1,"$color");
-        _0"
-    else # Thin line: Use standard line drawing
-      eval. "P0 = I; P1 = J[1,$3?2:1]; polygon(#0,2,P0,P1,1,"$color")"
-    fi
-    k[0]
-  }
-  rm.
 
 #@cli thickspline : x0[%],y0[%],u0[%],v0[%],x1[%],y1[%],u1[%],v1[%],_thickness,_opacity,_color1,...
 #@cli : Draw specified colored thick spline curve on selected images (cubic hermite spline).
@@ -27346,6 +27386,7 @@ rotation3d :
 
 #@cli sierpinski3d : _recursion_level>=0,_width,_height
 #@cli : Input 3D Sierpinski pyramid.
+#@cli : Default values: 'recursion_level=4', 'width=1' and 'height=1'.
 #@cli : $ sierpinski3d 3,100,-100 +primitives3d 1 color3d[-2] ${-rgb}
 +sierpinski3d : check ${1=4}>=0 skip ${2=1},${3=1}
   e[^-1] "Input 3D Sierpinski pyramid of degree $1, with width $2 and height $3."
@@ -64367,6 +64408,11 @@ fx_twisted_rays :
 #@gui : Description = note{"<span color="#EE5500"><b>Description:</b></span> \
 # Draw a single variable-density Hilbert Curve that reproduces an image.
 #@gui : "}, sep = separator()
+#@gui : Brightness (%) = float(0,-100,100)
+#@gui : Contrast (%) = float(0,-100,100)
+#@gui : Gamma (%) = float(0,-100,100)
+#@gui : Smoothness = float(2,0,20)
+#@gui : sep = separator()
 #@gui : Curve Orientation = choice("Top Left → Top Right","Top Left → Bottom Left",\
 # "Top Right → Bottom Right","Top Right → Top Left",\
 # "Bottom Right → Bottom Left","Bottom Right → Top Right",\
@@ -64375,18 +64421,18 @@ fx_twisted_rays :
 #@gui : Finest Level = int(16,0,16)
 #@gui : Level Switching Step = int(2,1,16)
 #@gui : Color Mode = choice("White on Black","Black on White")
-#@gui : Image Smoothness = float(2,0,20)
 #@gui : Curve Smoothness = float(0,0,10)
 #@gui : Curve Thickness = float(2,0,10)
 #@gui : Anti-Aliasing = choice(1,"None","x1.5","x2","x3")
 #@gui : sep = separator()
 #@gui : note = note("<small>Author: <i>David Tschumperlé</i>.      Latest Update: <i>2026/08/03</i>.</small>")
 fx_vdhc :
+  image_brightness,image_contrast,image_gamma,image_smoothness,\
   curve_orientation,level_coarsest,level_finest,level_switching_step,\
-  color_mode,smoothness,curve_smoothness,curve_thickness,antialiasing=${1-9}
+  color_mode,curve_smoothness,curve_thickness,antialiasing=${1-12}
 
   foreach {
-    w,h:=w,h => img
+    w,h:=w,h adjust_colors $image_brightness,$image_contrast,$image_gamma => img
 
     # Generate N recursion levels of the Hilbert Curve.
     l[] {
@@ -64411,7 +64457,7 @@ fx_vdhc :
     mv[0] $!
 
     # Quantize image to reproduce.
-    +luminance[img] b. $smoothness if $color_mode negate. fi
+    luminance[img] b. $image_smoothness if $color_mode negate. fi
     quantize. $nb_levels,0,1
     => levelmap
 
@@ -64436,9 +64482,11 @@ fx_vdhc :
     # Draw curve.
     fact:=arg0($antialiasing,1,1.5,2,3)
     {[$w,$h]*$fact},1,1,{$color_mode?255:0} => canvas
-    sh.. 0 *. {canvas,w} rm. sh.. 1 *. {canvas,h} rm. round..
-    thickpolyline[canvas] ..,{$curve_thickness*$fact},0,1,{$color_mode?0:255}
+    sh[coords] 0 *. {canvas,w} rm. sh[coords] 1 *. {canvas,h} rm. round[coords]
+    permute[coords] cyzx
+    thickpolygon[canvas] [coords],-{$curve_thickness*$fact},1,{$color_mode?0:255}
     if 0$_is_preview
+      permute[coords] cyzx
       to_rgb[canvas]
       circle[canvas] {coords,I[0]},{7*$fact},0.75,255,0,0
       circle[canvas] {coords,I[-1,2]},{7*$fact},0.75,0,255,0
